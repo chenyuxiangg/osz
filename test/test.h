@@ -4,5 +4,6 @@
 void test_uart(void);
 void test_dlink(void);
 void test_mem(void);
+void test_printf(void);
 
 #endif

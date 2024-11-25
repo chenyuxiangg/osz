@@ -11,7 +11,7 @@ QFLAGS := -nographic -smp 1 -machine virt -bios none -m 128M
 
 # config module, this is relative path which from G_PROJECT_PATH
 MODULES := test kernel/startup kernel/drivers/uart kernel/base/struct kernel/comm
-MODULES += kernel/base/mem
+MODULES += kernel/base/mem kernel/debug
 
 # config link global options
 LDFLAGS := -T$(ZOS_LD) -Map=$(TARGET_NAME).map --gc-sections -static

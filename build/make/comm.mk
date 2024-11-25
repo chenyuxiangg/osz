@@ -2,8 +2,8 @@
 COMM_CURRENT_PATH := $(abspath $(lastword $(MAKEFILE_LIST)))
 
 # set compiler info
-COMPILER_NAME := riscv32-linux-musl
-CROSS = $(CROSS_COMPILER_PATH)/$(COMPILER_NAME)-
+G_COMPILER_NAME := riscv32-unknown-elf
+CROSS = $(CROSS_COMPILER_PATH)/$(G_COMPILER_NAME)-
 CC = $(CROSS)gcc
 LD = $(CROSS)ld
 AR = $(CROSS)ar
@@ -18,9 +18,11 @@ G_BUILD_PATH := $(G_PROJECT_PATH)/build
 G_TEST_PATH := $(G_PROJECT_PATH)/test
 G_OUTPUT_PATH := $(G_PROJECT_PATH)/output
 G_PLATFORM_PATH := $(G_PROJECT_PATH)/platform
+G_KERNEL_DEBUG_PATH := $(G_KERNEL_PATH)/debug
 G_KERNEL_COMM_PATH := $(G_KERNEL_PATH)/comm
 G_KERNEL_BASE_PATH := $(G_KERNEL_PATH)/base
 G_KERNEL_DRIVERS_PATH := $(G_KERNEL_PATH)/drivers
+G_COMPILER_PATH := $(G_PROJECT_PATH)/tools/$(G_COMPILER_NAME)
 
 # set hide command
 HIDE := @

@@ -33,3 +33,8 @@ void drv_uart_write(const char *str)
 {
     hal_uart_write(str);
 }
+
+void drv_uart_putc(const char c)
+{
+    hal_uart_putc(c);
+}

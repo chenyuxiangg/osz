@@ -43,6 +43,7 @@ void hal_uart_set_parity_force_en(unsigned char en);
 void hal_uart_set_stop_bit(unsigned char bit_num);
 void hal_uart_set_data_len(unsigned char data_len);
 void hal_uart_write(const char *s);
+void hal_uart_putc(unsigned char ch);
 void hal_uart_set_irq_en(unsigned char en);
 
 #endif

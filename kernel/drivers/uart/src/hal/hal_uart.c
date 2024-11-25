@@ -93,7 +93,7 @@ void hal_uart_set_data_len(unsigned char data_len)
     WRITE_BYTE((UART0_BASE_ADDR + LCR), lcr);
 }
 
-static void hal_uart_putc(unsigned char ch)
+void hal_uart_putc(unsigned char ch)
 {
     while ((READ_BYTE(UART0_BASE_ADDR + LSR) & LSR_TX_IDLE) == 0);
 	WRITE_BYTE((UART0_BASE_ADDR + THR), ch);

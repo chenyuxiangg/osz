@@ -8,6 +8,10 @@
 ./configure --prefix=/home/zyzs/code/riscv_tool_chain/install --with-arch=rv32gc --with-abi=ilp32d --enable-default-pie --with-languages=c,c++ --with-cmodel=medany
 ```
 
+## 已集成的第三方库
+
+1. 集成了[嵌入式中最好的printf](https://github.com/mpaland/printf)，实现文件直接拷贝到`kernel/debug`目录下（只有`printf.c`和`printf.h`）;
+
 ## FAQ
 
 1. 当使用`-g`选项生成带调试信息的可执行文件时，链接脚本中不能对`.debug_*`这类段进行指定，应该保持默认；

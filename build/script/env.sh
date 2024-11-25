@@ -1,5 +1,5 @@
 # inherit from build.sh
-compiler_name=riscv32-linux-musl
+compiler_name=riscv32-unknown-elf
 tools_path=${current_path}/../tools
 build_path=${current_path}
 qemu_path=${tools_path}/qemu

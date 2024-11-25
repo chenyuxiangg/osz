@@ -45,7 +45,9 @@ init_reg:
 	ZERO_REG x31
 	
 reset:
-	la 		t0, stack + DEFAULT_STACK_SIZE
+	la 		t0, stack
+	li 		t1, DEFAULT_STACK_SIZE
+	add		t0, t0, t1
 	mv		sp, t0
 
 init_bss:

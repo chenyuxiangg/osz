@@ -29,6 +29,10 @@ SECTIONS
 		_data_end = .;
 	} > DTCM
 
+	.got : {
+		*(.got .got.*)
+	} > DTCM
+
 	. = ALIGN(0x20);
 	.bss (NOLOAD) : {
 		__system_bss_start = .;
