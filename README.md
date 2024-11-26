@@ -13,6 +13,12 @@
 ## 已集成的第三方库
 
 1. 集成了[嵌入式中最好的printf](https://github.com/mpaland/printf)，实现文件直接拷贝到`kernel/debug`目录下（只有`printf.c`和`printf.h`）;
+2. 集成了[musl-1.2.5](https://github.com/chenyuxiangg/musl)，编译参数如下：
+```shell
+./configure CC=${ROOT_PATH}/osz/tools/riscv32-unknown-elf/bin/riscv32-unknown-elf-gcc --prefix=${ROOT_PATH}/osz/opensource/musl --disable-shared
+
+make && make install
+```
 
 ## FAQ
 
