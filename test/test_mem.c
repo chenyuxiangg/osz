@@ -1,5 +1,31 @@
+#include "string.h"
 #include "zos_mem.h"
 #include "uart.h"
+#include "printf.h"
+
+static void test_mem_operator()
+{
+    int *arr = (int *)zos_malloc(sizeof(int) * 4);
+    printf("arr addr: 0x%x\n", arr);
+    int arr1[] = { 0xa, 0xb, 0xc, 0xd };
+    for (int i = 0; i < sizeof(arr); ++i) {
+        arr[i] = i * i;
+    }
+    for (int i = 0; i < sizeof(arr); ++i) {
+        printf("index[%d]: %d\n", i, arr[i]);
+    }
+    printf("========= memset ===========\n");
+    memset(arr, 0, sizeof(arr) * sizeof(int));
+    for (int i = 0; i < sizeof(arr); ++i) {
+        printf("index[%d]: %d\n", i, arr[i]);
+    }
+    printf("========= memcpy ===========\n");
+    memcpy(arr, arr1, sizeof(arr) * sizeof(int));
+    for (int i = 0; i < sizeof(arr); ++i) {
+        printf("index[%d]: %d\n", i, arr[i]);
+    }
+    zos_free(arr);
+}
 
 void test_mem(void)
 {
@@ -28,4 +54,7 @@ void test_mem(void)
         drv_uart_write("[mem] test alloc fail!\n");
         return;
     }
+    zos_free(arr3);
+    zos_free(arr4);
+    test_mem_operator();
 }

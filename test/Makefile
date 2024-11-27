@@ -14,8 +14,7 @@ LOCAL_FLAGS += -I$(G_KERNEL_COMM_PATH)/include
 LOCAL_FLAGS += -I$(G_KERNEL_BASE_PATH)/mem/bestfit/include
 LOCAL_FLAGS += -I$(G_KERNEL_BASE_PATH)/mem/include
 LOCAL_FLAGS += -I$(G_KERNEL_DEBUG_PATH)/include
-LOCAL_FLAGS += -I$(G_COMPILER_PATH)/$(G_COMPILER_NAME)/include
-LOCAL_FLAGS += -I$(G_COMPILER_PATH)/lib/gcc/riscv32-unknown-elf/14.2.0/include
+LOCAL_FLAGS += -I$(G_OPENSOURCE_MUSL_PATH)/include
 
 LOCAL_FLAGS += -Wno-array-bounds
 
