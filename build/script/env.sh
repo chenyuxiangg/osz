@@ -24,11 +24,21 @@ config_toolchain() {
         tar xz -f ${toolchain_path}.tar.gz
         popd
     fi
+}
+
+set_env() {
     export CROSS_COMPILER_PATH=${tools_path}/${compiler_name}/bin
     export QEMU_PATH=${tools_path}/qemu
     export COMM_MK=${build_path}/make/comm.mk
+    export CFG_MK=${build_path}/make/cfg.mk
     export MODULE_MK=${build_path}/make/module.mk
     export OUTPUT_PATH=${current_path}/../output
 }
 
+gen_config() {
+    python3 ${build_path}/script/parser_cfg.py
+}
+
 config_toolchain
+gen_config
+set_env

@@ -10,8 +10,18 @@ QEMU := $(QEMU_PATH)/bin/qemu-system-riscv32
 QFLAGS := -nographic -smp 1 -machine virt -bios none -m 128M
 
 # config module, this is relative path which from G_PROJECT_PATH
-MODULES := test kernel/startup kernel/drivers/uart kernel/base/struct kernel/comm
-MODULES += kernel/base/mem kernel/debug opensource/musl
+MODULES_y :=
+MODULES_n :=
+MODULES_$(ZOS_CFG_STARTUP) += kernel/startup
+MODULES_$(ZOS_CFG_STRUCT) += kernel/base/struct
+MODULES_$(ZOS_CFG_COMM) += kernel/comm
+MODULES_$(ZOS_CFG_MEM) += kernel/base/mem
+MODULES_$(ZOS_CFG_DEBUG) += kernel/debug
+MODULES_$(ZOS_CFG_MUSL) += opensource/musl
+MODULES_$(ZOS_CFG_UART) += kernel/drivers/uart
+MODULES_$(ZOS_CFG_TEST) += test
+
+MODULES := $(MODULES_y)
 
 # config link global options
 LDFLAGS := -T$(ZOS_LD) -Map=$(TARGET_NAME).map --gc-sections -static

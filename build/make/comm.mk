@@ -31,6 +31,8 @@ HIDE := @
 # set linker file
 ZOS_LD := $(G_BUILD_PATH)/zos.ld
 
+include $(CFG_MK)
+
 # some comm function
 define build_module_target
 	$(HIDE)echo "[Start]	Processing in $(G_PROJECT_PATH)/$(1)"
