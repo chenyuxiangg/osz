@@ -6,5 +6,6 @@
 #include "align.h"
 #include "qualifer.h"
 #include "ztype.h"
+#include "menuconfig.h"
 
 #endif

@@ -2,6 +2,7 @@
 CFLAGS := -nostdlib -fno-builtin -nostartfiles -nostdinc -ffunction-sections -fdata-sections -ggdb -Wall
 CFLAGS += -march=rv32g -mabi=ilp32d
 CFLAGS += -fPIC -static
+CFLAGS += -I$(G_TARGETS_PATH)/platform/include
 
 all: clean $(MODULE)
 

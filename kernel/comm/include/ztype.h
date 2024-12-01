@@ -13,9 +13,16 @@
 #define FALSE       (0)
 #endif
 
+#define SUCCESS     (0)
+#define FAILUER     (-1)
+#define OS_OK       (0)
+#define OS_NOK      (-1)
+
 typedef int             INT32;
 typedef unsigned int    UINT32;
 typedef char            INT8;
+typedef char            CHAR;
+typedef unsigned char   UCHAR;
 typedef unsigned char   UINT8;
 typedef short           INT16;
 typedef unsigned short  UINT16;

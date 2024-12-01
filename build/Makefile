@@ -16,9 +16,11 @@ MODULES_$(ZOS_CFG_STARTUP) += kernel/startup
 MODULES_$(ZOS_CFG_STRUCT) += kernel/base/struct
 MODULES_$(ZOS_CFG_COMM) += kernel/comm
 MODULES_$(ZOS_CFG_MEM) += kernel/base/mem
-MODULES_$(ZOS_CFG_DEBUG) += kernel/debug
-MODULES_$(ZOS_CFG_MUSL) += opensource/musl
 MODULES_$(ZOS_CFG_UART) += kernel/drivers/uart
+MODULES_$(ZOS_CFG_DEBUG) += kernel/debug
+MODULES_$(ZOS_CFG_SCHEDULE) += kernel/base/schedule
+MODULES_$(ZOS_CFG_TASK) += kernel/base/task
+MODULES_$(ZOS_CFG_MUSL) += opensource/musl
 MODULES_$(ZOS_CFG_TEST) += test
 
 MODULES := $(MODULES_y)

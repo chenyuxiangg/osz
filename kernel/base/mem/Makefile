@@ -13,6 +13,6 @@ LOCAL_FLAGS += -I$(G_PLATFORM_PATH)/qemu_virt/include
 LOCAL_FLAGS += -I$(G_KERNEL_BASE_PATH)/mem/bestfit/include
 LOCAL_FLAGS += -I$(G_KERNEL_BASE_PATH)/mem/include
 
-LOCAL_FLAGS += -Wno-array-bounds
+LOCAL_FLAGS += -Wno-array-bounds -Wno-int-conversion
 
 include $(MODULE_MK)

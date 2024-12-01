@@ -4,6 +4,8 @@
 #define ZOS_CFG_MEM	1
 #define ZOS_CFG_DEBUG	1
 #define ZOS_CFG_MUSL	1
+#define ZOS_CFG_TASK	1
+#define ZOS_CFG_SCHEDULE	1
 #define ZOS_CFG_TASK_LIMIT	16
 #define ZOS_CFG_UART	1
 #define ZOS_CFG_TEST	1

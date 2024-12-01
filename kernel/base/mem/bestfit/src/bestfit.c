@@ -29,15 +29,11 @@ STATIC VOID os_memhead_init(MEM_HEAD_INFO * head)
     head->first_node = (MEM_NODE_INFO *)((char *)head + MEM_HEAD_INFO_SIZE);
 }
 
-STATIC BOOL os_is_bestfit_free(MEM_NODE_INFO *free_node)
+STATIC BOOL os_is_bestfit_free(MEM_NODE_INFO *free_node, UINT32 size)
 {
-    UINT32 std_size = 0x10;
-    UINT32 expect_size = ALIGN_UP(MEM_NODE_GET_SIZE(free_node), 0x10);
-    for (int i = 0; i < 8; ++i) {
-        if (expect_size == std_size) {
-            return TRUE;
-        }
-        std_size *= 0x10;
+    UINT32 expect_size = ALIGN_UP(size, 0x10);
+    if (MEM_NODE_GET_SIZE(free_node) == expect_size) {
+        return TRUE;
     }
     return FALSE;
 }
@@ -110,7 +106,7 @@ UINTPTR os_mem_get_next_bestfit_free(UINT32 size)
         MEM_NODE_INFO *entry = DLINK_ENTRY(MEM_NODE_INFO, node_list, iter);
         if (MEM_NODE_GET_USED(entry) & MEM_USED_MASK) {
             continue;
-        } else if (os_is_bestfit_free(entry) == FALSE) {
+        } else if (os_is_bestfit_free(entry, size) == FALSE) {
             last_free_node = entry;
             continue;
         } else {
