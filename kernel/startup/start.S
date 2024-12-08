@@ -2,6 +2,7 @@
 
 .section .text.start
 .globl _start
+.globl trap_entry
 
 .macro ZERO_REG reg
 	xor		\reg, \reg, \reg
@@ -45,6 +46,9 @@ init_reg:
 	ZERO_REG x31
 	
 reset:
+	la		t0, trap_entry
+	csrw	mtvec, t0
+	
 	la 		t0, stack
 	li 		t1, DEFAULT_STACK_SIZE
 	add		t0, t0, t1

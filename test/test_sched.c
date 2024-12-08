@@ -23,8 +23,6 @@ static void task2(void *data)
         os_udelay(10);
         os_schedule();
     }
-    // os_schedule();
-    // while (1);
 }
 
 void test_sched(void)

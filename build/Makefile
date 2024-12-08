@@ -22,6 +22,7 @@ MODULES_$(ZOS_CFG_SCHEDULE) += kernel/base/schedule
 MODULES_$(ZOS_CFG_TASK) += kernel/base/task
 MODULES_$(ZOS_CFG_MUSL) += opensource/musl
 MODULES_$(ZOS_CFG_TEST) += test
+MODULES_$(ZOS_CFG_TRAP) += kernel/base/trap
 
 MODULES := $(MODULES_y)
 
