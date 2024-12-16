@@ -1,6 +1,6 @@
 #include "comm.h"
 #include "bestfit.h"
-#include "osz_mem.h"
+#include "mem.h"
 
 VOID osz_memory_init(VOID *pool)
 {

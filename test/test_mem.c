@@ -1,5 +1,5 @@
 #include "string.h"
-#include "osz_mem.h"
+#include "mem.h"
 #include "uart.h"
 #include "printf.h"
 

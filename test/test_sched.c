@@ -1,7 +1,7 @@
 #include "printf.h"
-#include "osz_mem.h"
+#include "mem.h"
 #include "task.h"
-#include "osz_sched.h"
+#include "schedule.h"
 
 static void task1(void *data)
 {
