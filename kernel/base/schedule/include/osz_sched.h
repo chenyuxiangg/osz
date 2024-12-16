@@ -1,5 +1,5 @@
-#ifndef __ZOS_SCHED_H__
-#define __ZOS_SCHED_H__
+#ifndef __OSZ_SCHED_H__
+#define __OSZ_SCHED_H__
 
 #include "coordination.h"
 

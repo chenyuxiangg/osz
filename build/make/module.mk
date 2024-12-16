@@ -31,10 +31,10 @@ else
 endif
 
 %.o:%.c
-	$(HIDE)$(CC) $(ZOS_CFG_MACRO) $(CFLAGS) $(LOCAL_FLAGS) -c -o $@ $<
+	$(HIDE)$(CC) $(OSZ_CFG_MACRO) $(CFLAGS) $(LOCAL_FLAGS) -c -o $@ $<
 
 %.o:%.S
-	$(HIDE)$(CC) $(ZOS_CFG_MACRO) $(CFLAGS) $(LOCAL_FLAGS) -c -o $@ $<
+	$(HIDE)$(CC) $(OSZ_CFG_MACRO) $(CFLAGS) $(LOCAL_FLAGS) -c -o $@ $<
 
 clean:
 	$(HIDE)rm -rf *.a *.o

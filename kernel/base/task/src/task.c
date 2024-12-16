@@ -3,7 +3,7 @@
 #include "task.h"
 #include "inner_task_err.h"
 
-STATIC TASK_CB SECTION_KERNEL_INIT_DATA g_tasks[ZOS_CFG_TASK_LIMIT] = { 0 };
+STATIC TASK_CB SECTION_KERNEL_INIT_DATA g_tasks[OSZ_CFG_TASK_LIMIT] = { 0 };
 
 STATIC UINT32 inner_check_params(TASK_PARAMS *params)
 {
@@ -28,7 +28,7 @@ UINT32 os_create_task(TASK_PARAMS *params)
         return OS_NOK;
     }
     UINT32 task_id;
-    for (task_id = 0; task_id < ZOS_CFG_TASK_LIMIT; ++task_id) {
+    for (task_id = 0; task_id < OSZ_CFG_TASK_LIMIT; ++task_id) {
         if (g_tasks[task_id].used == TASK_USED) {
             continue;
         }
@@ -42,7 +42,7 @@ UINT32 os_create_task(TASK_PARAMS *params)
         g_tasks[task_id].tsk_context.sp = params->stack_top;
         break;
     }
-    if (task_id < 0 || task_id >= ZOS_CFG_TASK_LIMIT) {
+    if (task_id < 0 || task_id >= OSZ_CFG_TASK_LIMIT) {
         return OS_NOK;
     }
     return task_id;
@@ -64,7 +64,7 @@ VOID os_change_task_status(UINT32 task_id, TASK_FLAGS flags)
 
 UINT32 os_get_current_tid()
 {
-    for (int i = 0; i < ZOS_CFG_TASK_LIMIT; ++i) {
+    for (int i = 0; i < OSZ_CFG_TASK_LIMIT; ++i) {
         if (g_tasks[i].tsk_status.task_flags == TSK_FLAG_RUNNING) {
             return i;
         }
@@ -74,7 +74,7 @@ UINT32 os_get_current_tid()
 
 TASK_CB *os_get_taskcb_by_tid(UINT32 tid)
 {
-    if (tid < 0 || tid >= ZOS_CFG_TASK_LIMIT) {
+    if (tid < 0 || tid >= OSZ_CFG_TASK_LIMIT) {
         return NULL;
     }
     return &g_tasks[tid];

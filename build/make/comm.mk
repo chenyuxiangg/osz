@@ -31,7 +31,7 @@ G_KERNEL_DRIVERS_PATH := $(G_KERNEL_PATH)/drivers
 HIDE := @
 
 # set linker file
-ZOS_LD := $(G_BUILD_PATH)/osz.ld
+OSZ_LD := $(G_BUILD_PATH)/osz.ld
 
 include $(CFG_MK)
 
@@ -45,7 +45,7 @@ define build_module_target
 endef
 
 define add_libs
-	ifeq ($(ZOS_CFG_$(shell echo $(1) | tr a-z A-Z)), y)
+	ifeq ($(OSZ_CFG_$(shell echo $(1) | tr a-z A-Z)), y)
 	LIBS += -l$(1)
 	endif
 endef

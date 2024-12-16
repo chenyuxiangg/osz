@@ -1,5 +1,5 @@
-#ifndef __ZOS_MEM_H__
-#define __ZOS_MEM_H__
+#ifndef __OSZ_MEM_H__
+#define __OSZ_MEM_H__
 
 #include "platform.h"
 #include "bestfit.h"

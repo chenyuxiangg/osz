@@ -36,7 +36,7 @@ def parser_cfg(cfg_abs_path):
 def gen_cfgmk(cfg_info, cfgmk_abs_path):
     if cfg_info:
         with open(cfgmk_abs_path, "w") as mk_f:
-            mk_f.write("ZOS_CFG_MACRO := ")
+            mk_f.write("OSZ_CFG_MACRO := ")
             for k,v in cfg_info.items():
                 if v == 1:
                     mk_f.write("-D{} ".format(k))
