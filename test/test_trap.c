@@ -1,8 +1,8 @@
 #include "printf.h"
 #include "comm.h"
-#include "zos_mem.h"
+#include "osz_mem.h"
 #include "task.h"
-#include "zos_sched.h"
+#include "osz_sched.h"
 
 static void task(void *data)
 {
@@ -14,7 +14,7 @@ static void task(void *data)
 void test_trap(void)
 {
     os_schedule_init();
-    UCHAR *stack = (UCHAR *)zos_malloc(0x800);
+    UCHAR *stack = (UCHAR *)osz_malloc(0x800);
     TASK_PARAMS param = {
         .data = NULL,
         .name = "test_trap",

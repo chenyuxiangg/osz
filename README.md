@@ -43,12 +43,12 @@ include $(MODULE_MK)
 
 当增加的模块提供了源码，且需要编译源码时，定义为新增加一个源码组件，需要按照如下规则执行:
 
-1. 确认`MODULE_NAME`,可以用户自定义，但需要确保与`build/config/zos.config`中的配置`ZOS_CFG_XXX`中的XXX一致;
+1. 确认`MODULE_NAME`,可以用户自定义，但需要确保与`build/config/osz.config`中的配置`ZOS_CFG_XXX`中的XXX一致;
 2. 配置`MODULE`变量为**lib$(MODULE_NAME).a**;
 3. 确保待编译的文件已放置在`C_SRCS`变量中;
 4. 配置`LOCAL_FLAGS`,新增源文件编译依赖的头文件目录、宏定义、编译选项;
 5. 在入口Makefile文件中的`MODULES`变量中增加模块（模块顶层目录的相对路径）;
-6. 在`build/config/zos.confg`文件中添加模块配置，即`ZOS_CFG_XXX=y`。
+6. 在`build/config/osz.confg`文件中添加模块配置，即`ZOS_CFG_XXX=y`。
 
 ### 增加一个库组件
 

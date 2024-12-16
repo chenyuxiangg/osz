@@ -1,8 +1,8 @@
 include ./make/comm.mk
-include ./config/zos.config
+include ./config/osz.config
 
 # config target 
-TARGET_NAME = zos
+TARGET_NAME = osz
 TARGET = $(TARGET_NAME).bin
 
 # config qemu

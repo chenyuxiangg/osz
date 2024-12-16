@@ -1,7 +1,7 @@
 #include "printf.h"
-#include "zos_mem.h"
+#include "osz_mem.h"
 #include "task.h"
-#include "zos_sched.h"
+#include "osz_sched.h"
 
 static void task1(void *data)
 {
@@ -28,7 +28,7 @@ static void task2(void *data)
 void test_sched(void)
 {
     os_schedule_init();
-    UCHAR *stack1 = (UCHAR *)zos_malloc(0x800);
+    UCHAR *stack1 = (UCHAR *)osz_malloc(0x800);
     TASK_PARAMS param1 = {
         .data = NULL,
         .name = "task1",
@@ -36,7 +36,7 @@ void test_sched(void)
         .stack_top = (UINTPTR)stack1,
         .thread = (TASK_THREAD_TYPE)task1
     };
-    UCHAR *stack2 = (UCHAR *)zos_malloc(0x800);
+    UCHAR *stack2 = (UCHAR *)osz_malloc(0x800);
     TASK_PARAMS param2 = {
         .data = NULL,
         .name = "task2",

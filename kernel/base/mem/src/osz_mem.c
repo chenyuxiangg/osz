@@ -1,13 +1,13 @@
 #include "comm.h"
 #include "bestfit.h"
-#include "zos_mem.h"
+#include "osz_mem.h"
 
-VOID zos_memory_init(VOID *pool)
+VOID osz_memory_init(VOID *pool)
 {
     os_mem_init(pool);
 }
 
-VOID *zos_malloc(UINT32 size)
+VOID *osz_malloc(UINT32 size)
 {
     if (size <= 0 || size >= (UINT32)MEM_VALID_MAX_SIZE) {
         return NULL;
@@ -17,7 +17,7 @@ VOID *zos_malloc(UINT32 size)
     return mem_addr;
 }
 
-VOID *zos_zalloc(UINT32 size)
+VOID *osz_zalloc(UINT32 size)
 {
     if (size <= 0 || size >= (UINT32)MEM_VALID_MAX_SIZE) {
         return NULL;
@@ -28,7 +28,7 @@ VOID *zos_zalloc(UINT32 size)
     return addr;
 }
 
-VOID zos_free(VOID *mem)
+VOID osz_free(VOID *mem)
 {
     ASSERT(mem);
     os_mem_set_addr_to_free(mem);

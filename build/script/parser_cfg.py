@@ -7,7 +7,7 @@ SCRIPT_PATH = os.path.join(BUILD_PATH, "script")
 CONFIG_PATH = os.path.join(BUILD_PATH, "config")
 MAKE_PATH = os.path.join(BUILD_PATH, "make")
 TARGETS_PATH = os.path.join(PROJECT_PATH, "targets")
-TARGET_NAME = sys.argv[1] if len(sys.argv) >= 2 else "zos"
+TARGET_NAME = sys.argv[1] if len(sys.argv) >= 2 else "osz"
 INCLUDE_NAME = "menuconfig.h"
 CONFIG_MK_NAME = "cfg.mk"
 
@@ -19,7 +19,7 @@ def parser_cfg(cfg_abs_path):
             line = line.strip()
             if line.find("#") != -1:
                 continue
-            if line.lower().find("zos") == -1:
+            if line.lower().find("osz") == -1:
                 continue
             params = line.split("=")
             if params[1].lower() == "y":

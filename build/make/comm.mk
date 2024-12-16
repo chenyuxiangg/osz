@@ -31,7 +31,7 @@ G_KERNEL_DRIVERS_PATH := $(G_KERNEL_PATH)/drivers
 HIDE := @
 
 # set linker file
-ZOS_LD := $(G_BUILD_PATH)/zos.ld
+ZOS_LD := $(G_BUILD_PATH)/osz.ld
 
 include $(CFG_MK)
 
