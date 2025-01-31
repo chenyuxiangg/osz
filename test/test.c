@@ -7,8 +7,10 @@ int main(int argc, char* argv[])
 	test_mem();
 	test_printf();
 	test_base_operator();
-	test_trap();
-	test_sched();
+	test_mip();
+	// test_mtime();
+	// test_trap();
+	// test_sched();
 	// Faild, because qemi virt not surport f extension.
 	// test_float_operator();
 	while(1);

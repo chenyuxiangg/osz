@@ -11,6 +11,13 @@
 #define UART0_CLOCK             (3686400)
 #define UART0_BASE_ADDR         (0x10000000)
 
+/* ======== PLIC ======== */
+#define PLIC_BASE_ADDR          (0xC000000)
+#define PLIC_HART0_MACHINE      (0x0)
+
+/* ======== PLIC ======== */
+#define CLINT_BASE_ADDR         (0x200000)
+
 /* ======== System ======== */
 extern unsigned int  __system_heap_start;
 extern unsigned int  __system_heap_size;

@@ -1,4 +1,5 @@
-#define DEFAULT_STACK_SIZE      (0x400)
+#include "menuconfig.h"
+#define STARTUP_STACK_SIZE      OSZ_CFG_STARTUP_STACK_SIZE
 
 .section .text.start
 .globl _start
@@ -49,9 +50,7 @@ reset:
 	la		t0, trap_entry
 	csrw	mtvec, t0
 	
-	la 		t0, stack
-	li 		t1, DEFAULT_STACK_SIZE
-	add		t0, t0, t1
+	la 		t0, __startup_stack_top
 	mv		sp, t0
 
 init_bss:
@@ -80,6 +79,6 @@ hold:
 
 .balign 16
 .section .stack
-stack:
-	.skip		DEFAULT_STACK_SIZE
-	.end
+__startup_stack:
+    .space  STARTUP_STACK_SIZE
+__startup_stack_top:

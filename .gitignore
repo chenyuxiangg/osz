@@ -5,3 +5,5 @@ tools/riscv32-unknown-elf.tar.gz
 tools/riscv32-linux-musl.tar.gz
 tools/qemu
 .vscode
+*.dtb
+*.dts

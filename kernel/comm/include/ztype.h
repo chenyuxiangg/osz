@@ -29,5 +29,6 @@ typedef unsigned short  UINT16;
 typedef UINT32          UINTPTR;
 typedef void            VOID;
 typedef unsigned char   BOOL;
+typedef UINT32          reg_t;
 
 #endif

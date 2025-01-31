@@ -1,5 +1,6 @@
 #ifndef __CSR_H__
 #define __CSR_H__
+#include "comm.h"
 
 #define __ASM_STR(x)		#x
 
@@ -55,5 +56,38 @@
 			      : : "r" (__v)			                \
 			      : "memory");							\
 })
+
+/* Machine Status Register, mstatus */
+#define MSTATUS_MPP (3 << 11)
+#define MSTATUS_SPP (1 << 8)
+
+#define MSTATUS_MPIE (1 << 7)
+#define MSTATUS_SPIE (1 << 5)
+#define MSTATUS_UPIE (1 << 4)
+
+#define MSTATUS_MIE (1 << 3)
+#define MSTATUS_SIE (1 << 1)
+#define MSTATUS_UIE (1 << 0)
+
+/* Machine-mode Interrupt Enable */
+#define MIE_MEIE (1 << 11) // external
+#define MIE_MTIE (1 << 7)  // timer
+#define MIE_MSIE (1 << 3)  // software
+
+/* Machine-mode Cause Masks */
+#define MCAUSE_MASK_INTERRUPT	(reg_t)0x80000000
+#define MCAUSE_MASK_ECODE	    (reg_t)0x7FFFFFFF
+
+reg_t r_tp(VOID);
+reg_t r_mhartid(VOID);
+reg_t r_mstatus(VOID);
+VOID w_mstatus(reg_t x);
+VOID w_mepc(reg_t x);
+reg_t r_mepc(VOID);
+VOID w_mscratch(reg_t x);
+VOID w_mtvec(reg_t x);
+reg_t r_mie(VOID);
+VOID w_mie(reg_t x);
+reg_t r_mcause(VOID);
 
 #endif
