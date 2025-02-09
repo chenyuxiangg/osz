@@ -11,5 +11,6 @@ void test_sched(void);
 void test_trap(void);
 void test_mtime(void);
 void test_mip(void);
+void test_interrupt(void);
 
 #endif

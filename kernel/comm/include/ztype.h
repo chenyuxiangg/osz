@@ -31,4 +31,7 @@ typedef void            VOID;
 typedef unsigned char   BOOL;
 typedef UINT32          reg_t;
 
+#define READ_BYTE(addr)             ({unsigned char val = *(volatile unsigned char *)(addr);val;})
+#define WRITE_BYTE(addr, val)       (*(volatile unsigned char *)(addr)=val)
+
 #endif

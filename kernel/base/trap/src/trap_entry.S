@@ -53,6 +53,7 @@
 trap_entry:
     save_caller_reg
     csrr    a0, mcause
+    mv      s0, sp
     li      t0, INTERRUPT_MASK
     and     t0, a0, t0
     bne     t0, zero, __interrupt_entry
@@ -66,12 +67,14 @@ __interrupt_entry:
     la      sp, INTERRUPT_SP_TOP
     call    interrupt_handler
 __ret_task:
-    csrr    sp, mscratch
+    mv      sp, s0
     restore_caller_reg
     mret
 
 .balign 16
 .section .stack.trap
+.globl __interrupt_stack_top
+.globl __exception_stack_top
 __interrupt_stack:
     .space  INTERRUPT_STACK_SIZE
 __interrupt_stack_top:

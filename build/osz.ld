@@ -41,7 +41,8 @@ SECTIONS
 	} > DTCM
 
 	.stack (NOLOAD) : {
-		*(.stack *.stack)
+		. = ALIGN(0x20);
+		*(.stack *.stack .stack.*)
 	} > DTCM
 
 	.heap (NOLOAD) : {

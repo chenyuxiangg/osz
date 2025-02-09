@@ -18,6 +18,7 @@ void drv_uart_init(void)
     };
     drv_uart_set_params(params);
     hal_uart_set_baudrate(UART_BAUDRATE);
+    hal_uart_set_irq_en(0x1);
 }
 
 void drv_uart_set_params(const UART_PARAMS params)

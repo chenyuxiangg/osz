@@ -1,3 +1,4 @@
+#include "printf.h"
 #include "platform.h"
 #include "interrupt.h"
 #include "plic.h"
@@ -22,6 +23,8 @@ void interrupt_handler(UINT32 mcause)
     if (HAS_INT_CALLBACK(source_id)) {
         INT_CALLBACK_ENTITY(source_id)(NULL);
     }
+
+    PLIC_NOTIFY_COMPLETE(PLIC_BASE_ADDR, get_context_id(), source_id - LOCAL_INTERRUPT_MAX_NUM);
 }
 
 UINT32 osz_interrupt_init(VOID)
@@ -69,7 +72,7 @@ UINT32 osz_interrupt_enable(UINT32 source_id)
     if (source_id >= OSZ_CFG_INT_LIMIT) {
         return PLIC_ERRNO_INVALID_SOURCE_ID;
     }
-    if (INT_IS_LOCAL(source_id)) {
+    if (INT_IS_TIMER(source_id) || INT_IS_SOFTWARE(source_id)) {
         w_mie(r_mie() | (1 << source_id));
     } else {
         source_id -= LOCAL_INTERRUPT_MAX_NUM;
@@ -88,7 +91,7 @@ UINT32 osz_interrupt_set_pri(UINT32 source_id, UINT32 pri)
         return PLIC_ERRNO_INVALID_SOURCE_ID;
     }
 
-    if (INT_IS_LOCAL(source_id)) {
+    if (INT_IS_TIMER(source_id) || INT_IS_SOFTWARE(source_id)) {
         return OS_OK;
     } else {
         source_id -= LOCAL_INTERRUPT_MAX_NUM;

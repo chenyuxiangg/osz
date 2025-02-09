@@ -7,7 +7,8 @@ int main(int argc, char* argv[])
 	test_mem();
 	test_printf();
 	test_base_operator();
-	test_mip();
+	test_interrupt();
+	// test_mip();
 	// test_mtime();
 	// test_trap();
 	// test_sched();
