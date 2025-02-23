@@ -15,8 +15,13 @@
 #define PLIC_BASE_ADDR          (0xC000000)
 #define PLIC_HART0_MACHINE      (0x0)
 
-/* ======== PLIC ======== */
+/* ======== CLINT ======== */
 #define CLINT_BASE_ADDR         (0x200000)
+
+/* ======== INT NUM ====== */
+#define LOCAL_INTERRUPT_MAX_NUM (16)
+#define EXTERNAL_INT_NUM_2_RAW(source_id) ((source_id) - LOCAL_INTERRUPT_MAX_NUM)
+#define EXTERNAL_INT_NUM_2_SYS(source_id) ((source_id) + LOCAL_INTERRUPT_MAX_NUM)
 
 /* ======== System ======== */
 extern unsigned int  __system_heap_start;

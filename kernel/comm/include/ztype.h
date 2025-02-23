@@ -18,18 +18,19 @@
 #define OS_OK       (0)
 #define OS_NOK      (-1)
 
-typedef int             INT32;
-typedef unsigned int    UINT32;
-typedef char            INT8;
-typedef char            CHAR;
-typedef unsigned char   UCHAR;
-typedef unsigned char   UINT8;
-typedef short           INT16;
-typedef unsigned short  UINT16;
-typedef UINT32          UINTPTR;
-typedef void            VOID;
-typedef unsigned char   BOOL;
-typedef UINT32          reg_t;
+typedef int                 INT32;
+typedef unsigned int        UINT32;
+typedef unsigned long long  UINT64;
+typedef char                INT8;
+typedef char                CHAR;
+typedef unsigned char       UCHAR;
+typedef unsigned char       UINT8;
+typedef short               INT16;
+typedef unsigned short      UINT16;
+typedef UINT32              UINTPTR;
+typedef void                VOID;
+typedef unsigned char       BOOL;
+typedef UINT32              reg_t;
 
 #define READ_BYTE(addr)             ({unsigned char val = *(volatile unsigned char *)(addr);val;})
 #define WRITE_BYTE(addr, val)       (*(volatile unsigned char *)(addr)=val)

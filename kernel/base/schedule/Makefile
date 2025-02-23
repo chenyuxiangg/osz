@@ -13,5 +13,6 @@ LOCAL_FLAGS += -I$(G_KERNEL_BASE_PATH)/task/include
 LOCAL_FLAGS += -I$(G_KERNEL_BASE_PATH)/schedule/include
 LOCAL_FLAGS += -I$(G_KERNEL_BASE_PATH)/schedule/coordination/include
 LOCAL_FLAGS += -I$(G_OPENSOURCE_MUSL_PATH)/include
+LOCAL_FLAGS += -I$(G_KERNEL_DEBUG_PATH)/include
 
 include $(MODULE_MK)

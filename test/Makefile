@@ -21,6 +21,8 @@ LOCAL_FLAGS += -I$(G_KERNEL_BASE_PATH)/schedule/coordination/include
 LOCAL_FLAGS += -I$(G_KERNEL_BASE_PATH)/trap/include
 LOCAL_FLAGS += -I$(G_KERNEL_BASE_PATH)/trap/interrupt/include
 LOCAL_FLAGS += -I$(G_ARCH_PATH)/riscv/include
+LOCAL_FLAGS += -I$(G_KERNEL_DRIVERS_PATH)/timer/include/ext
+LOCAL_FLAGS += -I$(G_KERNEL_DRIVERS_PATH)/timer/include/hal
 
 LOCAL_FLAGS += -Wno-array-bounds
 

@@ -1,4 +1,5 @@
 #include "test.h"
+#include "comm.h"
 
 int main(int argc, char* argv[])
 {
@@ -8,6 +9,7 @@ int main(int argc, char* argv[])
 	test_printf();
 	test_base_operator();
 	test_interrupt();
+	test_timer();
 	// test_mip();
 	// test_mtime();
 	// test_trap();

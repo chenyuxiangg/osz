@@ -17,6 +17,7 @@ MODULES_$(OSZ_CFG_STRUCT) += kernel/base/struct
 MODULES_$(OSZ_CFG_COMM) += kernel/comm
 MODULES_$(OSZ_CFG_MEM) += kernel/base/mem
 MODULES_$(OSZ_CFG_UART) += kernel/drivers/uart
+MODULES_$(OSZ_CFG_TIMER) += kernel/drivers/timer
 MODULES_$(OSZ_CFG_DEBUG) += kernel/debug
 MODULES_$(OSZ_CFG_SCHEDULE) += kernel/base/schedule
 MODULES_$(OSZ_CFG_TASK) += kernel/base/task
