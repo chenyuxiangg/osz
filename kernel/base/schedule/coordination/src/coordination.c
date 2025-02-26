@@ -1,4 +1,3 @@
-#include "string.h"
 #include "comm.h"
 #include "coordination.h"
 
@@ -41,18 +40,18 @@ VOID os_coord_sched_init()
 
 VOID os_coord_schedule()
 {
-    UINT32 tid = os_get_current_tid();
-    TASK_CB *cur_task = os_get_taskcb_by_tid(tid);
-    TASK_CB *next_task = os_get_next_valid_task();
-    if (cur_task->tsk_status.task_flags == TSK_FLAG_RUNNING) {
-        if (strncmp(cur_task->tsk_name, "init", strlen(cur_task->tsk_name)) == 0) {
-            os_change_task_status(tid, TSK_FLAG_PENDING);
-        } else {
-            os_change_task_status(tid, TSK_FLAG_READY);
-        }
-    }
-    if (next_task != NULL) {
-        next_task->tsk_status.task_flags = TSK_FLAG_RUNNING;
-        os_switch_to(next_task);
-    }
+    // UINT32 tid = os_get_current_tid();
+    // TASK_CB *cur_task = os_get_taskcb_by_tid(tid);
+    // TASK_CB *next_task = os_get_next_valid_task();
+    // if (cur_task->tsk_status.task_flags == TSK_FLAG_RUNNING) {
+    //     if (strncmp(cur_task->tsk_name, "init", strlen(cur_task->tsk_name)) == 0) {
+    //         os_change_task_status(tid, TSK_FLAG_PENDING);
+    //     } else {
+    //         os_change_task_status(tid, TSK_FLAG_READY);
+    //     }
+    // }
+    // if (next_task != NULL) {
+    //     next_task->tsk_status.task_flags = TSK_FLAG_RUNNING;
+    //     os_switch_to(next_task);
+    // }
 }

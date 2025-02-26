@@ -7,3 +7,4 @@ tools/qemu
 .vscode
 *.dtb
 *.dts
+opensource.tar.gz

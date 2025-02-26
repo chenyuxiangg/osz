@@ -12,7 +12,6 @@ OBJS += $(patsubst %.S, %.o, $(S_SRCS))
 
 LOCAL_FLAGS := -I$(G_KERNEL_COMM_PATH)/include
 LOCAL_FLAGS += -I$(G_KERNEL_DEBUG_PATH)/include
-LOCAL_FLAGS += -I$(G_OPENSOURCE_MUSL_PATH)/include
 LOCAL_FLAGS += -I$(G_KERNEL_BASE_PATH)/trap/include
 LOCAL_FLAGS += -I$(G_KERNEL_BASE_PATH)/trap/exception/include
 LOCAL_FLAGS += -I$(G_KERNEL_BASE_PATH)/trap/interrupt/include

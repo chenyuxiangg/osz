@@ -3,7 +3,6 @@
 #define OSZ_CFG_COMM	1
 #define OSZ_CFG_MEM	1
 #define OSZ_CFG_DEBUG	1
-#define OSZ_CFG_MUSL	1
 #define OSZ_CFG_TRAP	1
 #define OSZ_CFG_RISCV	1
 #define OSZ_CFG_STARTUP_STACK_SIZE	0x400

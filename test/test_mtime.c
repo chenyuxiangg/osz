@@ -1,4 +1,4 @@
-#include "printf.h"
+#include "comm.h"
 #define CLINT_BASE      (0x2000000)
 #define MTIME           (0xbff8)
 #define VAL_MTIME       (*(volatile unsigned int *)(CLINT_BASE + MTIME))

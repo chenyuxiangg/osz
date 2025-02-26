@@ -1,4 +1,4 @@
-#include "printf.h"
+#include "comm.h"
 #include "platform.h"
 #include "interrupt.h"
 #include "plic.h"

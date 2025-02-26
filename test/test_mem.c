@@ -1,7 +1,6 @@
-#include "string.h"
+#include "comm.h"
 #include "mem.h"
 #include "uart.h"
-#include "printf.h"
 
 static void test_mem_operator()
 {

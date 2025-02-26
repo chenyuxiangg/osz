@@ -1,4 +1,3 @@
-#include "string.h"
 #include "comm.h"
 #include "task.h"
 #include "inner_task_err.h"

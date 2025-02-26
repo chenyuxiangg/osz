@@ -1,4 +1,4 @@
-#include "printf.h"
+#include "comm.h"
 
 typedef unsigned int reg_t;
 static inline reg_t r_mip()

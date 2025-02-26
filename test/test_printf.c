@@ -1,4 +1,4 @@
-#include "printf.h"
+#include "comm.h"
 
 void test_printf(void)
 {

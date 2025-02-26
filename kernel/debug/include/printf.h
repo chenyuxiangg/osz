@@ -33,7 +33,7 @@
 #define _PRINTF_H_
 
 #include <stdarg.h>
-#include <stddef.h>
+// #include <stddef.h>
 
 
 #ifdef __cplusplus

@@ -1,4 +1,3 @@
-#include "printf.h"
 #include "comm.h"
 #include "mem.h"
 #include "task.h"

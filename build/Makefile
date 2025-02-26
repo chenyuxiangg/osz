@@ -23,7 +23,6 @@ MODULES_$(OSZ_CFG_SCHEDULE) += kernel/base/schedule
 MODULES_$(OSZ_CFG_TASK) += kernel/base/task
 MODULES_$(OSZ_CFG_TRAP) += kernel/base/trap
 MODULES_$(OSZ_CFG_RISCV) += arch/riscv
-MODULES_$(OSZ_CFG_MUSL) += opensource/musl
 MODULES_$(OSZ_CFG_TEST) += test
 
 MODULES := $(MODULES_y)
