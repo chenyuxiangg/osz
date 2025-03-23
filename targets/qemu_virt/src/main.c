@@ -13,7 +13,7 @@ VOID test_thread1_handle(VOID)
     printf("current thread: %d\n", os_get_current_tid());
     while(1) {
         g_test_sched = 0;
-        unsigned int count = 1000000000;
+        unsigned int count = 100000000;
         while(count--);
         printf("thread1...\n");
     }
@@ -24,7 +24,7 @@ VOID test_thread2_handle(VOID)
     printf("current thread: %d\n", os_get_current_tid());
     while(1) {
         g_test_sched = 0;
-        unsigned int count = 2000000000;
+        unsigned int count = 200000000;
         while(count--);
         printf("thread2...\n");
     }
@@ -33,7 +33,6 @@ VOID test_thread2_handle(VOID)
 VOID test_create_task(char *task_name, TASK_THREAD_TYPE fn)
 {
     UCHAR *task_stack = osz_malloc(0x800);
-    printf("name: %s, task_stack: %p\n", task_name, task_stack);
     TASK_PARAMS params = {
         .name = task_name,
         .stack_attr = STACK_MEM_DYNAMIC,
@@ -47,8 +46,6 @@ VOID test_create_task(char *task_name, TASK_THREAD_TYPE fn)
     if (ret != OS_OK) {
         printf("ret: %#x\n", ret);
         return;
-    } else {
-        printf("name: %s, id: %d\n", task_name, task_id);
     }
     TASK_STATE(task_id) &= (~TSK_FLAG_PENDING);
     TASK_STATE(task_id) |= TSK_FLAG_READY;
