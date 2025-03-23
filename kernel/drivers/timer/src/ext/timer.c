@@ -4,6 +4,7 @@
 
 STATIC VOID timer_int_handle(VOID *args)
 {
+    printf("%s, %d\n", __FUNCTION__, __LINE__);
     drv_timer_reload(0, TIMER_TICK_PERIOS_100_MS);
 }
 
@@ -18,6 +19,7 @@ VOID drv_timer_init(UINT8 timer_id)
     osz_interrupt_set_pri(TIMER_INT_NUM, 7);
     osz_interrupt_enable(TIMER_INT_NUM);
 }
+MODULE_INIT(drv_timer_init, l1)
 
 UINT32 drv_timer_start(UINT8 timer_id)
 {

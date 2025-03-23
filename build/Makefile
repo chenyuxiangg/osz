@@ -1,4 +1,5 @@
 include ./make/comm.mk
+include ./make/undefine_symb.mk
 include ./config/osz.config
 
 # config target 
@@ -18,17 +19,20 @@ MODULES_$(OSZ_CFG_COMM) += kernel/comm
 MODULES_$(OSZ_CFG_MEM) += kernel/base/mem
 MODULES_$(OSZ_CFG_UART) += kernel/drivers/uart
 MODULES_$(OSZ_CFG_TIMER) += kernel/drivers/timer
+MODULES_$(OSZ_CFG_TICK) += kernel/drivers/tick
 MODULES_$(OSZ_CFG_DEBUG) += kernel/debug
 MODULES_$(OSZ_CFG_SCHEDULE) += kernel/base/schedule
 MODULES_$(OSZ_CFG_TASK) += kernel/base/task
 MODULES_$(OSZ_CFG_TRAP) += kernel/base/trap
+MODULES_$(OSZ_CFG_INIT) += kernel/base/init
 MODULES_$(OSZ_CFG_RISCV) += arch/riscv
 MODULES_$(OSZ_CFG_TEST) += test
+MODULES_$(OSZ_CFG_TARGETS) += targets
 
 MODULES := $(MODULES_y)
 
 # config link global options
-LDFLAGS := -T$(OSZ_LD) -Map=$(TARGET_NAME).map --gc-sections -static
+LDFLAGS := $(OSZ_UNDEFUINE_SYMB) -T$(OSZ_LD) -Map=$(TARGET_NAME).map --gc-sections -static
 LINK_PATH := $(foreach mod,$(MODULES),$(addprefix -L$(G_OUTPUT_PATH)/,$(basename $(notdir $(mod)))))
 LINK_PATH := $(addsuffix /lib,$(LINK_PATH))
 LIBS := --start-group
@@ -47,15 +51,15 @@ $(TARGET):
 	$(foreach mod,$(MODULES),$(call build_module_target,$(mod)))
 	$(HIDE)$(LD) $(LDFLAGS) $(LINK_PATH) $(LIBS) -o $(TARGET_NAME).elf
 	$(HIDE)$(OBJCOPY) -O binary -S $(TARGET_NAME).elf $@
-	$(HIDE)$(OBJDUMP) -d $(TARGET_NAME).elf > $(TARGET_NAME).asm
+	$(HIDE)$(OBJDUMP) -S -d $(TARGET_NAME).elf > $(TARGET_NAME).asm
 
 debug: all
 	$(HIDE)echo "Press Ctrl-C and then input 'quit' to exit GDB and QEMU"
 	$(HIDE)echo "Press Ctrl-A-X to quit QEMU"
 	$(HIDE)echo "-------------------------------------------------------"
 	$(HIDE)$(G_BUILD_PATH)/script/kill_qemu.sh
-	$(HIDE)${QEMU} ${QFLAGS} -kernel $(G_OUTPUT_PATH)/image/$(TARGET_NAME).elf -s -S &
-	$(HIDE)${GDB} $(G_OUTPUT_PATH)/image/$(TARGET_NAME).elf -q -x $(G_BUILD_PATH)/script/gdbinit
+	$(HIDE)${QEMU} ${QFLAGS} -kernel $(G_OUTPUT_PATH)/image/$(TARGET_NAME).elf -s -S
+	# $(HIDE)${GDB} $(G_OUTPUT_PATH)/image/$(TARGET_NAME).elf -q -x $(G_BUILD_PATH)/script/gdbinit
 
 run: all
 	$(HIDE)${QEMU} -M ? | grep virt >/dev/null || exit

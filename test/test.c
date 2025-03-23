@@ -8,8 +8,10 @@ int main(int argc, char* argv[])
 	test_mem();
 	test_printf();
 	test_base_operator();
+	printf("interrupt begin\n");
 	test_interrupt();
-	test_timer();
+	// test_timer();
+	// test_pri_queue();
 	// test_mip();
 	// test_mtime();
 	// test_trap();

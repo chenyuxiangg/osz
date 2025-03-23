@@ -7,7 +7,10 @@ C_SRCS = $(wildcard src/*.c)
 OBJS := $(patsubst %.c, %.o, $(C_SRCS))
 
 LOCAL_FLAGS := -I$(G_KERNEL_DEBUG_PATH)/include
+LOCAL_FLAGS += -I$(G_KERNEL_BASE_PATH)/trap/include
+LOCAL_FLAGS += -I$(G_KERNEL_BASE_PATH)/trap/interrupt/include
 LOCAL_FLAGS += -I$(G_KERNEL_DRIVERS_PATH)/uart/include/ext
+LOCAL_FLAGS += -I$(G_KERNEL_DRIVERS_PATH)/uart/include/hal
 LOCAL_FLAGS += -I$(G_KERNEL_COMM_PATH)/include
 
 LOCAL_FLAGS += -DPRINTF_NTOA_BUFFER_SIZE=32

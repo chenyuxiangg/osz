@@ -19,6 +19,8 @@
 #define DLM     0x1
 #define PSD     0x5
 
+#define LSR_RX_VALID    (1 << 0)
+
 /* ======== Register bit define ======== */
 #define DLAB            7
 #define EVEN_PARITY     4

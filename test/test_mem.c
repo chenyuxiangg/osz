@@ -28,7 +28,7 @@ static void test_mem_operator()
 
 void test_mem(void)
 {
-    osz_memory_init((void *)DEFAULT_HEAP_START);
+    osz_memory_init();
     char *start = (char *)DEFAULT_HEAP_START;
     char *arr1 = (char *)osz_malloc(3);
     char *arr2 = (char *)osz_malloc(16);

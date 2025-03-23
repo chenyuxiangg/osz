@@ -24,7 +24,7 @@ void test_interrupt(void)
     osz_interrupt_set_pri(0x1a, 1);
     osz_interrupt_set_pri_th(0);
     CSR_WRITE(mstatus, 0x8);
-    CSR_WRITE(mie, (1 << 11));
+    // CSR_WRITE(mie, (1 << 11));
     UINT32 mstatus_v = CSR_READ(mstatus);
     UINT32 mie_v = CSR_READ(mie);
     printf("mstatus: %#x\n", mstatus_v);

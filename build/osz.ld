@@ -4,8 +4,15 @@ ENTRY(_start)
 
 MEMORY
 {
-	ITCM : ORIGIN = 0x80000000, LENGTH = 64M
+	ITCM : ORIGIN = 0x80000000, LENGTH = 60M
+	INIT : ORIGIN = 0x83c00000, LENGTH = 4M
 	DTCM : ORIGIN = 0x84000000, LENGTH = 64M
+}
+
+PHDRS {
+  text PT_LOAD FLAGS(5);  /* R-X (0x4 | 0x1 = 5) */
+  data PT_LOAD FLAGS(6);  /* RW- (0x2 | 0x4 = 6) */
+  init PT_LOAD FLAGS(5);
 }
 
 SECTIONS
@@ -13,25 +20,45 @@ SECTIONS
 	.text : {
 		KEEP(*(.text.start))
 		*(.text .text.*)
-	} > ITCM
+	} > ITCM :text
 
 	.rodata ALIGN(0x20) : {
 		*(.rodata .rodata.*)
-	} > ITCM
+	} > ITCM :text
 
 	.rela ALIGN(0x20) : {
 		*(.rela .rela.*)
-	} > ITCM
+	} > ITCM :text
+
+	.init : {
+		__init_start = .;
+		__init_l0_start = .;
+		KEEP(*(.init.init_l0))
+		__init_l0_end = .;
+		__init_l1_start = .;
+		KEEP(*(.init.init_l1))
+		__init_l1_end = .;
+		__init_l2_start = .;
+		KEEP(*(.init.init_l2))
+		__init_l2_end = .;
+		__init_l3_start = .;
+		KEEP(*(.init.init_l3))
+		__init_l3_end = .;
+		__init_l4_start = .;
+		KEEP(*(.init.init_l4))
+		__init_l4_end = .;
+		__init_end = .;
+	} > INIT :init
 
 	.data : {
 		_data_start = .;
 		*(.data .sdata .comment)
 		_data_end = .;
-	} > DTCM
+	} > DTCM :data
 
 	.got : {
 		*(.got .got.*)
-	} > DTCM
+	} > DTCM :data
 
 	. = ALIGN(0x20);
 	.bss (NOLOAD) : {

@@ -13,5 +13,6 @@ void test_mtime(void);
 void test_mip(void);
 void test_interrupt(void);
 void test_timer(void);
+void test_pri_queue(void);
 
 #endif

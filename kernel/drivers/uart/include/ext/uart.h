@@ -1,5 +1,7 @@
 #ifndef __UART_H__
 #define __UART_H__
+#include "hal_uart.h"
+#include "interrupt.h"
 
 #define UART_IRQ_DMA_TX     (7)
 #define UART_IRQ_DMA_RX     (6)
@@ -9,6 +11,8 @@
 #define UART_IRQ_DATA_READY (0)
 #define UART_BAUDRATE       (9600)
 #define UART_DATA_LEN_BASE  (5)
+#define UART_LSR_RX_VALID   (1 << 0)
+#define UART_INT_NUM        (0x1A)
 
 typedef enum {
     UART_DL_5 = 0,
@@ -30,5 +34,6 @@ void drv_uart_init(void);
 void drv_uart_set_params(const UART_PARAMS params);
 void drv_uart_write(const char *str);
 void drv_uart_putc(const char ch);
+void drv_uart_set_int_handle(interrupt_callback fn);
 
 #endif

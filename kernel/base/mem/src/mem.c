@@ -2,10 +2,11 @@
 #include "bestfit.h"
 #include "mem.h"
 
-VOID osz_memory_init(VOID *pool)
+VOID osz_memory_init(VOID)
 {
-    os_mem_init(pool);
+    os_mem_init((VOID *)DEFAULT_HEAP_START);
 }
+MODULE_INIT(osz_memory_init, l1)
 
 VOID *osz_malloc(UINT32 size)
 {

@@ -31,7 +31,7 @@ VOID os_coord_sched_init()
         .data = NULL,
         .name = "init",
         .stack_size = 0x800,
-        .stack_top = (UINTPTR)g_init_task_stack,
+        .stack_base = (UINTPTR)g_init_task_stack,
         .thread = NULL
     };
     UINT32 tid = os_create_task(&param);

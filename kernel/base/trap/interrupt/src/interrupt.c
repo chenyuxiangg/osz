@@ -29,12 +29,15 @@ void interrupt_handler(UINT32 mcause)
 
 UINT32 osz_interrupt_init(VOID)
 {
+    CSR_WRITE(mie, (1 << 11));
+    osz_interrupt_set_pri_th(0);
     for (int i = 0; i < OSZ_CFG_INT_LIMIT; ++i) {
         g_int_infos[i].func = NULL;
         g_int_infos[i].args = NULL;
     }
     return OS_OK;
 }
+MODULE_INIT(osz_interrupt_init, l0)
 
 UINT32 osz_interrupt_regist(UINT32 source_id, interrupt_callback func)
 {

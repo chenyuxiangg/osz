@@ -57,7 +57,7 @@ init_bss:
 	la 		a0, __system_bss_start
 	la		a1, __system_bss_end
 	call	clean_bss
-	j		main
+	j		os_init
 
 clean_bss:
 	addi	sp, sp, -4
