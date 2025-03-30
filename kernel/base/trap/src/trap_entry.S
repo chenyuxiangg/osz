@@ -33,14 +33,23 @@ __exception_entry:
     j       __ret_task
 __interrupt_entry:
     la      sp, INTERRUPT_SP_TOP
+    call    os_preemp_set_int_active
     call    interrupt_handler       /* a0: mepc, a1: mstatus */
-    call    is_need_sched
+    call    is_need_preemp
     beqz    a0, __ret_task
 __ret_new_task:
+    call os_preemp_clr_int_active
     csrr sp, mscratch
-    call os_preemp_schedule
+    restore_csr_reg
+    restore_callee_reg
+    addi sp, sp, 16 * REGBYTES
+    restore_caller_reg
+    addi sp, sp, 16 * REGBYTES
+    call os_preemp_schedule_with_pm
+    j    schedule
     
 __ret_task:
+    call os_preemp_clr_int_active
     csrr sp, mscratch
     restore_csr_reg
     restore_callee_reg

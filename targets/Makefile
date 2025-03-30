@@ -20,6 +20,7 @@ LOCAL_FLAGS += -I$(G_KERNEL_BASE_PATH)/task/include
 LOCAL_FLAGS += -I$(G_KERNEL_BASE_PATH)/schedule/include
 ifeq ($(OSZ_CFG_SCHEDULE_PREEMPTION), y)
 LOCAL_FLAGS += -I$(G_KERNEL_BASE_PATH)/schedule/preemption/include
+LOCAL_FLAGS += -I$(G_KERNEL_BASE_PATH)/schedule/preemption/sortlink/include
 endif
 ifeq ($(OSZ_CFG_SCHEDULE_COORDINATION), y)
 LOCAL_FLAGS += -I$(G_KERNEL_BASE_PATH)/schedule/coordination/include

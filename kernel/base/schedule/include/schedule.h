@@ -13,7 +13,9 @@ extern VOID schedule(VOID);
 #ifdef OSZ_CFG_SCHEDULE_PREEMPTION
 #include "preemption.h"
 #define os_schedule_init    os_preemp_sched_init
-#define os_schedule         os_preemp_schedule
+#define os_schedule         os_preemp_reschedule
+extern BOOL g_need_preemp;
+extern BOOL g_int_active;
 #endif
 
 #endif

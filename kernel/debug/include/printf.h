@@ -33,12 +33,12 @@
 #define _PRINTF_H_
 
 #include <stdarg.h>
-// #include <stddef.h>
-
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#define DEBUG_INFO()    printf("%s, %d\n", __FUNCTION__, __LINE__)
 
 
 /**

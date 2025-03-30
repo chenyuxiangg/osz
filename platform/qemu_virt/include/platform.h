@@ -23,6 +23,10 @@
 #define EXTERNAL_INT_NUM_2_RAW(source_id) ((source_id) - LOCAL_INTERRUPT_MAX_NUM)
 #define EXTERNAL_INT_NUM_2_SYS(source_id) ((source_id) + LOCAL_INTERRUPT_MAX_NUM)
 
+/* ======== TICK ========= */
+#define CYCLES_PER_US       (10)
+#define CYCLES_PER_TICK     (10000)
+
 /* ======== System ======== */
 extern unsigned int  __system_heap_start;
 extern unsigned int  __system_heap_size;

@@ -79,6 +79,7 @@ hold:
 
 .balign 16
 .section .stack
+.global __startup_stack_top
 __startup_stack:
     .space  STARTUP_STACK_SIZE
 __startup_stack_top:

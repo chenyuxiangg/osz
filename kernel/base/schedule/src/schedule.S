@@ -22,13 +22,14 @@ save_current_task:
     save_csr_reg
 
     la  t0, gp_current_task
-    lw  t0, 0(t0)
-    sw  sp, 0(t0)       /* save run task sp to tsk_context_pointer */
+    lw  t1, 0(t0)
+    sw  sp, 0(t1)       /* save run task sp to tsk_context_pointer */
 
 switch_to:
-    la t0, gp_new_task
-    lw t0, 0(t0)
-    lw sp, 0(t0)        /* restore new task sp from tsk_context_pointer */
+    la t1, gp_new_task
+    lw t1, 0(t1)
+    sw t1, 0(t0)        /* save new task_cb to gp_current_task */
+    lw sp, 0(t1)        /* restore new task sp from tsk_context_pointer */
     restore_csr_reg
     restore_callee_reg
     addi    sp, sp, 16 * REGBYTES
@@ -43,8 +44,5 @@ first_schedule:
     li t0, MSTATUS_MIE
     csrc mstatus, t0
 
-    la  t0, gp_new_task
-    lw  t0, 0(t0)
-    li  t1, 0x2         /* TSK_FLAG_RUNNING */
-    sw  t1, 6*REGBYTES(t0)
+    la  t0, gp_current_task
     j switch_to

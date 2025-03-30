@@ -6,6 +6,6 @@
 #define TIMER_BASE_ADDR         (0x2000000)
 #define TIMER_INT_NUM           (7)
 #define TIMER_CYCLES_PER_US     (10)
-#define TIMER_TICK_PERIOS_100_MS       (100000 / TIMER_CYCLES_PER_US)
-
+#define TIMER_100_MS            (100 * 1000)
+#define TIMER_CYCLES_PER_TICK   (TIMER_100_MS / TIMER_CYCLES_PER_US)
 #endif
