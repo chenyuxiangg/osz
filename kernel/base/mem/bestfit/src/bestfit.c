@@ -45,7 +45,7 @@ STATIC VOID os_mem_node_keep_sort(MEM_NODE_INFO *node)
     DLINK_NODE *last_sort_node = NULL;
     BOOL node_enqueue_flag = FALSE;
     DLINK_FOREACH(iter, &(end_node->node_list)) {
-        MEM_NODE_INFO *entry = DLINK_ENTRY(MEM_NODE_INFO, node_list, iter);
+        MEM_NODE_INFO *entry = STRUCT_ENTRY(MEM_NODE_INFO, node_list, iter);
         if (MEM_NODE_GET_SIZE(entry) == MEM_INVALID_SIZE) {
             continue;
         } else if (MEM_NODE_GET_SIZE(entry) >= MEM_NODE_GET_SIZE(node)) {
@@ -103,7 +103,7 @@ UINTPTR os_mem_get_next_bestfit_free(UINT32 size)
     MEM_NODE_INFO *bestfit_free_node = NULL;
     DLINK_NODE *iter = NULL;
     DLINK_FOREACH(iter, &(end_node->node_list)) {
-        MEM_NODE_INFO *entry = DLINK_ENTRY(MEM_NODE_INFO, node_list, iter);
+        MEM_NODE_INFO *entry = STRUCT_ENTRY(MEM_NODE_INFO, node_list, iter);
         if (MEM_NODE_GET_USED(entry) & MEM_USED_MASK) {
             continue;
         } else if (os_is_bestfit_free(entry, size) == FALSE) {

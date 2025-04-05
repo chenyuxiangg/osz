@@ -2,6 +2,7 @@
 #define __OFFSET_H__
 #include "ztype.h"
 
-#define OFFSET(TYPE, MEMBER)  ((UINTPTR) &((TYPE *)0)->MEMBER)
+#define STRUCT_ENTRY(type, member, item)     ((type *)(VOID *)((char *)(item) - OFFSET(type, member)))
+#define OFFSET(type, member)  ((UINTPTR) &((type *)0)->member)
 
 #endif

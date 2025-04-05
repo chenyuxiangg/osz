@@ -30,7 +30,7 @@ BOOL is_need_preemp(VOID)
     }
     UINT16 cur_task_id = os_get_current_tid();
     DLINK_NODE *dn = pri_queue_top(pri_queue_get_bitmap_low_bit());
-    TASK_CB *tmp = DLINK_ENTRY(TASK_CB, tsk_list_ready, dn);
+    TASK_CB *tmp = STRUCT_ENTRY(TASK_CB, tsk_list_ready, dn);
     UINT16 tmp_id = os_get_task_id_by_task_cb(tmp);
     if (tmp_id == cur_task_id) {
         g_need_preemp = FALSE;
@@ -84,7 +84,7 @@ VOID os_preemp_reschedule(VOID)
         case TSK_FLAG_BLOCKING:
         {
             DLINK_NODE *dn = pri_queue_top(pri_queue_get_bitmap_low_bit());
-            gp_new_task = DLINK_ENTRY(TASK_CB, tsk_list_ready, dn);
+            gp_new_task = STRUCT_ENTRY(TASK_CB, tsk_list_ready, dn);
             UINT16 new_task_id = os_get_task_id_by_task_cb(gp_new_task);
             TASK_STATUS_CLEAN(new_task_id, TSK_FLAG_READY);
             TASK_STATUS_SET(new_task_id, TSK_FLAG_RUNNING);

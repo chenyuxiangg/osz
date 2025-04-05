@@ -43,17 +43,17 @@ void test_dlink(void)
     };
 
     /* 
-    * === an error example for DLINK_ENTRY ===
+    * === an error example for STRUCT_ENTRY ===
     * TS t1 = {
     *    .list = node1,
     *    .x = 1
     * };
-    * witch is error for using DLINK_ENTRY(TS, list, &node1) to get t1 addr
+    * witch is error for using STRUCT_ENTRY(TS, list, &node1) to get t1 addr
     * because node1 is not TS member.
     */
 
 
-    TS *pt = DLINK_ENTRY(TS, list, &(t1.list));
+    TS *pt = STRUCT_ENTRY(TS, list, &(t1.list));
     if (pt->x == 1) {
         drv_uart_write("[dlink] test get entry success!\n");
     }

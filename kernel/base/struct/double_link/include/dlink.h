@@ -11,7 +11,6 @@ typedef struct DLINK_NODE {
 #define DLINK_GET_NEXT(node)                ((node)->next)
 #define DLINK_GET_PRE(node)                 ((node)->pre)
 #define DLINK_EMPTY(node)                   (((node)->next == (node) && (node)->pre == (node)) ? 1 : 0)
-#define DLINK_ENTRY(type, member, item)     ((type *)(VOID *)((char *)(item) - OFFSET(type, member)))
 #define DLINK_FOREACH(pos, node)            \
     for (pos = (node)->next; pos != NULL && pos != (node); pos = pos->next)
 

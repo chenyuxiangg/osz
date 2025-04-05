@@ -86,7 +86,7 @@ STATIC TASK_CB *inner_get_free_task_cb(VOID)
     TASK_INT_LOCK(&intSave);
     DLINK_NODE *next_free_node = dlink_del_node(g_freelist.next);
     TASK_INT_UNLOCK(intSave);
-    next_cb = DLINK_ENTRY(TASK_CB, tsk_list_free, next_free_node);
+    next_cb = STRUCT_ENTRY(TASK_CB, tsk_list_free, next_free_node);
     return next_cb;
 }
 
@@ -184,7 +184,7 @@ STATIC VOID inner_task_run2pend(UINT16 task_id)
 STATIC VOID inner_task_block2pend(UINT16 task_id)
 {
     TASK_STATUS_CLEAN(task_id, TSK_FLAG_BLOCKING);
-    SORT_LINK *sl = DLINK_ENTRY(SORT_LINK, list, TASK_LIST(task_id, blocking));
+    SORT_LINK *sl = STRUCT_ENTRY(SORT_LINK, list, TASK_LIST(task_id, blocking));
     sortlink_delete(sl);
 }
 
@@ -192,11 +192,11 @@ STATIC VOID inner_task_check_timeout(VOID)
 {
     UINT32 intSave = 0;
     TASK_INT_LOCK(&intSave);
-    SORT_LINK *sl = DLINK_ENTRY(SORT_LINK, list, SORTLINK_LIST(g_task_sortlink).next);
+    SORT_LINK *sl = STRUCT_ENTRY(SORT_LINK, list, SORTLINK_LIST(g_task_sortlink).next);
     if (PSORTLINK_TIMEOUT(sl) != 0) {
         PSORTLINK_TIMEOUT(sl) -= 1;
     } else {
-        TASK_CB *task = DLINK_ENTRY(TASK_CB, tsk_list_blocking, sl);
+        TASK_CB *task = STRUCT_ENTRY(TASK_CB, tsk_list_blocking, sl);
         UINT16 task_id = os_get_task_id_by_task_cb(task);
         TASK_STATUS_CLEAN(task_id, TSK_FLAG_BLOCKING);
         TASK_STATUS_SET(task_id, TSK_FLAG_READY);
@@ -350,7 +350,7 @@ VOID os_msleep(UINT64 msec)
     TASK_INT_LOCK(&intSave);
     TASK_STATUS_CLEAN(task_id, TSK_FLAG_RUNNING);
     TASK_STATUS_SET(task_id, TSK_FLAG_BLOCKING);
-    SORT_LINK *sl = DLINK_ENTRY(SORT_LINK, list, TASK_LIST(task_id, blocking));
+    SORT_LINK *sl = STRUCT_ENTRY(SORT_LINK, list, TASK_LIST(task_id, blocking));
     if (inner_task_sortlink_is_mounted(task_id)) {
         sortlink_delete(sl);
     }

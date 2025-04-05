@@ -26,7 +26,7 @@ UINT32 sortlink_insert(SORT_LINK *link)
         return OS_OK;
     }
     DLINK_FOREACH(iter, &(SORTLINK_LIST(g_task_sortlink))) {
-        SORT_LINK * sl = DLINK_ENTRY(SORT_LINK, list, iter);
+        SORT_LINK * sl = STRUCT_ENTRY(SORT_LINK, list, iter);
         if (PSORTLINK_TIMEOUT(sl) < PSORTLINK_TIMEOUT(link)) {
             PSORTLINK_TIMEOUT(link) -= PSORTLINK_TIMEOUT(sl);
         } else {
