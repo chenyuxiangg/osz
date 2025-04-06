@@ -6,6 +6,13 @@
 BOOL g_need_preemp = FALSE;
 BOOL g_int_active = FALSE;
 
+/*
+* WARNING: DONT MODIFY THIS VARIANT.
+*   this variant used to keep a0 when use os_preemp_reschedule
+*   becuase a0 will submit to inner_task_handler.
+*/
+STATIC UINT32 g_keep_a0 = 0xffffffff;
+
 VOID SECTION_KERNEL_INIT_TEXT os_preemp_sched_init(VOID)
 {
     UINT16 task_id = -1;
@@ -19,6 +26,11 @@ VOID SECTION_KERNEL_INIT_TEXT os_preemp_sched_init(VOID)
     gp_new_task = os_get_taskcb_by_tid(task_id);
 }
 MODULE_INIT(os_preemp_sched_init, l2)
+
+UINT32 os_preemp_keep_a0(VOID)
+{
+    return g_keep_a0;
+}
 
 BOOL is_need_preemp(VOID)
 {
@@ -65,7 +77,6 @@ VOID os_preemp_schedule_with_pm(VOID)
     TASK_STATUS_CLEAN(new_task_id, TSK_FLAG_READY);
     TASK_STATUS_SET(new_task_id, TSK_FLAG_RUNNING);
     pri_queue_dequeue(TASK_PRIORITY(new_task_id), TASK_LIST(new_task_id, ready));
-
     SCHEDULE_UNLOCK(intSave);
 }
 
@@ -89,6 +100,7 @@ VOID os_preemp_reschedule(VOID)
             TASK_STATUS_CLEAN(new_task_id, TSK_FLAG_READY);
             TASK_STATUS_SET(new_task_id, TSK_FLAG_RUNNING);
             pri_queue_dequeue(TASK_PRIORITY(new_task_id), TASK_LIST(new_task_id, ready));
+            os_preemp_keep_a0();
             schedule();
             break;
         }
