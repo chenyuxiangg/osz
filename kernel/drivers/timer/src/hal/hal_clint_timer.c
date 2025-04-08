@@ -25,8 +25,10 @@ STATIC UINT32 hal_clint_timer_disable(VOID)
 
 STATIC UINT32 hal_clint_timer_get_time_stamp(UINT64 *us)
 {
+    hal_clint_timer_disable();
     CLINT_GET_MTIMER(TIMER_BASE_ADDR, *us);
     *us /= TIMER_CYCLES_PER_US;
+    hal_clint_timer_enable();
     return OS_OK;
 }
 

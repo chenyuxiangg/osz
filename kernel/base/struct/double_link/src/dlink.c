@@ -15,10 +15,10 @@ VOID dlink_insert_head(DLINK_NODE *pos, DLINK_NODE *node)
     ASSERT(node);
     ASSERT(pos);
 
-    pos->next->pre = node;      // node1->pre = node2
-    node->next = pos->next;     // node2->next = node1
-    node->pre = pos;            // node2->pre = head
-    pos->next = node;           // head->next = node2
+    node->next = pos;
+    node->pre = pos->pre;
+    pos->pre->next = node;
+    pos->pre = node;
 }
 
 VOID dlink_insert_tail(DLINK_NODE *pos, DLINK_NODE *node)
@@ -26,10 +26,10 @@ VOID dlink_insert_tail(DLINK_NODE *pos, DLINK_NODE *node)
     ASSERT(node);
     ASSERT(pos);
 
-    pos->pre->next = node; // head->next = node1
-    node->pre = pos->pre;  // node1->pre = head
-    node->next = pos;      // node1->next = head
-    pos->pre = node;       // head->pre = node1
+    pos->next->pre = node;      // node1->pre = node2
+    node->next = pos->next;     // node2->next = node1
+    node->pre = pos;            // node2->pre = head
+    pos->next = node;           // head->next = node2
 }
 
 DLINK_NODE *dlink_del_node(DLINK_NODE *node)

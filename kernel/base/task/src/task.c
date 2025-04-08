@@ -196,12 +196,15 @@ STATIC VOID inner_task_check_timeout(VOID)
     if (PSORTLINK_TIMEOUT(sl) != 0) {
         PSORTLINK_TIMEOUT(sl) -= 1;
     } else {
-        TASK_CB *task = STRUCT_ENTRY(TASK_CB, tsk_list_blocking, sl);
-        UINT16 task_id = os_get_task_id_by_task_cb(task);
-        TASK_STATUS_CLEAN(task_id, TSK_FLAG_BLOCKING);
-        TASK_STATUS_SET(task_id, TSK_FLAG_READY);
-        sortlink_delete(sl);
-        pri_queue_enqueue(TASK_PRIORITY(task_id), TASK_LIST(task_id, ready), EQ_MODE_TAIL);
+        do {
+            TASK_CB *task = STRUCT_ENTRY(TASK_CB, tsk_list_blocking, sl);
+            UINT16 task_id = os_get_task_id_by_task_cb(task);
+            TASK_STATUS_CLEAN(task_id, TSK_FLAG_BLOCKING);
+            TASK_STATUS_SET(task_id, TSK_FLAG_READY);
+            sortlink_delete(sl);
+            pri_queue_enqueue(TASK_PRIORITY(task_id), TASK_LIST(task_id, ready), EQ_MODE_TAIL);
+            sl = STRUCT_ENTRY(SORT_LINK, list, SORTLINK_LIST(g_task_sortlink).next);
+        } while(PSORTLINK_TIMEOUT(sl) == 0);
         g_need_preemp = TRUE;
     }
     TASK_INT_UNLOCK(intSave);

@@ -4,7 +4,7 @@
 
 void test_pri_queue(void)
 {
-    pri_queue_init();
+    // pri_queue_init();
     bool flag = false;
     UINT32 ret = OS_OK;
     for (int i = 0; i < 32; ++i) {
@@ -20,19 +20,19 @@ void test_pri_queue(void)
     l1.next = l1.pre = NULL;
     l2.next = l2.pre = NULL;
     l3.next = l3.pre = NULL;
-    ret = pri_queue_enqueue(1, &l1);
+    ret = pri_queue_enqueue(1, &l1, EQ_MODE_HEAD);
     if (ret != OS_OK) {
         flag = false;
         printf("[pri_queue]error: pri_queue_enqueue err. ret: %#x\n", ret);
     }
-    ret = pri_queue_enqueue(2, &l1);
+    ret = pri_queue_enqueue(2, &l1, EQ_MODE_HEAD);
     if (ret != PRI_QUEUE_ENQUEUE_IN_QUEUE_ERR) {
         flag = false;
         printf("[pri_queue]error: same node repet enqueue. ret: %#x\n", ret);
     }
     ret = OS_OK;
-    pri_queue_enqueue(1, &l2);
-    pri_queue_enqueue(1, &l3);
+    pri_queue_enqueue(1, &l2, EQ_MODE_HEAD);
+    pri_queue_enqueue(1, &l3, EQ_MODE_HEAD);
     if (pri_queue_top(1) != &l1) {
         flag = false;
         printf("[pri_queue]error: get queue top err.\n");

@@ -27,15 +27,16 @@ UINT32 sortlink_insert(SORT_LINK *link)
     }
     DLINK_FOREACH(iter, &(SORTLINK_LIST(g_task_sortlink))) {
         SORT_LINK * sl = STRUCT_ENTRY(SORT_LINK, list, iter);
-        if (PSORTLINK_TIMEOUT(sl) < PSORTLINK_TIMEOUT(link)) {
+        if (PSORTLINK_TIMEOUT(sl) <= PSORTLINK_TIMEOUT(link)) {
             PSORTLINK_TIMEOUT(link) -= PSORTLINK_TIMEOUT(sl);
         } else {
+            PSORTLINK_TIMEOUT(sl) -= PSORTLINK_TIMEOUT(link);
             dlink_insert_head(&(PSORTLINK_LIST(sl)), &(PSORTLINK_LIST(link)));
             break;
         }
     }
     if (iter == &SORTLINK_LIST(g_task_sortlink)) {
-        dlink_insert_tail(&(SORTLINK_LIST(g_task_sortlink)), &(PSORTLINK_LIST(link)));
+        dlink_insert_head(&(SORTLINK_LIST(g_task_sortlink)), &(PSORTLINK_LIST(link)));
     }
     return OS_OK;
 }
