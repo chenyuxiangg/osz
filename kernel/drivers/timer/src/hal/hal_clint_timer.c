@@ -2,10 +2,9 @@
 #include "platform.h"
 #include "csr.h"
 
-STATIC UINT32 hal_clint_timer_reload(UINT64 us)
+STATIC UINT32 hal_clint_timer_reload(UINT64 cycles_of_us)
 {
     UINT64 current_time = 0;
-    UINT64 cycles_of_us = us * TIMER_CYCLES_PER_US;
     CLINT_GET_MTIMER(TIMER_BASE_ADDR, current_time);
     CLINT_SET_MTIMECPM(TIMER_BASE_ADDR, PLIC_HART0_MACHINE, current_time + cycles_of_us);
     return OS_OK;

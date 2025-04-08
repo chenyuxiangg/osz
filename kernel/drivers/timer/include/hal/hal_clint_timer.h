@@ -7,5 +7,5 @@
 #define TIMER_INT_NUM           (7)
 #define TIMER_CYCLES_PER_US     (10)
 #define TIMER_100_MS            (100 * 1000)
-#define TIMER_CYCLES_PER_TICK   (TIMER_100_MS / TIMER_CYCLES_PER_US)
+#define TIMER_CYCLES_PER_TICK   (TIMER_100_MS * TIMER_CYCLES_PER_US)
 #endif
