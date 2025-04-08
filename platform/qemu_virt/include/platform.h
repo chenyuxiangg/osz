@@ -25,7 +25,7 @@
 
 /* ======== TICK ========= */
 #define CYCLES_PER_US       (10)
-#define CYCLES_PER_TICK     (10000)
+#define CYCLES_PER_TICK     (100 * 1000 * CYCLES_PER_US)
 
 /* ======== System ======== */
 extern unsigned int  __system_heap_start;

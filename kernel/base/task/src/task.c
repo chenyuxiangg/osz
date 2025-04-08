@@ -348,7 +348,7 @@ VOID os_udelay(UINT64 usec)
 VOID os_msleep(UINT64 msec)
 {
     UINT32 intSave = 0;
-    UINT64 tick = ((msec * US_PER_MS) / CYCLES_PER_US) / CYCLES_PER_TICK;
+    UINT64 tick = ((msec * US_PER_MS) * CYCLES_PER_US) / CYCLES_PER_TICK;
     UINT16 task_id = os_get_current_tid();
     TASK_INT_LOCK(&intSave);
     TASK_STATUS_CLEAN(task_id, TSK_FLAG_RUNNING);
