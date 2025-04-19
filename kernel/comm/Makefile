@@ -6,6 +6,6 @@ MODULE := libcomm.a
 S_SRCS = $(wildcard src/*.S)
 OBJS := $(patsubst %.S, %.o, $(S_SRCS))
 
-LOCAL_FLAGS += -I$(G_KERNEL_COMM_PATH)/include
+LOCAL_FLAGS := 
 
 include $(MODULE_MK)

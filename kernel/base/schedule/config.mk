@@ -1,0 +1,20 @@
+CONFIG_CURRENT_PATH := $(abspath $(lastword $(MAKEFILE_LIST)))
+CONFIG_CURRENT_DIR := $(dir $(CONFIG_CURRENT_PATH))
+CONFIG_MODULE := schedule
+
+LOCAL_$(CONFIG_MODULE)_INCLUDE :=
+ifeq ($(OSZ_CFG_SCHEDULE), y)
+
+LOCAL_$(CONFIG_MODULE)_INCLUDE += -I$(CONFIG_CURRENT_DIR)/include
+
+ifeq ($(OSZ_CFG_COORDINATION), y)
+LOCAL_$(CONFIG_MODULE)_INCLUDE += -I$(CONFIG_CURRENT_DIR)/coordinatin/include
+endif
+
+ifeq ($(OSZ_CFG_PREEMPTION), y)
+LOCAL_$(CONFIG_MODULE)_INCLUDE += -I$(CONFIG_CURRENT_DIR)/preemption/include
+LOCAL_$(CONFIG_MODULE)_INCLUDE += -I$(CONFIG_CURRENT_DIR)/preemption/priority_queue/include
+LOCAL_$(CONFIG_MODULE)_INCLUDE += -I$(CONFIG_CURRENT_DIR)/preemption/sortlink/include
+endif
+
+endif

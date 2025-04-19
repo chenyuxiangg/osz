@@ -1,0 +1,20 @@
+CONFIG_CURRENT_PATH := $(abspath $(lastword $(MAKEFILE_LIST)))
+CONFIG_CURRENT_DIR := $(dir $(CONFIG_CURRENT_PATH))
+CONFIG_MODULE := trap
+
+LOCAL_$(CONFIG_MODULE)_INCLUDE :=
+ifeq ($(OSZ_CFG_TASK), y)
+
+LOCAL_$(CONFIG_MODULE)_INCLUDE += -I$(CONFIG_CURRENT_DIR)/include
+
+ifeq ($(OSZ_CFG_EXCEPTION), y)
+LOCAL_$(CONFIG_MODULE)_INCLUDE += -I$(CONFIG_CURRENT_DIR)/exception/include
+endif
+
+ifeq ($(OSZ_CFG_INTERRUPT), y)
+LOCAL_$(CONFIG_MODULE)_INCLUDE += -I$(CONFIG_CURRENT_DIR)/interrupt/include
+LOCAL_$(CONFIG_MODULE)_INCLUDE += -I$(CONFIG_CURRENT_DIR)/interrupt/include/clint
+LOCAL_$(CONFIG_MODULE)_INCLUDE += -I$(CONFIG_CURRENT_DIR)/interrupt/include/plic
+endif
+
+endif

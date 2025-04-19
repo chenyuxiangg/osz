@@ -1,0 +1,12 @@
+CONFIG_CURRENT_PATH := $(abspath $(lastword $(MAKEFILE_LIST)))
+CONFIG_CURRENT_DIR := $(dir $(CONFIG_CURRENT_PATH))
+CONFIG_MODULE := struct
+
+LOCAL_$(CONFIG_MODULE)_INCLUDE :=
+ifeq ($(OSZ_CFG_STRUCT), y)
+
+ifeq ($(OSZ_CFG_STRUCT_DLINK), y)
+LOCAL_$(CONFIG_MODULE)_INCLUDE += -I$(CONFIG_CURRENT_DIR)/double_link/include
+endif
+
+endif

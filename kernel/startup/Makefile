@@ -8,7 +8,6 @@ S_SRCS := $(wildcard *.S)
 OBJS := $(patsubst %.c, %.o, $(C_SRCS))
 OBJS += $(patsubst %.S, %.o, $(S_SRCS))
 
-LOCAL_FLAGS := -I$(G_PLATFORM_PATH)/qemu_virt/include
-LOCAL_FLAGS += -I$(G_KERNEL_COMM_PATH)/include
+LOCAL_FLAGS := 
 
 include $(MODULE_MK)

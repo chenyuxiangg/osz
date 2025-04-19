@@ -4,13 +4,13 @@
 
 extern VOID first_schedule(VOID);
 extern VOID schedule(VOID);
-#ifdef OSZ_CFG_SCHEDULE_COORDINATION
+#ifdef OSZ_CFG_COORDINATION
 #include "coordination.h"
 #define os_schedule_init    os_coord_sched_init
 #define os_schedule         os_coord_schedule
 #endif
 
-#ifdef OSZ_CFG_SCHEDULE_PREEMPTION
+#ifdef OSZ_CFG_PREEMPTION
 #include "preemption.h"
 #define os_schedule_init    os_preemp_sched_init
 #define os_schedule         os_preemp_reschedule

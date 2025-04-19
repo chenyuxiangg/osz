@@ -11,24 +11,6 @@ QEMU := $(QEMU_PATH)/bin/qemu-system-riscv32
 QFLAGS := -nographic -smp 1 -machine virt -bios none -m 128M
 
 # config module, this is relative path which from G_PROJECT_PATH
-MODULES_y :=
-MODULES_n :=
-MODULES_$(OSZ_CFG_STARTUP) += kernel/startup
-MODULES_$(OSZ_CFG_STRUCT) += kernel/base/struct
-MODULES_$(OSZ_CFG_COMM) += kernel/comm
-MODULES_$(OSZ_CFG_MEM) += kernel/base/mem
-MODULES_$(OSZ_CFG_UART) += kernel/drivers/uart
-MODULES_$(OSZ_CFG_TIMER) += kernel/drivers/timer
-MODULES_$(OSZ_CFG_TICK) += kernel/drivers/tick
-MODULES_$(OSZ_CFG_DEBUG) += kernel/debug
-MODULES_$(OSZ_CFG_SCHEDULE) += kernel/base/schedule
-MODULES_$(OSZ_CFG_TASK) += kernel/base/task
-MODULES_$(OSZ_CFG_TRAP) += kernel/base/trap
-MODULES_$(OSZ_CFG_INIT) += kernel/base/init
-MODULES_$(OSZ_CFG_RISCV) += arch/riscv
-MODULES_$(OSZ_CFG_TEST) += test
-MODULES_$(OSZ_CFG_TARGETS) += targets
-
 MODULES := $(MODULES_y)
 
 # config link global options
