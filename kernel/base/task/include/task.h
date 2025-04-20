@@ -4,6 +4,7 @@
 #include "arch_adapter.h"
 #include "dlink.h"
 #include "sortlink.h"
+#include "event.h"
 
 typedef void (*TASK_THREAD_TYPE)(VOID *data);
 
@@ -25,6 +26,10 @@ typedef void (*TASK_THREAD_TYPE)(VOID *data);
 #define TASK_STATUS_CLEAN(task_id, st)       (g_tasks[(task_id)].tsk_state &= (~(st)))
 #define TASK_STATUS_SET(task_id, st)         (g_tasks[(task_id)].tsk_state |= (st))
 #define TASK_GET_TASKID_BY_TASKCB(ptask_cb) (((char *)(ptask_cb) - (char *)&(g_tasks[0]))/sizeof(TASK_CB))
+#define TASK_EVENT_CB(task_id)              (g_tasks[(task_id)].tsk_event)
+#define TASK_EVENT_OP(task_id)              (g_tasks[(task_id)].tsk_event.event_op)
+#define TASK_EVENT_WAIT(task_id)            (g_tasks[(task_id)].tsk_event.event_wait)
+#define TASK_EVENT_OCCUR(task_id)           (g_tasks[(task_id)].tsk_event.event_occur)
 
 #define TASK_INT_LOCK(pintSave) do { \
     ARCH_INT_LOCK(*pintSave); \
@@ -101,8 +106,8 @@ typedef struct {
         DLINK_NODE      tsk_list_pending;           // pending task list
         DLINK_NODE      tsk_list_ready;             // ready task list
     };
-    SORT_LINK      tsk_list_blocking;               // specially, block state need to check timeout, so use TASK_SORT_LINK.
-    
+    SORT_LINK           tsk_list_blocking;          // specially, block state need to check timeout, so use TASK_SORT_LINK.
+    EVENT_CB            tsk_event;
 } TASK_CB;                                          // task base cost 44 bytes
 
 typedef struct {
@@ -145,6 +150,8 @@ VOID    os_update_task(VOID);
 VOID    os_task_suspend(UINT16 task_id);
 VOID    os_task_resume(UINT16 task_id);
 VOID    os_task_yeild();
+VOID    os_task_wait(EVENT_CB *ecb, UINT64 timeout);
+VOID    os_task_wake(UINT16 task_id);
 
 extern TASK_CB *gp_new_task;
 extern TASK_CB *gp_current_task;

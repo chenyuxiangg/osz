@@ -6,6 +6,24 @@
 
 SORT_LINK SECTION_KERNEL_INIT_DATA g_task_sortlink;
 
+STATIC VOID inner_debug_sortlink(SORT_LINK *head)
+{
+    DLINK_NODE *iter = NULL;
+    printf("head: %#x\n", (void *)head);
+    DLINK_FOREACH(iter, &(PSORTLINK_LIST(head))) {
+        SORT_LINK * sl = STRUCT_ENTRY(SORT_LINK, list, iter);
+        printf("next: %#x\n", (void *)sl);
+    }
+}
+
+STATIC SORT_LINK *inner_get_next_sort_link(SORT_LINK *link)
+{
+    DLINK_NODE *dl = &PSORTLINK_LIST(link);
+    DLINK_NODE *next = dl->next;
+    SORT_LINK *sl = STRUCT_ENTRY(SORT_LINK, list, next);
+    return sl;
+}
+
 UINT32 sortlink_init(SORT_LINK *head)
 {
     ASSERT(head);
@@ -44,6 +62,9 @@ UINT32 sortlink_insert(SORT_LINK *link)
 UINT32 sortlink_delete(SORT_LINK *link)
 {
     ASSERT(link);
+
+    SORT_LINK *next_sl = inner_get_next_sort_link(link);
+    PSORTLINK_TIMEOUT(next_sl) += PSORTLINK_TIMEOUT(link);
     dlink_del_node(&(PSORTLINK_LIST(link)));
     return OS_OK;
 }
