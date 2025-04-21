@@ -31,3 +31,4 @@
 #define OSZ_CFG_TICK	1
 #define OSZ_CFG_TARGETS	1
 #define OSZ_CFG_PLATFORM	qemu_virt
+#define OSZ_CFG_SHELL	1

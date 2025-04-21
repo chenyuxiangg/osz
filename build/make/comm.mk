@@ -63,6 +63,7 @@ MODULES_$(OSZ_CFG_STARTUP) += kernel/startup
 MODULES_$(OSZ_CFG_STRUCT) += kernel/base/struct
 MODULES_$(OSZ_CFG_COMM) += kernel/comm
 MODULES_$(OSZ_CFG_MEM) += kernel/base/mem
+MODULES_$(OSZ_CFG_SHELL) += kernel/shell
 MODULES_$(OSZ_CFG_UART) += kernel/drivers/uart
 MODULES_$(OSZ_CFG_TIMER) += kernel/drivers/timer
 MODULES_$(OSZ_CFG_TICK) += kernel/drivers/tick

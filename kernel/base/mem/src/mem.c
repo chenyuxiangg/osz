@@ -20,12 +20,11 @@ VOID *osz_malloc(UINT32 size)
 
 VOID *osz_zalloc(UINT32 size)
 {
-    if (size <= 0 || size >= (UINT32)MEM_VALID_MAX_SIZE) {
+    VOID *addr = osz_malloc(size);
+    if (addr == NULL) {
         return NULL;
     }
-    
-    VOID *addr = (VOID *)os_mem_get_next_bestfit_free(size);
-    // memset(addr, 0, size);
+    memset(addr, 0, size);
     return addr;
 }
 
