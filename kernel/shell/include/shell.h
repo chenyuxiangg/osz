@@ -21,7 +21,8 @@ typedef struct {
     CHAR               *cmd_name;
     CMD_CALLBACK_FUNC   cmd_func;
     CHAR               **args;
-    UINT32              argc;
+    UINT16              max_argc;
+    UINT16              cur_argc;
 } CMD_NODE;
 
 typedef struct {

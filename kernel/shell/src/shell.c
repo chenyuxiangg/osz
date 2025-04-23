@@ -111,7 +111,7 @@ STATIC VOID inner_shell_deal_get_phase()
         return;
     }
     
-    g_shell_cb.buf[g_shell_cb.buf_cur_size++] = (g_shell_cb.shell_cur_char == SHELL_SPECIAL_CHAR_SPACE) ? '0' : g_shell_cb.shell_cur_char;
+    g_shell_cb.buf[g_shell_cb.buf_cur_size++] = (g_shell_cb.shell_cur_char == SHELL_SPECIAL_CHAR_SPACE) ? '\0' : g_shell_cb.shell_cur_char;
     g_shell_cb.shell_state = SHELL_STATE_NONE;
 }
 
@@ -174,11 +174,13 @@ STATIC VOID inner_shell_deal_parse_phase()
         }
     }
     if (iter != &(g_cmd_head.list)) {
-        if (cmd->argc != 0) {
-            args = osz_malloc(sizeof(UCHAR *) * cmd->argc);
-            UINT32 index = 0;
-            for (; buf_ptr < buf_end; buf_ptr += strlen(buf_ptr)) {
-                args[index++] = buf_ptr;
+        if (cmd->max_argc != 0) {
+            args = osz_zalloc(sizeof(CHAR *) * cmd->max_argc);
+            for (;(buf_ptr < buf_end); buf_ptr += (strlen(buf_ptr) + 1)) {
+                if (cmd->cur_argc <= cmd->max_argc) {
+                    args[cmd->cur_argc] = buf_ptr;
+                }
+                cmd->cur_argc++;
             }
         }
         cmd->args = args;
@@ -186,7 +188,6 @@ STATIC VOID inner_shell_deal_parse_phase()
         cmd = NULL;
     }
     g_shell_cb.cur_cmd = cmd;
-    memset(g_shell_cb.buf, 0, g_shell_cb.shell_capcity);
     g_shell_cb.shell_state = SHELL_STATE_EXC;
 }
 
@@ -195,22 +196,25 @@ STATIC VOID inner_shell_deal_exc_phase()
     g_shell_cb.shell_state = SHELL_STATE_NONE;
     CMD_NODE *cmd = g_shell_cb.cur_cmd;
     if (cmd != NULL) {
-        cmd->cmd_func(cmd->argc, cmd->args);
+        cmd->cmd_func(cmd->cur_argc, cmd->args);
     } else {
         SHELL_PRINT("No such command.\n");
     }
     
-    if (cmd->args != NULL) {
+    memset(g_shell_cb.buf, 0, g_shell_cb.shell_capcity);
+    g_shell_cb.buf_cur_size = 0;
+    if (cmd != NULL && cmd->args != NULL) {
         osz_free(cmd->args);
+        cmd->args = NULL;
+        cmd->cur_argc = 0;
     }
-    cmd->args = NULL;
 }
 
 STATIC VOID inner_shell_deal_err_phase()
 {
     memset(g_shell_cb.buf, 0, g_shell_cb.shell_capcity);
     g_shell_cb.buf_cur_size = 0;
-    // g_shell_cb.shell_err_code = '\0';
+    g_shell_cb.shell_err_code = '\0';
     g_shell_cb.shell_state = SHELL_STATE_NONE;
 }
 
@@ -232,7 +236,7 @@ VOID shell_register_cmd(CMD_PARAMS *params)
         return;
     }
     CMD_NODE *cmd = (CMD_NODE *)osz_zalloc(sizeof(CMD_NODE));
-    cmd->argc = params->argc;
+    cmd->max_argc = params->argc;
     cmd->cmd_func = params->cmd_func;
     cmd->cmd_name = params->cmd_name;
     dlink_insert_tail(&(g_cmd_head.list), &(cmd->list));

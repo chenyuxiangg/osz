@@ -72,21 +72,33 @@ VOID test_uart_recv_handler(VOID *args)
     }
 }
 
-VOID test_cmd_func(UINT32 argc, UCHAR *argv[])
+VOID test_cmd_func(UINT32 argc, CHAR *argv[])
 {
-    printf("%s, %d\n", __FUNCTION__, __LINE__);
+    if (argc < 0 || argc > 3) {
+        printf("err args.\n");
+        return;
+    }
+    for (int i = 0; i < argc; ++i) {
+        printf("argv[%d]: %s\n", i, argv[i]);
+    }
 }
 
 INT32 main(INT32 argc, CHAR *argv[])
 {
     printf("==== Enter Main ====\n");
     drv_uart_set_int_handle((interrupt_callback)test_uart_recv_handler);
-    CMD_PARAMS params = {
-        .argc = 0,
+    CMD_PARAMS params1 = {
+        .argc = 3,
         .cmd_func = (CMD_CALLBACK_FUNC)test_cmd_func,
-        .cmd_name = "test"
+        .cmd_name = "test1"
     };
-    shell_register_cmd(&params);
+    CMD_PARAMS params2 = {
+        .argc = 2,
+        .cmd_func = (CMD_CALLBACK_FUNC)test_cmd_func,
+        .cmd_name = "test2"
+    };
+    shell_register_cmd(&params1);
+    shell_register_cmd(&params2);
     CSR_SET(mstatus, MSTATUS_MIE);
     // test_create_task("test1", (TASK_THREAD_TYPE)test_thread1_handle, 0x9);
     // test_create_task("test2", (TASK_THREAD_TYPE)test_thread2_handle, 0xa);

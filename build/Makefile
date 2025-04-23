@@ -43,6 +43,16 @@ debug: all
 	$(HIDE)${QEMU} ${QFLAGS} -kernel $(G_OUTPUT_PATH)/image/$(TARGET_NAME).elf -s -S &
 	$(HIDE)${GDB} $(G_OUTPUT_PATH)/image/$(TARGET_NAME).elf -q -x $(G_BUILD_PATH)/script/gdbinit
 
+debug_serv: all
+	$(HIDE)echo "Press Ctrl-C and then input 'quit' to exit GDB and QEMU"
+	$(HIDE)echo "Press Ctrl-A-X to quit QEMU"
+	$(HIDE)echo "-------------------------------------------------------"
+	$(HIDE)$(G_BUILD_PATH)/script/kill_qemu.sh
+	$(HIDE)${QEMU} ${QFLAGS} -kernel $(G_OUTPUT_PATH)/image/$(TARGET_NAME).elf -s -S
+
+debug_client:
+	$(HIDE)${GDB} $(G_OUTPUT_PATH)/image/$(TARGET_NAME).elf -q -x $(G_BUILD_PATH)/script/gdbinit
+
 run: all
 	$(HIDE)${QEMU} -M ? | grep virt >/dev/null || exit
 	$(HIDE)echo "Press Ctrl-A and then X to exit QEMU"
