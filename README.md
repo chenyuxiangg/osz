@@ -10,14 +10,21 @@
 ./configure --prefix=/home/zyzs/code/riscv_tool_chain/install --with-arch=rv32gc --with-abi=ilp32d --enable-default-pie --with-languages=c,c++ --with-cmodel=medany
 ```
 
+## 编译及运行
+
+clone该仓库，将`riscv-unknown-elf.tar.gz`压缩包解压到tools目录，然后执行下述命令即可编译运行：
+
+```shell
+cd build
+./build.sh run
+
+# 调试命令
+./build.sh debug
+```
+
 ## 已集成的第三方库
 
 1. 集成了[嵌入式中最好的printf](https://github.com/mpaland/printf)，实现文件直接拷贝到`kernel/debug`目录下（只有`printf.c`和`printf.h`）;
-2. 集成了[musl-1.2.5](https://github.com/chenyuxiangg/musl)，编译完成后直接使用`opensource/musl/include`及`opensource/musl/lib`即可，当前库上已包含编译后的版本，编译参数如下：
-```shell
-./configure CC=${ROOT_PATH}/osz/tools/riscv32-unknown-elf/bin/riscv32-unknown-elf-gcc --prefix=${ROOT_PATH}/osz/opensource/musl --disable-shared
-make && make install
-```
 
 ## 编译框架
 
