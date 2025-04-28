@@ -2,6 +2,19 @@
 
 取名为**Z**的操作系统，没有什么特殊的含义。
 
+## 当前支持特性
+
+* 中断框架支持
+* mtime支持
+* ns16550 uart驱动支持
+* 多任务支持
+* 内存管理支持
+* 有且仅有一个外部依赖`printf`（已源码集成）
+* qemu-riscv Virt单板支持
+* ipc支持（当前仅支持event）
+* 抢占调度支持
+* shell命令行支持（支持自定义命令）
+
 ## 交叉编译工具链信息
 
 代码仓目录下的 `tools/riscv-unknown-elf.tar.gz` 存放了可以直接用于 **riscv32** 编译的交叉编译工具链，工具链源码地址见[这里](https://github.com/riscv-collab/riscv-gnu-toolchain),commit id为`935b263c8ef7f250819c74aeb7736c87ad87ef2b`,编译参数如下：
