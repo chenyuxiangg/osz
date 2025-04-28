@@ -9,4 +9,8 @@ ifeq ($(OSZ_CFG_STRUCT_DLINK), y)
 LOCAL_$(CONFIG_MODULE)_INCLUDE += -I$(CONFIG_CURRENT_DIR)/double_link/include
 endif
 
+ifeq ($(OSZ_CFG_STRUCT_FIFO), y)
+LOCAL_$(CONFIG_MODULE)_INCLUDE += -I$(CONFIG_CURRENT_DIR)/fifo/include
+endif
+
 endif

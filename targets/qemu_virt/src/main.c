@@ -66,10 +66,7 @@ VOID test_uart_recv_handler(VOID *args)
     } else {
         printf("%c", *(CHAR *)args);
     }
-    shell_set_current_char(*(CHAR *)args);
-    if (shell_get_state() == SHELL_STATE_NONE) {
-        shell_set_state(SHELL_STATE_GET);
-    }
+    shell_write_fifo(*(CHAR *)args);
 }
 
 VOID test_cmd_func(UINT32 argc, CHAR *argv[])

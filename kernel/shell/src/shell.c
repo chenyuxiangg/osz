@@ -7,6 +7,8 @@
 #define SHELL_NAME                  "OSZ"
 #define SHELL_PRINT                 printf
 #define SHELL_CMD_KEY_LEN_MAX       (0x16)
+#define SHELL_FIFO_MAX_SIZE         (0x40)
+#define SHELL_FIFO_READ_VALID       (0x1)
 
 #define SHELL_SPECIAL_CHAR_DEL      (0x7F)          // Delete
 #define SHELL_SPECIAL_CHAR_HT       (0x9)           // Horizental Tab
@@ -25,8 +27,11 @@ STATIC SHELL_CB g_shell_cb;
 STATIC VOID inner_shell_init(VOID)
 {
     dlink_init(&(g_cmd_head.list));
+    memset((VOID *)(g_shell_cb.buf), 0, sizeof(g_shell_cb.buf));
+    g_shell_cb.fifo = fifo_create(SHELL_FIFO_MAX_SIZE);
     g_shell_cb.shell_capcity = SHELL_BUFFER_MAX_NUM - 1;    // SHELL_BUFFER_MAX_NUM reserve for '\0'
     g_shell_cb.shell_state = SHELL_STATE_NONE;
+    g_shell_cb.shell_buf_cursor = g_shell_cb.buf;
 }
 MODULE_INIT(inner_shell_init, l4)
 
@@ -44,6 +49,30 @@ STATIC BOOL inner_shell_char_is_special(CHAR c)
             (c == SHELL_SPECIAL_CHAR_LSB));
 }
 
+STATIC BOOL inner_shell_buf_cursor_has_shifted(VOID)
+{
+    return (g_shell_cb.shell_buf_cursor != (g_shell_cb.buf + g_shell_cb.buf_cur_size));
+}
+
+STATIC VOID inner_shell_reprint_with_cursor_shift(UINT32 gap_size)
+{
+    SHELL_PRINT("%s", g_shell_cb.shell_buf_cursor);
+    for (UINT32 i = 0; i < gap_size; ++i) {
+        SHELL_PRINT("\b");
+    }
+}
+
+STATIC VOID inner_shell_change_space_to_zero(VOID)
+{
+    CHAR *ptr = g_shell_cb.buf;
+    while (*ptr != '\0') {
+        if (*ptr == SHELL_SPECIAL_CHAR_SPACE) {
+            *ptr = '\0';
+        }
+        ptr++;
+    }
+}
+
 STATIC UINT32 inner_shell_get_cmd_key_count_by_tab()
 {
     return 0;
@@ -56,22 +85,31 @@ STATIC VOID inner_shell_get_cmd_key_by_tab(UCHAR *keys[])
 
 STATIC VOID inner_shell_uarrow_key_do()
 {
-
+    printf("%s\n", __FUNCTION__);
 }
 
 STATIC VOID inner_shell_darrow_key_do()
 {
-
+    printf("%s\n", __FUNCTION__);
 }
 
 STATIC VOID inner_shell_larrow_key_do()
 {
-
+    if (g_shell_cb.shell_buf_cursor != g_shell_cb.buf) {
+        g_shell_cb.shell_buf_cursor--;
+    } else {
+        CHAR c = (g_shell_cb.buf[0] == '\0') ? SHELL_SPECIAL_CHAR_SPACE : g_shell_cb.buf[0];
+        SHELL_PRINT(" %c\b", c);
+    }
 }
 
 STATIC VOID inner_shell_rarrow_key_do()
 {
-
+    if (g_shell_cb.shell_buf_cursor != (g_shell_cb.buf + g_shell_cb.buf_cur_size)) {
+        g_shell_cb.shell_buf_cursor++;
+    } else {
+        SHELL_PRINT("\b");
+    }
 }
 
 STATIC VOID inner_shell_tab_key_do(VOID)
@@ -106,12 +144,33 @@ STATIC VOID inner_shell_deal_get_phase()
         g_shell_cb.shell_err_code = SHELL_BUFFER_FULL_ERR;
         return;
     }
+    UINT32 ret = shell_read_fifo();
+    if (ret != SHELL_FIFO_READ_VALID) {
+        g_shell_cb.shell_state = SHELL_STATE_ERR;
+        g_shell_cb.shell_err_code = SHELL_FIFO_READ_ERR;
+        return;
+    }
     if (inner_shell_char_is_special(g_shell_cb.shell_cur_char)) {
         g_shell_cb.shell_state = SHELL_STATE_SWITCH;
         return;
     }
-    
-    g_shell_cb.buf[g_shell_cb.buf_cur_size++] = (g_shell_cb.shell_cur_char == SHELL_SPECIAL_CHAR_SPACE) ? '\0' : g_shell_cb.shell_cur_char;
+    BOOL cursor_has_shifted = inner_shell_buf_cursor_has_shifted();
+    CHAR *tmp_buf = NULL;
+    UINT32 gap_size = 0;
+    if (cursor_has_shifted) {
+        gap_size = g_shell_cb.buf_cur_size - (g_shell_cb.shell_buf_cursor - g_shell_cb.buf);
+        tmp_buf = (CHAR *)osz_zalloc(gap_size+1);
+        memcpy((VOID *)tmp_buf, (VOID *)g_shell_cb.shell_buf_cursor, gap_size);
+    }
+    *g_shell_cb.shell_buf_cursor = g_shell_cb.shell_cur_char;
+    g_shell_cb.buf_cur_size++;
+    g_shell_cb.shell_buf_cursor++;
+    if (cursor_has_shifted && (tmp_buf != NULL)) {
+        memcpy((VOID *)g_shell_cb.shell_buf_cursor, (VOID *)tmp_buf, gap_size);
+        osz_free(tmp_buf);
+        tmp_buf = NULL;
+        inner_shell_reprint_with_cursor_shift(gap_size);
+    }
     g_shell_cb.shell_state = SHELL_STATE_NONE;
 }
 
@@ -120,7 +179,7 @@ STATIC VOID inner_shell_deal_switch_phase()
     if (g_shell_cb.shell_cur_char == SHELL_SPECIAL_CHAR_DEL) {
         g_shell_cb.shell_state = SHELL_STATE_NONE;
         g_shell_cb.buf_cur_size--;
-        SHELL_PRINT("\b ");
+        SHELL_PRINT("\b");
         return;
     } else if (g_shell_cb.shell_cur_char == SHELL_SPECIAL_CHAR_HT) {
         g_shell_cb.shell_state = SHELL_STATE_NONE;
@@ -130,9 +189,19 @@ STATIC VOID inner_shell_deal_switch_phase()
         return;
     } else if (g_shell_cb.shell_cur_char == SHELL_SPECIAL_CHAR_ESC) {
         g_shell_cb.shell_state = SHELL_STATE_SWITCH;
+        UINT32 ret = shell_read_fifo();
+        if (ret != SHELL_FIFO_READ_VALID) {
+            g_shell_cb.shell_state = SHELL_STATE_ERR;
+            g_shell_cb.shell_err_code = SHELL_FIFO_READ_ERR;
+        }
         return;
     } else if (g_shell_cb.shell_cur_char == SHELL_SPECIAL_CHAR_LSB) {
         g_shell_cb.shell_state = SHELL_STATE_SWITCH;
+        UINT32 ret = shell_read_fifo();
+        if (ret != SHELL_FIFO_READ_VALID) {
+            g_shell_cb.shell_state = SHELL_STATE_ERR;
+            g_shell_cb.shell_err_code = SHELL_FIFO_READ_ERR;
+        }
         return;
     } else if (g_shell_cb.shell_cur_char == SHELL_SPECIAL_CHAR_A) {
         g_shell_cb.shell_state = SHELL_STATE_NONE;
@@ -142,10 +211,10 @@ STATIC VOID inner_shell_deal_switch_phase()
         return inner_shell_darrow_key_do();
     } else if (g_shell_cb.shell_cur_char == SHELL_SPECIAL_CHAR_C) {
         g_shell_cb.shell_state = SHELL_STATE_NONE;
-        return inner_shell_larrow_key_do();
+        return inner_shell_rarrow_key_do();
     } else if (g_shell_cb.shell_cur_char == SHELL_SPECIAL_CHAR_D) {
         g_shell_cb.shell_state = SHELL_STATE_NONE;
-        return inner_shell_rarrow_key_do();
+        return inner_shell_larrow_key_do();
     }
     return;
 }
@@ -156,12 +225,14 @@ STATIC VOID inner_shell_deal_parse_phase()
     CHAR **args = NULL;
     CHAR *buf_ptr = g_shell_cb.buf;
     CHAR *buf_end = g_shell_cb.buf + g_shell_cb.buf_cur_size;
+    inner_shell_change_space_to_zero();
     if (strlen(g_shell_cb.buf) >= SHELL_CMD_KEY_LEN_MAX) {
         g_shell_cb.shell_state = SHELL_STATE_ERR;
         g_shell_cb.shell_err_code = SHELL_CMD_KEY_OVER_LEN_ERR;
         memset(g_shell_cb.buf, 0, g_shell_cb.shell_capcity);
         return;
     }
+
     memcpy((VOID *)name, (VOID *)buf_ptr, (size_t)strlen(g_shell_cb.buf));
     buf_ptr += strlen(g_shell_cb.buf) + 1;
 
@@ -169,7 +240,7 @@ STATIC VOID inner_shell_deal_parse_phase()
     CMD_NODE *cmd = NULL;
     DLINK_FOREACH(iter, &(g_cmd_head.list)) {
         cmd = STRUCT_ENTRY(CMD_NODE, list, iter);
-        if (strncmp(cmd->cmd_name, name, strlen(name)) == 0) {
+        if (strncmp(cmd->cmd_name, name, strlen(cmd->cmd_name)) == 0) {
             break;
         }
     }
@@ -198,11 +269,12 @@ STATIC VOID inner_shell_deal_exc_phase()
     if (cmd != NULL) {
         cmd->cmd_func(cmd->cur_argc, cmd->args);
     } else {
-        SHELL_PRINT("No such command.\n");
+        SHELL_PRINT("%s: No such command.\n", g_shell_cb.buf);
     }
     
     memset(g_shell_cb.buf, 0, g_shell_cb.shell_capcity);
     g_shell_cb.buf_cur_size = 0;
+    g_shell_cb.shell_buf_cursor = g_shell_cb.buf;
     if (cmd != NULL && cmd->args != NULL) {
         osz_free(cmd->args);
         cmd->args = NULL;
@@ -215,6 +287,7 @@ STATIC VOID inner_shell_deal_err_phase()
     memset(g_shell_cb.buf, 0, g_shell_cb.shell_capcity);
     g_shell_cb.buf_cur_size = 0;
     g_shell_cb.shell_err_code = '\0';
+    g_shell_cb.shell_buf_cursor = g_shell_cb.buf;
     g_shell_cb.shell_state = SHELL_STATE_NONE;
 }
 
@@ -248,6 +321,9 @@ VOID shell_loop()
     while (TRUE) {
         switch (g_shell_cb.shell_state) {
             case SHELL_STATE_NONE:
+                if (!fifo_is_empty(g_shell_cb.fifo)) {
+                    g_shell_cb.shell_state = SHELL_STATE_GET;
+                }
                 break;
             case SHELL_STATE_GET:
                 inner_shell_deal_get_phase();
@@ -284,7 +360,15 @@ VOID shell_set_state(SHELL_STATE state)
     g_shell_cb.shell_state = state;
 }
 
-VOID shell_set_current_char(CHAR c)
+VOID shell_write_fifo(CHAR c)
 {
+    fifo_write(g_shell_cb.fifo, (VOID *)(&c), 1, FIFO_WRITE_STOP);
+}
+
+UINT32 shell_read_fifo(VOID)
+{
+    CHAR c = 0;
+    UINT32 cnt = fifo_read(g_shell_cb.fifo, &c, 1);
     g_shell_cb.shell_cur_char = c;
+    return cnt;
 }

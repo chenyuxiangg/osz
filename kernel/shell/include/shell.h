@@ -2,6 +2,7 @@
 #define __SHELL_H__
 #include "comm.h"
 #include "dlink.h"
+#include "fifo.h"
 
 #define SHELL_BUFFER_MAX_NUM        (0x400)
 
@@ -33,6 +34,7 @@ typedef struct {
 
 typedef struct {
     CHAR buf[SHELL_BUFFER_MAX_NUM];
+    FIFO *fifo;
     UINT32 buf_cur_size : 10;
     UINT32 shell_capcity : 11;
     union {
@@ -40,6 +42,7 @@ typedef struct {
         UINT32 shell_cur_char : 8;
     };
     UINT32 shell_state : 3;
+    CHAR *shell_buf_cursor;
     CMD_NODE *cur_cmd;
 } SHELL_CB;
 
@@ -47,6 +50,7 @@ VOID shell_register_cmd(CMD_PARAMS *params);
 VOID shell_loop();
 SHELL_STATE shell_get_state(VOID);
 VOID shell_set_state(SHELL_STATE state);
-VOID shell_set_current_char(CHAR c);
+VOID shell_write_fifo(CHAR c);
+UINT32 shell_read_fifo(VOID);
 
 #endif

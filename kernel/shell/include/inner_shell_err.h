@@ -6,5 +6,6 @@
 #define SHELL_CMD_KEY_OVER_LEN_ERR              (SHELL_BASE_ERR | 0x2)
 #define SHELL_PARAMS_NAME_INVALID_ERR           (SHELL_BASE_ERR | 0x3)
 #define SHELL_PARAMS_CALLBACK_INVALID_ERR       (SHELL_BASE_ERR | 0x4)
+#define SHELL_FIFO_READ_ERR                     (SHELL_BASE_ERR | 0x5)
 
 #endif

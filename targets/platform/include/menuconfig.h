@@ -2,6 +2,7 @@
 #define OSZ_CFG_STARTUP	1
 #define OSZ_CFG_STRUCT	1
 #define OSZ_CFG_STRUCT_DLINK	1
+#define OSZ_CFG_STRUCT_FIFO	1
 #define OSZ_CFG_COMM	1
 #define OSZ_CFG_MEM	1
 #define OSZ_CFG_BESTFIT	1
