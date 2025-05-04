@@ -219,6 +219,9 @@ STATIC VOID inner_shell_del_key_do(VOID)
     }
     osz_free((VOID *)tmp);
     SHELL_PRINT("%s", g_shell_cb.buf);
+    for (UINT32 i = 0; i < (g_shell_cb.buf_cur_size - (g_shell_cb.shell_buf_cursor - g_shell_cb.buf)); ++i) {
+        SHELL_PRINT("\b");
+    }
 }
 
 STATIC VOID inner_shell_tab_key_do(VOID)
