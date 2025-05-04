@@ -94,8 +94,14 @@ INT32 main(INT32 argc, CHAR *argv[])
         .cmd_func = (CMD_CALLBACK_FUNC)test_cmd_func,
         .cmd_name = "test2"
     };
+    CMD_PARAMS params3 = {
+        .argc = 2,
+        .cmd_func = (CMD_CALLBACK_FUNC)test_cmd_func,
+        .cmd_name = "test3"
+    };
     shell_register_cmd(&params1);
     shell_register_cmd(&params2);
+    shell_register_cmd(&params3);
     CSR_SET(mstatus, MSTATUS_MIE);
     // test_create_task("test1", (TASK_THREAD_TYPE)test_thread1_handle, 0x9);
     // test_create_task("test2", (TASK_THREAD_TYPE)test_thread2_handle, 0xa);

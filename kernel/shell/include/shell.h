@@ -1,5 +1,6 @@
 #ifndef __SHELL_H__
 #define __SHELL_H__
+#include "menuconfig.h"
 #include "comm.h"
 #include "dlink.h"
 #include "fifo.h"
@@ -16,6 +17,15 @@ typedef enum {
     SHELL_STATE_EXC,
     SHELL_STATE_ERR,
 } SHELL_STATE;
+
+typedef struct {
+    CHAR *history_cmds[OSZ_CFG_SHELL_HISTORY_CMD_NUM];
+    UINT32 history_cmd_num : 8;
+    UINT32 history_cursor : 8;
+    UINT32 history_has_cmd : 1;
+    UINT32 history_max_cmd_len : 7;
+    UINT32 reserv : 8;
+} CMD_HISTORY;
 
 typedef struct {
     DLINK_NODE          list;
