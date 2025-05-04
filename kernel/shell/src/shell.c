@@ -193,6 +193,34 @@ STATIC VOID inner_shell_rarrow_key_do()
     }
 }
 
+STATIC VOID inner_shell_del_key_do(VOID)
+{
+    SHELL_PRINT("\r");
+    inner_shell_clean_line();
+    SHELL_PRINT("\r%s$ ", SHELL_NAME);
+    if (g_shell_cb.buf_cur_size == 0) {
+        return;
+    }
+    if (g_shell_cb.shell_buf_cursor == g_shell_cb.buf) {
+        SHELL_PRINT("%s", g_shell_cb.buf);
+        SHELL_PRINT("\r%s$ ", SHELL_NAME);
+        return;
+    }
+    CHAR *tmp = (CHAR *)osz_zalloc(g_shell_cb.buf_cur_size + 1);
+    strncpy((VOID *)tmp, (VOID *)g_shell_cb.buf, g_shell_cb.buf_cur_size);
+    UINT32 tmp_len = strlen(tmp);
+    memset((VOID *)g_shell_cb.buf, 0, g_shell_cb.buf_cur_size);
+    g_shell_cb.buf_cur_size = g_shell_cb.shell_buf_cursor - g_shell_cb.buf - 1;
+    strncpy((VOID *)g_shell_cb.buf, (VOID *)tmp, g_shell_cb.buf_cur_size);
+    g_shell_cb.shell_buf_cursor = g_shell_cb.buf + g_shell_cb.buf_cur_size;
+    if (g_shell_cb.buf_cur_size < (tmp_len - 1)) {
+        strncpy((VOID *)g_shell_cb.shell_buf_cursor, (VOID *)(tmp + g_shell_cb.buf_cur_size + 1), tmp_len - g_shell_cb.buf_cur_size - 1);
+        g_shell_cb.buf_cur_size = tmp_len - 1;
+    }
+    osz_free((VOID *)tmp);
+    SHELL_PRINT("%s", g_shell_cb.buf);
+}
+
 STATIC VOID inner_shell_tab_key_do(VOID)
 {
     UINT32 count = inner_shell_get_cmd_key_count_by_tab();
@@ -252,6 +280,7 @@ STATIC VOID inner_shell_deal_get_phase()
         tmp_buf = NULL;
         inner_shell_reprint_with_cursor_shift(gap_size);
     }
+    g_shell_history.history_max_cmd_len = (g_shell_history.history_max_cmd_len >= g_shell_cb.buf_cur_size) ? g_shell_history.history_max_cmd_len : g_shell_cb.buf_cur_size;
     g_shell_cb.shell_state = SHELL_STATE_NONE;
 }
 
@@ -259,9 +288,7 @@ STATIC VOID inner_shell_deal_switch_phase()
 {
     if (g_shell_cb.shell_cur_char == SHELL_SPECIAL_CHAR_DEL) {
         g_shell_cb.shell_state = SHELL_STATE_NONE;
-        g_shell_cb.buf_cur_size--;
-        SHELL_PRINT("\b");
-        return;
+        return inner_shell_del_key_do();
     } else if (g_shell_cb.shell_cur_char == SHELL_SPECIAL_CHAR_HT) {
         g_shell_cb.shell_state = SHELL_STATE_NONE;
         return inner_shell_tab_key_do();
