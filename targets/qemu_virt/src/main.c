@@ -87,17 +87,17 @@ INT32 main(INT32 argc, CHAR *argv[])
     CMD_PARAMS params1 = {
         .argc = 3,
         .cmd_func = (CMD_CALLBACK_FUNC)test_cmd_func,
-        .cmd_name = "test1"
+        .cmd_name = "test"
     };
     CMD_PARAMS params2 = {
         .argc = 2,
         .cmd_func = (CMD_CALLBACK_FUNC)test_cmd_func,
-        .cmd_name = "test2"
+        .cmd_name = "cyx"
     };
     CMD_PARAMS params3 = {
         .argc = 2,
         .cmd_func = (CMD_CALLBACK_FUNC)test_cmd_func,
-        .cmd_name = "test3"
+        .cmd_name = "tea"
     };
     shell_register_cmd(&params1);
     shell_register_cmd(&params2);

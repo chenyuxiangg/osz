@@ -117,12 +117,27 @@ STATIC VOID inner_shell_clean_line(VOID) {
 
 STATIC UINT32 inner_shell_get_cmd_key_count_by_tab()
 {
-    return 0;
+    UINT32 cmd_cnt = 0;
+    DLINK_NODE *iter = NULL;
+    DLINK_FOREACH(iter, &(g_cmd_head.list)) {
+        cmd_cnt++;
+    }
+    return cmd_cnt;
 }
 
-STATIC VOID inner_shell_get_cmd_key_by_tab(UCHAR *keys[])
+STATIC UINT32 inner_shell_get_cmd_key_by_tab(UINT32 *keys, CHAR *input)
 {
-
+    DLINK_NODE *iter = NULL;
+    UINT32 key_index = 0;
+    UINT32 *ptr = NULL;
+    DLINK_FOREACH(iter, &(g_cmd_head.list)) {
+        CMD_NODE *cmd = STRUCT_ENTRY(CMD_NODE, list, iter);
+        if (strncmp((VOID *)input, cmd->cmd_name, strlen(input)) == 0) {
+            ptr = &(keys[key_index++]);
+            *ptr = (UINT32)&(cmd->cmd_name[0]);
+        }
+    }
+    return key_index;
 }
 
 STATIC VOID inner_shell_uarrow_key_do()
@@ -230,19 +245,20 @@ STATIC VOID inner_shell_tab_key_do(VOID)
     if (count == 0) {
         return;
     }
-    UCHAR **keys = (UCHAR **)osz_zalloc(sizeof(UCHAR *) * count);
-    inner_shell_get_cmd_key_by_tab(keys);
+    UINT32 *keys = (UINT32 *)osz_zalloc(sizeof(UINT32) * count);
+    count = inner_shell_get_cmd_key_by_tab(keys, g_shell_cb.buf);
     if (count == 1) {
-        g_shell_cb.buf_cur_size = strlen(keys);
-        memcpy((VOID *)g_shell_cb.buf, (VOID *)keys, (size_t)g_shell_cb.buf_cur_size);
-        for (UINT32 i = g_shell_cb.buf_cur_size; i < g_shell_cb.buf_cur_size; ++i) {
-            SHELL_PRINT("%c", g_shell_cb.buf[i]);
-        }
+        g_shell_cb.buf_cur_size = strlen((CHAR *)(keys[0]));
+        memcpy((VOID *)g_shell_cb.buf, (VOID *)(CHAR *)(keys[0]), (size_t)g_shell_cb.buf_cur_size);
+        g_shell_cb.shell_buf_cursor = g_shell_cb.buf + g_shell_cb.buf_cur_size;
+        SHELL_PRINT("\r");
+        inner_shell_clean_line();
+        SHELL_PRINT("\r%s$ %s", SHELL_NAME, g_shell_cb.buf);
         return osz_free((VOID *)keys);
     }
     SHELL_PRINT("\n");
-    for (UINT32 i = 0; i < SHELL_CMD_KEY_LEN_MAX * count; i += SHELL_CMD_KEY_LEN_MAX) {
-        SHELL_PRINT("%s ", keys + i);
+    for (UINT32 i = 0; i < count; ++i) {
+        SHELL_PRINT("%s ", (CHAR *)(keys[i]));
     }
     SHELL_PRINT("\n");
     SHELL_PRINT("%s$ %s", SHELL_NAME, g_shell_cb.buf);
