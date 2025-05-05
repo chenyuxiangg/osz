@@ -28,6 +28,27 @@ STATIC CMD_NODE g_cmd_head;
 STATIC SHELL_CB g_shell_cb;
 STATIC CMD_HISTORY g_shell_history;
 
+STATIC VOID inner_shell_task_create(VOID)
+{
+    UCHAR *task_stack = osz_malloc(0x800);
+    TASK_PARAMS params = {
+        .name = "shell_task",
+        .stack_attr = STACK_MEM_DYNAMIC,
+        .stack_base = (UINTPTR)task_stack,
+        .stack_size = 0x800,
+        .priority = 0x9,
+        .thread = (TASK_THREAD_TYPE)shell_loop,
+        .data = NULL
+    };
+    UINT16 task_id;
+    UINT32 ret = os_create_task(&task_id, &params);
+    if (ret != OS_OK) {
+        printf("ret: %#x\n", ret);
+        return;
+    }
+    os_task_resume(task_id);
+}
+
 STATIC VOID inner_shell_init(VOID)
 {
     dlink_init(&(g_cmd_head.list));
@@ -41,6 +62,7 @@ STATIC VOID inner_shell_init(VOID)
     g_shell_history.history_cursor = SHELL_CMD_CURSOR_INVALID;
     g_shell_history.history_has_cmd = 0;
     g_shell_history.history_max_cmd_len = 0;
+    inner_shell_task_create();
 }
 MODULE_INIT(inner_shell_init, l4)
 
@@ -444,7 +466,7 @@ VOID shell_register_cmd(CMD_PARAMS *params)
     dlink_insert_tail(&(g_cmd_head.list), &(cmd->list));
 }
 
-VOID shell_loop()
+VOID shell_loop(VOID)
 {
     SHELL_PRINT("%s$ ", SHELL_NAME);
     while (TRUE) {
@@ -452,6 +474,8 @@ VOID shell_loop()
             case SHELL_STATE_NONE:
                 if (!fifo_is_empty(g_shell_cb.fifo)) {
                     g_shell_cb.shell_state = SHELL_STATE_GET;
+                } else {
+                    os_msleep(20);
                 }
                 break;
             case SHELL_STATE_GET:
@@ -475,7 +499,6 @@ VOID shell_loop()
             default:
                 break;
         }
-        os_udelay(5);
     }
 }
 

@@ -42,6 +42,11 @@ BOOL is_need_preemp(VOID)
     }
     UINT16 cur_task_id = os_get_current_tid();
     DLINK_NODE *dn = pri_queue_top(pri_queue_get_bitmap_low_bit());
+    if (dn == NULL) {
+        SCHEDULE_UNLOCK(intSave);
+        g_need_preemp = FALSE;
+        return g_need_preemp;
+    }
     TASK_CB *tmp = STRUCT_ENTRY(TASK_CB, tsk_list_ready, dn);
     UINT16 tmp_id = os_get_task_id_by_task_cb(tmp);
     if (tmp_id == cur_task_id) {
