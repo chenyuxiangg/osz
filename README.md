@@ -91,3 +91,7 @@ include $(MODULE_MK)
 
 * [Makefile 常用函数列表](https://github.com/marmotedu/geekbang-go/blob/master/makefile/Makefile%E5%B8%B8%E7%94%A8%E5%87%BD%E6%95%B0%E5%88%97%E8%A1%A8.md)
 * [从头写一个RISCV OS](https://github.com/plctlab/riscv-operating-system-mooc)
+
+## 内核特性
+
+* [启动流程](https://github.com/chenyuxiangg/osz/blob/main/doc/kernel_doc/startup.md)
