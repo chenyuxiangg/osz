@@ -2,10 +2,11 @@
 #include "platform.h"
 #include "timer.h"
 #include "interrupt.h"
+#include "task.h"
 
 STATIC VOID timer_int_handle(VOID *args)
 {
-    printf("%s, %d\n", __FUNCTION__, __LINE__);
+    os_update_task();
     drv_timer_reload(0, CYCLES_PER_TICK);
 }
 
@@ -19,8 +20,10 @@ VOID drv_timer_init(UINT8 timer_id)
     drv_timer_reload(0, CYCLES_PER_TICK);
     osz_interrupt_set_pri(TIMER_INT_NUM, 7);
     osz_interrupt_enable(TIMER_INT_NUM);
+    drv_timer_enable(0);
+    drv_timer_start(0);
 }
-MODULE_INIT(drv_timer_init, l1)
+MODULE_INIT(drv_timer_init, l3)
 
 UINT32 drv_timer_start(UINT8 timer_id)
 {

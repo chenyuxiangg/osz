@@ -29,7 +29,6 @@
 #define OSZ_CFG_DRIVERS	1
 #define OSZ_CFG_UART	1
 #define OSZ_CFG_TIMER	1
-#define OSZ_CFG_TICK	1
 #define OSZ_CFG_TARGETS	1
 #define OSZ_CFG_PLATFORM	qemu_virt
 #define OSZ_CFG_SHELL	1
