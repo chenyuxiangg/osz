@@ -4,8 +4,6 @@
 #define SORTLINK_MAX_TIMEOUT        (0xffffffff)
 #define SORTLINK_INVALID_TIMEOUT    (0)
 
-SORT_LINK SECTION_KERNEL_INIT_DATA g_task_sortlink;
-
 STATIC VOID inner_debug_sortlink(SORT_LINK *head)
 {
     DLINK_NODE *iter = NULL;
@@ -32,18 +30,18 @@ UINT32 sortlink_init(SORT_LINK *head)
     return OS_OK;
 }
 
-UINT32 sortlink_insert(SORT_LINK *link)
+UINT32 sortlink_insert(SORT_LINK *head, SORT_LINK *link)
 {
     ASSERT(link);
     DLINK_NODE *iter = NULL;
     if (PSORTLINK_TIMEOUT(link) == SORTLINK_INVALID_TIMEOUT) {
         return SORTLINK_TIMEOUT_INVALID;
     }
-    if (DLINK_EMPTY(&(SORTLINK_LIST(g_task_sortlink)))) {
-        dlink_insert_tail(&(SORTLINK_LIST(g_task_sortlink)), &(PSORTLINK_LIST(link)));
+    if (DLINK_EMPTY(&(PSORTLINK_LIST(head)))) {
+        dlink_insert_tail(&(PSORTLINK_LIST(head)), &(PSORTLINK_LIST(link)));
         return OS_OK;
     }
-    DLINK_FOREACH(iter, &(SORTLINK_LIST(g_task_sortlink))) {
+    DLINK_FOREACH(iter, &(PSORTLINK_LIST(head))) {
         SORT_LINK * sl = STRUCT_ENTRY(SORT_LINK, list, iter);
         if (PSORTLINK_TIMEOUT(sl) <= PSORTLINK_TIMEOUT(link)) {
             PSORTLINK_TIMEOUT(link) -= PSORTLINK_TIMEOUT(sl);
@@ -53,8 +51,8 @@ UINT32 sortlink_insert(SORT_LINK *link)
             break;
         }
     }
-    if (iter == &SORTLINK_LIST(g_task_sortlink)) {
-        dlink_insert_head(&(SORTLINK_LIST(g_task_sortlink)), &(PSORTLINK_LIST(link)));
+    if (iter == &PSORTLINK_LIST(head)) {
+        dlink_insert_head(&(PSORTLINK_LIST(head)), &(PSORTLINK_LIST(link)));
     }
     return OS_OK;
 }

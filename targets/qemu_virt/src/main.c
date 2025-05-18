@@ -17,7 +17,7 @@ VOID test_thread1_handle(VOID)
     DEBUG_INFO();
     while(1) {
         event_read(&ecb, EVENT_WAIT_FOREVER);
-        // printf("task1 read event ok.\n");
+        printf("task1 read event ok.\n");
         event_write(2);
         os_msleep(6000);
     }
@@ -33,7 +33,7 @@ VOID test_thread2_handle(VOID)
     while(1) {
         event_write(1);
         event_read(&ecb, EVENT_WAIT_FOREVER);
-        // printf("task2 read event ok.\n");
+        printf("task2 read event ok.\n");
         os_msleep(3000);
     }
 }
@@ -102,9 +102,8 @@ INT32 main(INT32 argc, CHAR *argv[])
     shell_register_cmd(&params1);
     shell_register_cmd(&params2);
     shell_register_cmd(&params3);
-    // CSR_SET(mstatus, MSTATUS_MIE);
-    // test_create_task("test1", (TASK_THREAD_TYPE)test_thread1_handle, 0x9);
-    // test_create_task("test2", (TASK_THREAD_TYPE)test_thread2_handle, 0xa);
+    test_create_task("test1", (TASK_THREAD_TYPE)test_thread1_handle, 0x9);
+    test_create_task("test2", (TASK_THREAD_TYPE)test_thread2_handle, 0xa);
     first_schedule();
     while(1);
     return 0;

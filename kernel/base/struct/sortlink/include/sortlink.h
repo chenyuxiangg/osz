@@ -14,9 +14,7 @@ typedef struct {
 #define PSORTLINK_TIMEOUT(psortlink)    ((psortlink)->timeout)
 
 UINT32 sortlink_init(SORT_LINK *head);
-UINT32 sortlink_insert(SORT_LINK *link);
+UINT32 sortlink_insert(SORT_LINK *head, SORT_LINK *link);
 UINT32 sortlink_delete(SORT_LINK *link);
-
-extern SORT_LINK g_task_sortlink;
 
 #endif

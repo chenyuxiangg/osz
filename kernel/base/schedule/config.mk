@@ -14,7 +14,6 @@ endif
 ifeq ($(OSZ_CFG_PREEMPTION), y)
 LOCAL_$(CONFIG_MODULE)_INCLUDE += -I$(CONFIG_CURRENT_DIR)/preemption/include
 LOCAL_$(CONFIG_MODULE)_INCLUDE += -I$(CONFIG_CURRENT_DIR)/preemption/priority_queue/include
-LOCAL_$(CONFIG_MODULE)_INCLUDE += -I$(CONFIG_CURRENT_DIR)/preemption/sortlink/include
 endif
 
 endif

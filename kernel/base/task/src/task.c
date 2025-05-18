@@ -12,7 +12,8 @@
 STATIC UINT8 SECTION_KERNEL_INIT_DATA g_idle_task_stack[OSZ_CFG_TASK_STACK_DEFAULT_SIZE];
 STATIC DLINK_NODE SECTION_KERNEL_INIT_DATA g_freelist;
 STATIC DLINK_NODE SECTION_KERNEL_INIT_DATA g_pendlist;
-STATIC UINT32   g_task_sortlink_bitmap;
+STATIC UINT32     SECTION_KERNEL_INIT_DATA g_task_sortlink_bitmap;
+STATIC SORT_LINK  SECTION_KERNEL_INIT_DATA g_task_sortlink;
 TASK_CB         *gp_new_task __attribute__((section(".data")));
 TASK_CB         *gp_current_task __attribute__((section(".data")));
 TASK_CB SECTION_KERNEL_INIT_DATA g_tasks[OSZ_CFG_TASK_LIMIT] = { 0 };
@@ -60,7 +61,7 @@ MODULE_INIT(inner_task_module_init, l1)
 STATIC UINT32 inner_task_insert_sortlink(SORT_LINK *link)
 {
     g_task_sortlink_bitmap |= (1 << os_get_current_tid());
-    return sortlink_insert(link);
+    return sortlink_insert(&g_task_sortlink, link);
 }
 
 STATIC BOOL inner_task_sortlink_is_mounted(UINT32 task_id)

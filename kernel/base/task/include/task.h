@@ -156,5 +156,6 @@ VOID    os_task_wake(UINT16 task_id);
 extern TASK_CB *gp_new_task;
 extern TASK_CB *gp_current_task;
 extern TASK_CB g_tasks[OSZ_CFG_TASK_LIMIT];
+extern SORT_LINK g_task_sortlink;
 
 #endif

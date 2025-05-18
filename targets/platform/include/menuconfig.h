@@ -3,6 +3,7 @@
 #define OSZ_CFG_STRUCT	1
 #define OSZ_CFG_STRUCT_DLINK	1
 #define OSZ_CFG_STRUCT_FIFO	1
+#define OSZ_CFG_STRUCT_SORTLINK	1
 #define OSZ_CFG_COMM	1
 #define OSZ_CFG_MEM	1
 #define OSZ_CFG_BESTFIT	1
@@ -16,6 +17,7 @@
 #define OSZ_CFG_IPC	1
 #define OSZ_CFG_EVENT	1
 #define OSZ_CFG_ATOMIC	1
+#define OSZ_CFG_SWT_MAX	0x20
 #define OSZ_CFG_TASK	1
 #define OSZ_CFG_SCHEDULE	1
 #define OSZ_CFG_PREEMPTION	1

@@ -13,4 +13,8 @@ ifeq ($(OSZ_CFG_STRUCT_FIFO), y)
 LOCAL_$(CONFIG_MODULE)_INCLUDE += -I$(CONFIG_CURRENT_DIR)/fifo/include
 endif
 
+ifeq ($(OSZ_CFG_STRUCT_SORTLINK), y)
+LOCAL_$(CONFIG_MODULE)_INCLUDE += -I$(CONFIG_CURRENT_DIR)/sortlink/include
+endif
+
 endif
