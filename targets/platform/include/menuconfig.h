@@ -17,6 +17,7 @@
 #define OSZ_CFG_IPC	1
 #define OSZ_CFG_EVENT	1
 #define OSZ_CFG_ATOMIC	1
+#define OSZ_CFG_SOFTTIMER	1
 #define OSZ_CFG_SWT_MAX	0x20
 #define OSZ_CFG_TASK	1
 #define OSZ_CFG_SCHEDULE	1

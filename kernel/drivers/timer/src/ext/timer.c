@@ -3,10 +3,12 @@
 #include "timer.h"
 #include "interrupt.h"
 #include "task.h"
+#include "softtimer.h"
 
 STATIC VOID timer_int_handle(VOID *args)
 {
     os_update_task();
+    os_update_swtmr();
     drv_timer_reload(0, CYCLES_PER_TICK);
 }
 

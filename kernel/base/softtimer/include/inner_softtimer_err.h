@@ -1,0 +1,13 @@
+#ifndef __INNER_SOFTTIMER_ERR_H__
+#define __INNER_SOFTTIMER_ERR_H__
+
+#define SOFTTIMER_BASE_ERR                          (0x50)
+#define SOFTTIMER_CHECK_FUNC_ERR                    (SOFTTIMER_BASE_ERR | 0x1)
+#define SOFTTIMER_CHECK_NAME_ERR                    (SOFTTIMER_BASE_ERR | 0x2)
+#define SOFTTIMER_CHECK_TIMEOUT_ERR                 (SOFTTIMER_BASE_ERR | 0x3)
+#define SOFTTIMER_CHECK_TIMER_ATTR_ERR              (SOFTTIMER_BASE_ERR | 0x4)
+#define SOFTTIMER_CHECK_TIMER_INVALID_ERR           (SOFTTIMER_BASE_ERR | 0x5)
+#define SOFTTIMER_CHECK_PARAMS_NULL_ERR             (SOFTTIMER_BASE_ERR | 0x6)
+#define SOFTTIMER_DEL_SWT_NOT_USED_ERR              (SOFTTIMER_BASE_ERR | 0x6)
+
+#endif

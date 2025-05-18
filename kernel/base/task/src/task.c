@@ -216,7 +216,7 @@ STATIC VOID inner_task_check_timeout(VOID)
             inner_task_delete_sortlink(sl, task_id);
             pri_queue_enqueue(TASK_PRIORITY(task_id), TASK_LIST(task_id, ready), EQ_MODE_TAIL);
             sl = STRUCT_ENTRY(SORT_LINK, list, SORTLINK_LIST(g_task_sortlink).next);
-        } while(PSORTLINK_TIMEOUT(sl) == 0);
+        } while((sl != NULL) && (PSORTLINK_TIMEOUT(sl) == 0));
         g_need_preemp = TRUE;
     }
     TASK_INT_UNLOCK(intSave);
