@@ -19,6 +19,11 @@ save_current_task:
     save_caller_reg
     addi    sp, sp, -16 * REGBYTES
     save_callee_reg
+    la      t0, g_is_positive_schechule
+    lw      t0, 0(t0)
+    beqz    t0, __not_change_mepc
+    csrw    mepc, ra
+__not_change_mepc:
     save_csr_reg
 
     la  t0, gp_current_task
@@ -26,6 +31,7 @@ save_current_task:
     sw  sp, 0(t1)       /* save run task sp to tsk_context_pointer */
 
 switch_to:
+    call    switch_hook
     la t1, gp_new_task
     lw t1, 0(t1)
     sw t1, 0(t0)        /* save new task_cb to gp_current_task */

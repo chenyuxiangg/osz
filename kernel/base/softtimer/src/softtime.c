@@ -1,6 +1,9 @@
 #include "softtimer.h"
 #include "inner_softtimer_err.h"
 #include "timer.h"
+#include "task.h"
+#include "mem.h"
+#include "event.h"
 #include "sortlink.h"
 #include "arch_adapter.h"
 
@@ -8,11 +11,62 @@
 
 STATIC SOFTTIMER_CB g_softtimers[OSZ_CFG_SWT_MAX];
 STATIC SORT_LINK g_swt_sortlink;
+STATIC DLINK_NODE g_swt_work_queue;
 
-STATIC VOID softtimer_init(VOID)
+STATIC SOFTTIMER_WORKER *inner_get_next_swt_woker(void_t)
+{
+    DLINK_NODE *pos = NULL;
+    SOFTTIMER_WORKER *woker = NULL;
+    // EVENT_CB ecb = {
+    //     .event_op = EVENT_OP_OR | EVENT_OP_CLR,
+    //     .event_wait = 
+    // }
+    // if (!DLINK_EMPTY(&g_swt_work_queue)) {
+    //     pos = g_swt_work_queue.next;
+    //     woker = STRUCT_ENTRY(SOFTTIMER_WORKER, link, pos);
+    // }
+    return woker;
+}
+
+STATIC void_t inner_swtmr_entry(void_t *data)
+{
+    while (1) {
+        uint32_t intSave = 0;
+        ARCH_INT_LOCK(intSave);
+        SOFTTIMER_WORKER *woker = inner_get_next_swt_woker();
+        ARCH_INT_UNLOCK(intSave);
+        if (woker == NULL) {
+            continue;
+        }
+        woker->func(woker->args);
+        osz_free(woker);
+        woker = NULL;
+    }
+}
+
+STATIC void_t inner_swtmr_task_create(void_t)
+{
+    void_t *stack_base = osz_zalloc(OSZ_CFG_SOFTTIMER_TASK_STACK);
+    osz_task_params_t task_params = {
+        .name = "swtmr",
+        .stack_base = (uintptr_t)stack_base,
+        .stack_size = OSZ_CFG_SOFTTIMER_TASK_STACK,
+        .priority = OSZ_CFG_SOFTTIMER_TASK_PRIORITY,
+        .stack_attr = STACK_MEM_DYNAMIC,
+        .thread = (task_callback_t)inner_swtmr_entry,
+    };
+    uint16_t task_id = -1;
+    uint32_t ret = osz_create_task(&task_id, &task_params);
+    if (ret != OS_OK) {
+        printf("ERR: Create swtmr task failed\n");
+    }
+}
+
+STATIC void_t softtimer_init(void_t)
 {
     sortlink_init(&g_swt_sortlink);
-    for (UINT32 i = 0; i < OSZ_CFG_SWT_MAX; ++i) {
+    dlink_init(&g_swt_work_queue);
+    for (uint32_t i = 0; i < OSZ_CFG_SWT_MAX; ++i) {
         g_softtimers[i].link.list.next = NULL;
         g_softtimers[i].link.list.pre = NULL;
         g_softtimers[i].name = NULL;
@@ -22,12 +76,13 @@ STATIC VOID softtimer_init(VOID)
         g_softtimers[i].load = 0;
         g_softtimers[i].flags = 0;
     }
+    inner_swtmr_task_create();
 }
 MODULE_INIT(softtimer_init, l3);
 
-STATIC UINT32 inner_softtimer_check_params(SOFTTIMER_PARAMS *params)
+STATIC uint32_t inner_softtimer_check_params(SOFTTIMER_PARAMS *params)
 {
-    UINT32 ret = OS_OK;
+    uint32_t ret = OS_OK;
     if (params == NULL) {
         return SOFTTIMER_CHECK_PARAMS_NULL_ERR;
     }
@@ -46,9 +101,9 @@ STATIC UINT32 inner_softtimer_check_params(SOFTTIMER_PARAMS *params)
     return ret;
 }
 
-STATIC UINT32 inner_softtimer_get_free_node(VOID)
+STATIC uint32_t inner_softtimer_get_free_node(void_t)
 {
-    for (UINT32 i = 0; i < OSZ_CFG_SWT_MAX; i++) {
+    for (uint32_t i = 0; i < OSZ_CFG_SWT_MAX; i++) {
         if ((g_softtimers[i].flags & SOFTTIMER_FLAG_USED) == 0) {
             return i;
         }
@@ -56,7 +111,7 @@ STATIC UINT32 inner_softtimer_get_free_node(VOID)
     return SOFTTIMER_INVALID;
 }
 
-STATIC VOID inner_softtimer_init(UINT32 swt_id, SOFTTIMER_PARAMS *params)
+STATIC void_t inner_softtimer_init(uint32_t swt_id, SOFTTIMER_PARAMS *params)
 {
     g_softtimers[swt_id].flags = SOFTTIMER_FLAG_USED | params->flags;
     g_softtimers[swt_id].link.timeout = params->timeout;
@@ -66,9 +121,9 @@ STATIC VOID inner_softtimer_init(UINT32 swt_id, SOFTTIMER_PARAMS *params)
     g_softtimers[swt_id].args = params->args;
 }
 
-STATIC VOID inner_swtmr_check_timeout(VOID)
+STATIC void_t inner_swtmr_check_timeout(void_t)
 {
-    UINT32 intSave = 0;
+    uint32_t intSave = 0;
     ARCH_INT_LOCK(intSave);
     SORT_LINK *sl = STRUCT_ENTRY(SORT_LINK, list, SORTLINK_LIST(g_swt_sortlink).next);
     if (PSORTLINK_TIMEOUT(sl) != 0) {
@@ -77,7 +132,11 @@ STATIC VOID inner_swtmr_check_timeout(VOID)
         do {
             SOFTTIMER_CB *swtmr = STRUCT_ENTRY(SOFTTIMER_CB, link, sl);
             if (swtmr->func != NULL) {
-                swtmr->func(swtmr->args);
+                SOFTTIMER_WORKER *worker = osz_zalloc(sizeof(SOFTTIMER_WORKER));
+                worker->id = GET_SWTMR_ID_FROM_CB(swtmr);
+                worker->func = swtmr->func;
+                worker->args = swtmr->args;
+                dlink_insert_tail(&g_swt_work_queue, &(worker->link));
             }
             sortlink_delete(sl);
             PSORTLINK_TIMEOUT(sl) = swtmr->load;
@@ -88,10 +147,10 @@ STATIC VOID inner_swtmr_check_timeout(VOID)
     ARCH_INT_UNLOCK(intSave);
 }
 
-UINT32 softtimer_create(UINT32 *swt_id, SOFTTIMER_PARAMS *params)
+uint32_t softtimer_create(uint32_t *swt_id, SOFTTIMER_PARAMS *params)
 {
-    UINT32 ret = OS_OK;
-    UINT32 intSave = 0;
+    uint32_t ret = OS_OK;
+    uint32_t intSave = 0;
     ret = inner_softtimer_check_params(params);
     if (ret != OS_OK) {
         return ret;
@@ -107,10 +166,10 @@ UINT32 softtimer_create(UINT32 *swt_id, SOFTTIMER_PARAMS *params)
     return ret;
 }
 
-UINT32 softtimer_delete(UINT32 swt_id)
+uint32_t softtimer_delete(uint32_t swt_id)
 {
-    UINT32 ret = OS_OK;
-    UINT32 intSave = 0;
+    uint32_t ret = OS_OK;
+    uint32_t intSave = 0;
     if (swt_id >= OSZ_CFG_SWT_MAX) {
         return SOFTTIMER_CHECK_TIMER_INVALID_ERR;
     }
@@ -129,9 +188,9 @@ UINT32 softtimer_delete(UINT32 swt_id)
     return ret;
 }
 
-VOID softtimer_start(UINT32 swt_id)
+void_t softtimer_start(uint32_t swt_id)
 {
-    UINT32 intSave = 0;
+    uint32_t intSave = 0;
     if (swt_id >= OSZ_CFG_SWT_MAX) {
         return;
     }
@@ -140,9 +199,9 @@ VOID softtimer_start(UINT32 swt_id)
     ARCH_INT_UNLOCK(intSave);
 }
 
-VOID softtimer_stop(UINT32 swt_id)
+void_t softtimer_stop(uint32_t swt_id)
 {
-    UINT32 intSave = 0;
+    uint32_t intSave = 0;
     if (swt_id >= OSZ_CFG_SWT_MAX) {
         return;
     }
@@ -151,9 +210,9 @@ VOID softtimer_stop(UINT32 swt_id)
     ARCH_INT_UNLOCK(intSave);
 }
 
-VOID softtimer_ctrl(UINT32 swt_id, SOFTTIMER_CMD cmd, VOID *arg)
+void_t softtimer_ctrl(uint32_t swt_id, SOFTTIMER_CMD cmd, void_t *arg)
 {
-    UINT32 intSave = 0;
+    uint32_t intSave = 0;
     if (swt_id >= OSZ_CFG_SWT_MAX) {
         return;
     }
@@ -161,11 +220,11 @@ VOID softtimer_ctrl(UINT32 swt_id, SOFTTIMER_CMD cmd, VOID *arg)
     switch (cmd) {
         case SOFTTIMER_CMD_SET_TIME:
             softtimer_stop(swt_id);
-            g_softtimers[swt_id].load = *((UINT32 *)arg);
+            g_softtimers[swt_id].load = *((uint32_t *)arg);
             softtimer_start(swt_id);
             break;
         case SOFTTIMER_CMD_GET_TIME:
-            *((UINT32 *)arg) = g_softtimers[swt_id].link.timeout;
+            *((uint32_t *)arg) = g_softtimers[swt_id].link.timeout;
             break;
         case SOFTTIMER_CMD_SET_ONESHOT:
             g_softtimers[swt_id].flags |= SOFTTIMER_FLAG_ONESHOT;
@@ -181,7 +240,7 @@ VOID softtimer_ctrl(UINT32 swt_id, SOFTTIMER_CMD cmd, VOID *arg)
     ARCH_INT_UNLOCK(intSave);
 }
 
-VOID os_update_swtmr(VOID)
+void_t os_update_swtmr(void_t)
 {
     inner_swtmr_check_timeout();
 }

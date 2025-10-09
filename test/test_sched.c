@@ -9,7 +9,7 @@
 //     int count = 0;
 //     while (1) {
 //         printf("[task1] do something...[%d]\n", count++);
-//         os_udelay(5);
+//         osz_udelay(5);
 //         os_schedule();
 //     }
 // }
@@ -20,7 +20,7 @@
 //     int count = 0;
 //     while (1) {
 //         printf("[task2] do something...[%d]\n", count++);
-//         os_udelay(10);
+//         osz_udelay(10);
 //         os_schedule();
 //     }
 // }

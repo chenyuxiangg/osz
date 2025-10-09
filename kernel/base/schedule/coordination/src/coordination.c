@@ -12,11 +12,11 @@ STATIC VOID os_switch_to(TASK_CB *new_task)
 
 STATIC TASK_CB *os_get_next_valid_task()
 {
-    UINT32 task_id = os_get_current_tid();
+    UINT32 task_id = osz_get_current_tid();
     UINT32 nid;
     TASK_CB *task = NULL;
     for (nid = (task_id + 1) % OSZ_CFG_TASK_LIMIT; nid != task_id; nid = (nid + 1) % OSZ_CFG_TASK_LIMIT) {
-        task = os_get_taskcb_by_tid(nid);
+        task = osz_get_taskcb_by_tid(nid);
         if (task->used != TASK_USED || task->tsk_status.task_flags != TSK_FLAG_READY) {
             continue;
         }
@@ -41,7 +41,7 @@ VOID os_coord_sched_init()
 VOID os_coord_schedule()
 {
     // UINT32 tid = os_get_current_tid();
-    // TASK_CB *cur_task = os_get_taskcb_by_tid(tid);
+    // TASK_CB *cur_task = osz_get_taskcb_by_tid(tid);
     // TASK_CB *next_task = os_get_next_valid_task();
     // if (cur_task->tsk_status.task_flags == TSK_FLAG_RUNNING) {
     //     if (strncmp(cur_task->tsk_name, "init", strlen(cur_task->tsk_name)) == 0) {

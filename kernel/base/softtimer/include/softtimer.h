@@ -3,6 +3,8 @@
 #include "comm.h"
 #include "sortlink.h"
 
+#define GET_SWTMR_ID_FROM_CB(cb) ((((UINT32)(cb)) - (UINT32)(&g_softtimers[0]))/(sizeof(SOFTTIMER_CB)))
+
 typedef VOID (*softtimer_callback)(VOID *args);
 
 typedef enum {
@@ -21,7 +23,6 @@ typedef enum {
 
 typedef struct {
     SORT_LINK link;
-
     CHAR *name;
     softtimer_callback func;
     VOID *args;
@@ -36,6 +37,14 @@ typedef struct {
     UINT32 timeout;
     UINT8 flags;
 } SOFTTIMER_PARAMS;
+
+typedef struct {
+    DLINK_NODE link;
+    UINT32 id : 16;
+    UINT32 resv : 16;
+    softtimer_callback func;
+    VOID *args;
+} SOFTTIMER_WORKER;
 
 UINT32 softtimer_create(UINT32 *swt_id, SOFTTIMER_PARAMS *params);
 UINT32 softtimer_delete(UINT32 swt_id);

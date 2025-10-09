@@ -7,6 +7,7 @@ typedef struct DLINK_NODE {
     struct DLINK_NODE *pre;  // 指向前一个节点
     struct DLINK_NODE *next; // 指向下一个节点
 } DLINK_NODE;
+typedef DLINK_NODE osz_list_t;
 
 #define DLINK_GET_NEXT(node)                ((node)->next)
 #define DLINK_GET_PRE(node)                 ((node)->pre)

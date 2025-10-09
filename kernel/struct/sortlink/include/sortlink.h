@@ -7,6 +7,7 @@ typedef struct {
     DLINK_NODE  list;
     UINT32      timeout;
 } SORT_LINK;
+typedef SORT_LINK osz_sortlink_t;
 
 #define SORTLINK_LIST(sortlink)        ((sortlink).list)
 #define PSORTLINK_LIST(psortlink)      ((psortlink)->list)

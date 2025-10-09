@@ -1,7 +1,7 @@
 #ifndef __INNER_TASK_ERR_H__
 #define __INNER_TASK_ERR_H__
 
-#define TASK_BASE_ERR                       (0x10)
+#define TASK_BASE_ERR                       (0x00050000)
 #define TASK_CREATE_CHECK_NAME_ERR          (TASK_BASE_ERR | 0x1)
 #define TASK_CREATE_CHECK_STACK_AGLIGN_ERR  (TASK_BASE_ERR | 0x2)
 #define TASK_CREATE_CHECK_STACK_SIZE_ERR    (TASK_BASE_ERR | 0x3)
@@ -9,5 +9,9 @@
 #define TASK_CREATE_TASK_OVER_LIMIT_ERR     (TASK_BASE_ERR | 0x5)
 #define TASK_CREATE_CHECK_STACK_BASE_ERR    (TASK_BASE_ERR | 0x6)
 #define TASK_CREATE_CHECK_TASK_ENTRY_ERR    (TASK_BASE_ERR | 0x7)
+#define TASK_NO_WAIT_ERR                    (TASK_BASE_ERR | 0x8)
+#define TASK_WAIT_TIMEOUT_ERR               (TASK_BASE_ERR | 0x9)
+#define TASK_WAIT_WAKE_UP_ERR               (TASK_BASE_ERR | 0xA)
+#define TASK_WAKE_TASK_ID_NOT_EXIST         (TASK_BASE_ERR | 0xB)
 
 #endif

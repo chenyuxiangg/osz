@@ -39,13 +39,13 @@ __interrupt_entry:
     beqz    a0, __ret_task
 __ret_new_task:
     call os_preemp_clr_int_active
+    call os_preemp_schedule_with_pm
     csrr sp, mscratch
     restore_csr_reg
     restore_callee_reg
     addi sp, sp, 16 * REGBYTES
     restore_caller_reg
     addi sp, sp, 16 * REGBYTES
-    call os_preemp_schedule_with_pm
     j    schedule
     
 __ret_task:

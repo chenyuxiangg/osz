@@ -9,36 +9,38 @@
 
 #define US_PER_MS       (1000)
 
-STATIC UINT8 SECTION_KERNEL_INIT_DATA g_idle_task_stack[OSZ_CFG_TASK_STACK_DEFAULT_SIZE];
-STATIC DLINK_NODE SECTION_KERNEL_INIT_DATA g_freelist;
-STATIC DLINK_NODE SECTION_KERNEL_INIT_DATA g_pendlist;
-STATIC UINT32     SECTION_KERNEL_INIT_DATA g_task_sortlink_bitmap;
-STATIC SORT_LINK  SECTION_KERNEL_INIT_DATA g_task_sortlink;
-TASK_CB         *gp_new_task __attribute__((section(".data")));
-TASK_CB         *gp_current_task __attribute__((section(".data")));
-TASK_CB SECTION_KERNEL_INIT_DATA g_tasks[OSZ_CFG_TASK_LIMIT] = { 0 };
+STATIC uint8_t SECTION_KERNEL_INIT_DATA g_idle_task_stack[OSZ_CFG_TASK_STACK_DEFAULT_SIZE];
+STATIC osz_list_t SECTION_KERNEL_INIT_DATA g_freelist;
+STATIC osz_list_t SECTION_KERNEL_INIT_DATA g_pendlist;
+STATIC uint32_t     SECTION_KERNEL_INIT_DATA g_task_sortlink_bitmap;
+STATIC osz_sortlink_t  SECTION_KERNEL_INIT_DATA g_task_sortlink;
+osz_task_t         *gp_new_task __attribute__((section(".data")));
+osz_task_t         *gp_current_task __attribute__((section(".data")));
+osz_task_t SECTION_KERNEL_INIT_DATA g_tasks[OSZ_CFG_TASK_LIMIT] = { 0 };
 
-STATIC VOID inner_task_handler(UINT16 task_id)
+/*
+* description:
+*   当任务第一次进入时，a0会保存task_id的值，因此会直接调用任务所对应的
+*   回调函数；当任务主动调度时，mepc会被置为ra，详见save_current_task
+*/
+STATIC void_t inner_task_handler(uint16_t task_id)
 {
-    if (task_id < 0 || task_id > OSZ_CFG_TASK_LIMIT) {
-        return;
-    }
     g_tasks[task_id].tsk_entry(g_tasks[task_id].data);
 }
 
-STATIC VOID inner_task_exit(UINT16 task_id)
+STATIC void_t inner_task_exit(uint16_t task_id)
 {
-    os_delete_task(task_id);
+    osz_delete_task(task_id);
 }
 
-STATIC VOID idle_task_thread(VOID *data)
+STATIC void_t idle_task_thread(void_t *data)
 {
     while(1) {
         wfi();
     }
 }
 
-STATIC SECTION_KERNEL_INIT_TEXT UINT32 inner_task_module_init(VOID)
+STATIC SECTION_KERNEL_INIT_TEXT uint32_t inner_task_module_init(void_t)
 {
     if (OSZ_CFG_TASK_LIMIT <= 0) {
         return TASK_INIT_TASK_MAX_NUM_INVALID_ERR;
@@ -48,9 +50,9 @@ STATIC SECTION_KERNEL_INIT_TEXT UINT32 inner_task_module_init(VOID)
     dlink_init(&g_pendlist);
     sortlink_init(&g_task_sortlink);
 
-    for (UINT32 i = 0; i < OSZ_CFG_TASK_LIMIT; ++i) {
+    for (uint32_t i = 0; i < OSZ_CFG_TASK_LIMIT; ++i) {
         // init task state
-        g_tasks[i].tsk_state = (CHAR)TSK_FLAG_FREE;
+        g_tasks[i].tsk_state = (int8_t)TSK_FLAG_FREE;
         // init task list
         dlink_insert_tail(&g_freelist, (TASK_LIST(i, free)));
     }
@@ -58,24 +60,24 @@ STATIC SECTION_KERNEL_INIT_TEXT UINT32 inner_task_module_init(VOID)
 }
 MODULE_INIT(inner_task_module_init, l1)
 
-STATIC UINT32 inner_task_insert_sortlink(SORT_LINK *link)
+STATIC uint32_t inner_task_insert_sortlink(osz_sortlink_t *link)
 {
-    g_task_sortlink_bitmap |= (1 << os_get_current_tid());
+    g_task_sortlink_bitmap |= (1 << osz_get_current_tid());
     return sortlink_insert(&g_task_sortlink, link);
 }
 
-STATIC BOOL inner_task_sortlink_is_mounted(UINT32 task_id)
+STATIC bool_t inner_task_sortlink_is_mounted(uint32_t task_id)
 {
     return ((g_task_sortlink_bitmap >> task_id) & 0x1);
 }
 
-STATIC UINT32 inner_task_delete_sortlink(SORT_LINK *link, UINT16 task_id)
+STATIC uint32_t inner_task_delete_sortlink(osz_sortlink_t *link, uint16_t task_id)
 {
     g_task_sortlink_bitmap &= ~(1 << task_id);
     return sortlink_delete(link);
 }
 
-STATIC UINT32 inner_check_params(TASK_PARAMS *params)
+STATIC uint32_t inner_check_params(osz_task_params_t *params)
 {
     ASSERT(params);
     if (params->name == NULL) {
@@ -93,46 +95,46 @@ STATIC UINT32 inner_check_params(TASK_PARAMS *params)
     return OS_OK;
 }
 
-STATIC TASK_CB *inner_get_free_task_cb(VOID)
+STATIC osz_task_t *inner_get_free_task_cb(void_t)
 {
-    TASK_CB *next_cb = NULL;
+    osz_task_t *next_cb = NULL;
     if (DLINK_EMPTY(&g_freelist)) {
         return next_cb;
     }
-    UINT32 intSave = 0;
+    uint32_t intSave = 0;
     TASK_INT_LOCK(&intSave);
-    DLINK_NODE *next_free_node = dlink_del_node(g_freelist.next);
+    osz_list_t *next_free_node = dlink_del_node(g_freelist.next);
     TASK_INT_UNLOCK(intSave);
-    next_cb = STRUCT_ENTRY(TASK_CB, tsk_list_free, next_free_node);
+    next_cb = STRUCT_ENTRY(osz_task_t, tsk_list_free, next_free_node);
     return next_cb;
 }
 
-STATIC VOID inner_new_task_fill_context(UINT32 task_id)
+STATIC void_t inner_new_task_fill_context(uint32_t task_id)
 {
     // need to config mepc、mstatus、sp
-    TASK_CONTEXT *context = (TASK_CONTEXT *)(g_tasks[task_id].tsk_stack_top - sizeof(TASK_CONTEXT));
-    ((UINT32 *)context)[0] = TASK_CONTEXT_INIT_BASE_VALUE;
-    for (int i = 1; i < sizeof(TASK_CONTEXT)/sizeof(UINT32); ++i) {
-        ((UINT32 *)context)[i] = ((UINT32 *)context)[i-1] + TASK_CONTEXT_INIT_STEP;
+    osz_task_context_t *context = (osz_task_context_t *)(g_tasks[task_id].tsk_stack_top - sizeof(osz_task_context_t));
+    ((uint32_t *)context)[0] = TASK_CONTEXT_INIT_BASE_VALUE;
+    for (int i = 1; i < sizeof(osz_task_context_t)/sizeof(uint32_t); ++i) {
+        ((uint32_t *)context)[i] = ((uint32_t *)context)[i-1] + TASK_CONTEXT_INIT_STEP;
     }
-    context->mepc = (UINT32)inner_task_handler;
+    context->mepc = (uint32_t)inner_task_handler;
     context->mstatus = MSTATUS_MPP | MSTATUS_MPIE;  // must be set 3 to mpp，otherwith mret will be enter trap
     context->a0 = task_id;
-    context->ra = (UINT32)inner_task_exit;
-    g_tasks[task_id].tsk_context_pointer = (UINTPTR)context;
+    context->ra = (uint32_t)inner_task_exit;
+    g_tasks[task_id].tsk_context_pointer = (uintptr_t)context;
 }
 
-STATIC VOID inner_new_task_fill_magic_for_stack(TASK_PARAMS *params)
+STATIC void_t inner_new_task_fill_magic_for_stack(osz_task_params_t *params)
 {
     // must be keep stack_size align to 16
-    for (UINT32 i = 0; i < params->stack_size/sizeof(UINT32); ++i) {
-        ((UINT32 *)params->stack_base)[i] = TASK_STACK_INIT_MAGIC;
+    for (uint32_t i = 0; i < params->stack_size/sizeof(uint32_t); ++i) {
+        ((uint32_t *)params->stack_base)[i] = TASK_STACK_INIT_MAGIC;
     }
 }
 
-STATIC VOID inner_new_task_stack_init(UINT16 task_id, TASK_PARAMS *params)
+STATIC void_t inner_new_task_stack_init(uint16_t task_id, osz_task_params_t *params)
 {
-    /* os_create_task has checkd params */
+    /* osz_create_task has checkd params */
     g_tasks[task_id].tsk_stack_top = params->stack_base + params->stack_size;
 
     g_tasks[task_id].tsk_stack_size = params->stack_size;
@@ -140,9 +142,9 @@ STATIC VOID inner_new_task_stack_init(UINT16 task_id, TASK_PARAMS *params)
     inner_new_task_fill_context(task_id);
 }
 
-STATIC VOID inner_new_task_init(UINT16 task_id, TASK_PARAMS *params)
+STATIC void_t inner_new_task_init(uint16_t task_id, osz_task_params_t *params)
 {
-    /* os_create_task has checkd params */
+    /* osz_create_task has checkd params */
     TASK_NAME(task_id) = params->name;
     TASK_THREAD(task_id) = params->thread;
     TASK_DATA(task_id) = params->data;
@@ -154,7 +156,7 @@ STATIC VOID inner_new_task_init(UINT16 task_id, TASK_PARAMS *params)
     return inner_new_task_stack_init(task_id, params);
 }
 
-STATIC VOID inner_del_task_on_ready(UINT16 task_id)
+STATIC void_t inner_del_task_on_ready(uint16_t task_id)
 {
     // need to dequeue
     pri_queue_dequeue(g_tasks[task_id].tsk_priority, (TASK_LIST(task_id, ready)));
@@ -164,67 +166,67 @@ STATIC VOID inner_del_task_on_ready(UINT16 task_id)
     g_need_preemp = FALSE;
 }
 
-STATIC VOID inner_del_task_on_running(UINT16 task_id)
+STATIC void_t inner_del_task_on_running(uint16_t task_id)
 {
     TASK_STATUS_CLEAN(task_id, TSK_FLAG_RUNNING);
     g_need_preemp = TRUE;
 }
 
-STATIC VOID inner_del_task_on_pending(UINT16 task_id)
+STATIC void_t inner_del_task_on_pending(uint16_t task_id)
 {
     TASK_STATUS_CLEAN(task_id, TSK_FLAG_PENDING);
     g_need_preemp = FALSE;
 }
 
-STATIC VOID inner_del_task_on_blocking(UINT16 task_id)
+STATIC void_t inner_del_task_on_blocking(uint16_t task_id)
 {
     TASK_STATUS_CLEAN(task_id, TSK_FLAG_BLOCKING);
     g_need_preemp = FALSE;
 }
 
-STATIC VOID inner_task_ready2pend(UINT16 task_id)
+STATIC void_t inner_task_ready2pend(uint16_t task_id)
 {
     TASK_STATUS_CLEAN(task_id, TSK_FLAG_READY);
     pri_queue_dequeue(TASK_PRIORITY(task_id), TASK_LIST(task_id, ready));
 }
 
-STATIC VOID inner_task_run2pend(UINT16 task_id)
+STATIC void_t inner_task_run2pend(uint16_t task_id)
 {
     TASK_STATUS_CLEAN(task_id, TSK_FLAG_RUNNING);
 }
 
-STATIC VOID inner_task_block2pend(UINT16 task_id)
+STATIC void_t inner_task_block2pend(uint16_t task_id)
 {
     TASK_STATUS_CLEAN(task_id, TSK_FLAG_BLOCKING);
-    SORT_LINK *sl = STRUCT_ENTRY(SORT_LINK, list, TASK_LIST(task_id, blocking));
+    osz_sortlink_t *sl = STRUCT_ENTRY(osz_sortlink_t, list, TASK_LIST(task_id, blocking));
     inner_task_delete_sortlink(sl, task_id);
 }
 
-STATIC VOID inner_task_check_timeout(VOID)
+STATIC void_t inner_task_check_timeout(void_t)
 {
-    UINT32 intSave = 0;
+    uint32_t intSave = 0;
     TASK_INT_LOCK(&intSave);
-    SORT_LINK *sl = STRUCT_ENTRY(SORT_LINK, list, SORTLINK_LIST(g_task_sortlink).next);
+    osz_sortlink_t *sl = STRUCT_ENTRY(osz_sortlink_t, list, SORTLINK_LIST(g_task_sortlink).next);
     if (PSORTLINK_TIMEOUT(sl) != 0) {
         PSORTLINK_TIMEOUT(sl) -= 1;
     } else {
         do {
-            TASK_CB *task = STRUCT_ENTRY(TASK_CB, tsk_list_blocking, sl);
-            UINT16 task_id = os_get_task_id_by_task_cb(task);
+            osz_task_t *task = STRUCT_ENTRY(osz_task_t, tsk_list_blocking, sl);
+            uint16_t task_id = osz_get_task_id_by_task_cb(task);
             TASK_STATUS_CLEAN(task_id, TSK_FLAG_BLOCKING);
             TASK_STATUS_SET(task_id, TSK_FLAG_READY);
             inner_task_delete_sortlink(sl, task_id);
             pri_queue_enqueue(TASK_PRIORITY(task_id), TASK_LIST(task_id, ready), EQ_MODE_TAIL);
-            sl = STRUCT_ENTRY(SORT_LINK, list, SORTLINK_LIST(g_task_sortlink).next);
+            sl = STRUCT_ENTRY(osz_sortlink_t, list, SORTLINK_LIST(g_task_sortlink).next);
         } while((sl != NULL) && (PSORTLINK_TIMEOUT(sl) == 0));
         g_need_preemp = TRUE;
     }
     TASK_INT_UNLOCK(intSave);
 }
 
-STATIC VOID inner_task_check_preemp(VOID)
+STATIC void_t inner_task_check_preemp(void_t)
 {
-    UINT32 intSave = 0;
+    uint32_t intSave = 0;
     TASK_INT_LOCK(&intSave);
     g_need_preemp = (pri_queue_get_bitmap_low_bit() != OS_NOK) ? TRUE : FALSE;
     TASK_INT_UNLOCK(intSave);
@@ -232,15 +234,15 @@ STATIC VOID inner_task_check_preemp(VOID)
 
 /* ======== external interface ======== */
 
-UINT32 os_create_task(UINT16 *task_id, TASK_PARAMS *params)
+uint32_t osz_create_task(uint16_t *task_id, osz_task_params_t *params)
 {
-    UINT32 check_ret = OS_OK;
+    uint32_t check_ret = OS_OK;
     check_ret = inner_check_params(params);
     if (check_ret != OS_OK) {
         return check_ret;
     }
 
-    TASK_CB *free_task_cb = inner_get_free_task_cb();
+    osz_task_t *free_task_cb = inner_get_free_task_cb();
     if (free_task_cb == NULL) {
         return TASK_CREATE_TASK_OVER_LIMIT_ERR;
     }
@@ -250,9 +252,9 @@ UINT32 os_create_task(UINT16 *task_id, TASK_PARAMS *params)
     return OS_OK;
 }
 
-VOID os_delete_task(UINT32 task_id)
+void_t osz_delete_task(uint32_t task_id)
 {
-    UINT32 intSave = 0;
+    uint32_t intSave = 0;
     TASK_INT_LOCK(&intSave);
     if (TASK_STATE(task_id) == TSK_FLAG_FREE) {
         return;
@@ -301,32 +303,32 @@ VOID os_delete_task(UINT32 task_id)
     TASK_INT_UNLOCK(intSave);
 }
 
-UINT32 task_create_idle_task(UINT16 *task_id)
+uint32_t osz_create_idle_task(uint16_t *task_id)
 {
-    TASK_PARAMS params = {
+    osz_task_params_t params = {
         .name = "idle",
         .stack_attr = STACK_MEM_STATIC,
-        .stack_base = (UINTPTR)&g_idle_task_stack,
+        .stack_base = (uintptr_t)&g_idle_task_stack,
         .stack_size = OSZ_CFG_TASK_STACK_DEFAULT_SIZE,
         .priority = TASK_PRIORITY_DEFAULT,
-        .thread = (TASK_THREAD_TYPE)idle_task_thread,
+        .thread = (task_callback_t)idle_task_thread,
         .data = NULL
     };
-    UINT32 ret = OS_OK;
-    ret = os_create_task(task_id, &params);
+    uint32_t ret = OS_OK;
+    ret = osz_create_task(task_id, &params);
     if (ret != OS_OK) {
         return ret;
     }
-    os_task_resume(*task_id);
+    osz_task_resume(*task_id);
     return ret;
 }
 
-UINT32 os_get_current_tid()
+uint32_t osz_get_current_tid()
 {
-    return os_get_task_id_by_task_cb(gp_current_task);
+    return osz_get_task_id_by_task_cb(gp_current_task);
 }
 
-TASK_CB *os_get_taskcb_by_tid(UINT32 tid)
+osz_task_t *osz_get_taskcb_by_tid(uint32_t tid)
 {
     if (tid < 0 || tid >= OSZ_CFG_TASK_LIMIT) {
         return NULL;
@@ -334,20 +336,20 @@ TASK_CB *os_get_taskcb_by_tid(UINT32 tid)
     return &g_tasks[tid];
 }
 
-UINT16 os_get_task_id_by_task_cb(TASK_CB *tcb)
+uint16_t osz_get_task_id_by_task_cb(osz_task_t *tcb)
 {
     ASSERT(tcb);
-    return (((UCHAR *)tcb - (UCHAR *)&g_tasks[0]) / sizeof(TASK_CB));
+    return (((uint8_t *)tcb - (uint8_t *)&g_tasks[0]) / sizeof(osz_task_t));
 }
 
 /*
 * This function dont release CPU.
 */
-VOID os_udelay(UINT64 usec)
+void_t osz_udelay(uint64_t usec)
 {
-    UINT64 tick = usec / OSZ_CFG_TASK_TICK_PER_US;
-    UINT64 pre_time_stamp = 0;
-    UINT64 cur_time_stamp = 0;
+    uint64_t tick = usec / OSZ_CFG_TASK_TICK_PER_US;
+    uint64_t pre_time_stamp = 0;
+    uint64_t cur_time_stamp = 0;
     drv_timer_get_time_stamp(&pre_time_stamp);
     do {
         drv_timer_get_time_stamp(&cur_time_stamp);
@@ -357,15 +359,15 @@ VOID os_udelay(UINT64 usec)
 /*
 * This function will release CPU.
 */
-VOID os_msleep(UINT64 msec)
+void_t osz_msleep(uint64_t msec)
 {
-    UINT32 intSave = 0;
-    UINT64 tick = ((msec * US_PER_MS) * CYCLES_PER_US) / CYCLES_PER_TICK;
-    UINT16 task_id = os_get_current_tid();
+    uint32_t intSave = 0;
+    uint64_t tick = ((msec * US_PER_MS) * CYCLES_PER_US) / CYCLES_PER_TICK;
+    uint16_t task_id = osz_get_current_tid();
     TASK_INT_LOCK(&intSave);
     TASK_STATUS_CLEAN(task_id, TSK_FLAG_RUNNING);
     TASK_STATUS_SET(task_id, TSK_FLAG_BLOCKING);
-    SORT_LINK *sl = STRUCT_ENTRY(SORT_LINK, list, TASK_LIST(task_id, blocking));
+    osz_sortlink_t *sl = STRUCT_ENTRY(osz_sortlink_t, list, TASK_LIST(task_id, blocking));
     if (inner_task_sortlink_is_mounted(task_id)) {
         inner_task_delete_sortlink(sl, task_id);
     }
@@ -375,7 +377,7 @@ VOID os_msleep(UINT64 msec)
     os_schedule();
 }
 
-VOID os_update_task(VOID)
+void_t osz_update_task(void_t)
 {
     if (!DLINK_EMPTY(&SORTLINK_LIST(g_task_sortlink))) {
         inner_task_check_timeout();
@@ -383,15 +385,15 @@ VOID os_update_task(VOID)
     inner_task_check_preemp();
 }
 
-VOID os_task_suspend(UINT16 task_id)
+void_t osz_task_suspend(uint16_t task_id)
 {
-    UINT32 intSave = 0;
+    uint32_t intSave = 0;
     TASK_INT_LOCK(&intSave);
     if (TASK_STATE(task_id) == TSK_FLAG_PENDING || TASK_STATE(task_id) == TSK_FLAG_FREE) {
         TASK_INT_UNLOCK(intSave);
         return;
     }
-    TASK_FLAGS status = TASK_STATE(task_id);
+    osz_task_flags_t status = TASK_STATE(task_id);
     switch(status) {
         case TSK_FLAG_READY:
             inner_task_ready2pend(task_id);
@@ -413,9 +415,9 @@ VOID os_task_suspend(UINT16 task_id)
     }
 }
 
-VOID os_task_resume(UINT16 task_id)
+void_t osz_task_resume(uint16_t task_id)
 {
-    UINT32 intSave = 0;
+    uint32_t intSave = 0;
     TASK_INT_LOCK(&intSave);
     TASK_STATUS_CLEAN(task_id, TSK_FLAG_PENDING);
     TASK_STATUS_SET(task_id, TSK_FLAG_READY);
@@ -424,10 +426,10 @@ VOID os_task_resume(UINT16 task_id)
     TASK_INT_UNLOCK(intSave);
 }
 
-VOID os_task_yeild()
+void_t osz_task_yeild()
 {
-    UINT32 intSave = 0;
-    UINT16 task_id = os_get_current_tid();
+    uint32_t intSave = 0;
+    uint16_t task_id = osz_get_current_tid();
     if (TASK_STATE(task_id) != TSK_FLAG_RUNNING) {
         return;
     }
@@ -438,32 +440,43 @@ VOID os_task_yeild()
     TASK_INT_UNLOCK(intSave);
 }
 
-VOID os_task_wait(EVENT_CB *ecb, UINT64 timeout)
+uint32_t osz_task_wait(uint64_t timeout)
 {
     if (timeout == 0) {
-        return;
+        return TASK_NO_WAIT_ERR;
     }
-    UINT16 task_id = os_get_current_tid();
-    TASK_EVENT_OP(task_id) = ecb->event_op;
-    TASK_EVENT_WAIT(task_id) = ecb->event_wait;
-    os_msleep(timeout);
+    if (timeout == WAIT_FOREVER) {
+        os_schedule();
+        return TASK_WAIT_WAKE_UP_ERR;
+    }
+    osz_msleep(timeout);
+    return TASK_WAIT_TIMEOUT_ERR;
 }
 
-VOID os_task_wake(UINT16 task_id)
+uint32_t osz_task_wake(uint16_t task_id)
 {
     if (task_id < 0 || task_id >= OSZ_CFG_TASK_LIMIT) {
-        return;
+        return TASK_WAKE_TASK_ID_NOT_EXIST;
     }
     
-    UINT32 intSave = 0;
+    uint32_t intSave = 0;
     TASK_INT_LOCK(&intSave);
-    TASK_STATUS_CLEAN(task_id, TSK_FLAG_BLOCKING);
-    TASK_STATUS_SET(task_id, TSK_FLAG_READY);
-    if (!inner_task_sortlink_is_mounted(task_id)) {
-        return;
+    if ((TASK_STATE(task_id) & TSK_FLAG_BLOCKING) == TSK_FLAG_BLOCKING) {
+        TASK_STATUS_CLEAN(task_id, TSK_FLAG_BLOCKING);
+        osz_sortlink_t *sl = STRUCT_ENTRY(osz_sortlink_t, list, TASK_LIST(task_id, blocking));
+        inner_task_delete_sortlink(sl, task_id);
     }
-    SORT_LINK *sl = STRUCT_ENTRY(SORT_LINK, list, TASK_LIST(task_id, blocking));
-    inner_task_delete_sortlink(sl, task_id);
+    if ((TASK_STATE(task_id) & TSK_FLAG_PENDING) == TSK_FLAG_PENDING) {
+        TASK_STATUS_CLEAN(task_id, TSK_FLAG_PENDING);
+        dlink_del_node(TASK_LIST(task_id, pending));
+    }
+    TASK_STATUS_SET(task_id, TSK_FLAG_READY);
     pri_queue_enqueue(TASK_PRIORITY(task_id), TASK_LIST(task_id, ready), EQ_MODE_TAIL);
     TASK_INT_UNLOCK(intSave);
+    return OS_OK;
+}
+
+void_t switch_hook(void_t)
+{
+    return;
 }

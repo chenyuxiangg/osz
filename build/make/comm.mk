@@ -60,7 +60,7 @@ include $(CFG_MK)
 MODULES_y :=
 MODULES_n :=
 MODULES_$(OSZ_CFG_STARTUP) += kernel/startup
-MODULES_$(OSZ_CFG_STRUCT) += kernel/base/struct
+MODULES_$(OSZ_CFG_STRUCT) += kernel/struct
 MODULES_$(OSZ_CFG_COMM) += kernel/comm
 MODULES_$(OSZ_CFG_MEM) += kernel/base/mem
 MODULES_$(OSZ_CFG_SOFTTIMER) += kernel/base/softtimer

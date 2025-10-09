@@ -31,22 +31,22 @@ STATIC CMD_HISTORY g_shell_history;
 STATIC VOID inner_shell_task_create(VOID)
 {
     UCHAR *task_stack = osz_malloc(0x800);
-    TASK_PARAMS params = {
+    osz_task_params_t params = {
         .name = "shell_task",
         .stack_attr = STACK_MEM_DYNAMIC,
         .stack_base = (UINTPTR)task_stack,
         .stack_size = 0x800,
         .priority = 0x9,
-        .thread = (TASK_THREAD_TYPE)shell_loop,
+        .thread = (task_callback_t)shell_loop,
         .data = NULL
     };
     UINT16 task_id;
-    UINT32 ret = os_create_task(&task_id, &params);
+    UINT32 ret = osz_create_task(&task_id, &params);
     if (ret != OS_OK) {
         printf("ret: %#x\n", ret);
         return;
     }
-    os_task_resume(task_id);
+    osz_task_resume(task_id);
 }
 
 STATIC VOID inner_shell_init(VOID)
@@ -475,7 +475,7 @@ VOID shell_loop(VOID)
                 if (!fifo_is_empty(g_shell_cb.fifo)) {
                     g_shell_cb.shell_state = SHELL_STATE_GET;
                 } else {
-                    os_msleep(20);
+                    osz_msleep(20);
                 }
                 break;
             case SHELL_STATE_GET:
