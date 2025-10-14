@@ -8,4 +8,3 @@ tools/qemu
 *.dtb
 *.dts
 opensource.tar.gz
-test_suite

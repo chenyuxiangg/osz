@@ -56,6 +56,13 @@ SECTIONS
 		_data_end = .;
 	} > DTCM :data
 
+	. = ALIGN(0x20);
+	.et : {
+		_et_group_start = .;
+		KEEP(*(.et_group))
+		_et_group_end = .;
+	} > DTCM :data
+
 	.got : {
 		*(.got .got.*)
 	} > DTCM :data

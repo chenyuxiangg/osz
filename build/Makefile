@@ -14,7 +14,8 @@ QFLAGS := -nographic -smp 1 -machine virt -bios none -m 128M
 MODULES := $(MODULES_y)
 
 # config link global options
-LDFLAGS := $(OSZ_UNDEFUINE_SYMB) -T$(OSZ_LD) -Map=$(TARGET_NAME).map --gc-sections -static
+LDFLAGS := $(OSZ_UNDEFUINE_SYMB) -T$(OSZ_LD) -Map=$(TARGET_NAME).map -static
+LDFLAGS += --gc-sections
 LINK_PATH := $(foreach mod,$(MODULES),$(addprefix -L$(G_OUTPUT_PATH)/,$(basename $(notdir $(mod)))))
 LINK_PATH := $(addsuffix /lib,$(LINK_PATH))
 LIBS := --start-group

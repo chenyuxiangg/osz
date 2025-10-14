@@ -16,7 +16,7 @@ void_t test_thread1_handle(void_t)
     DEBUG_INFO();
     while(1) {
         uint32_t res = osz_events_read(g_ecb, 1, EVENT_FLAG_OR | EVENT_FLAG_CLEAN, WAIT_FOREVER, &recv_event);
-        printf("task1 read event ok.\n");
+        printf("task1 read event ok. res=%#x\n", res);
         osz_events_write(g_ecb, 2);
         osz_msleep(6000);
     }
@@ -29,7 +29,7 @@ void_t test_thread2_handle(void_t)
     while(1) {
         uint32_t res = osz_events_write(g_ecb, 1);
         osz_events_read(g_ecb, 2, EVENT_FLAG_OR | EVENT_FLAG_CLEAN, WAIT_FOREVER, &recv_event);
-        printf("task2 read event ok.\n");
+        printf("task2 read event ok. res=%#x\n", res);
         osz_msleep(3000);
     }
 }

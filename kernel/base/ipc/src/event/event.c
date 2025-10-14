@@ -6,12 +6,11 @@
 #define IS_EMPTY(pend_list)     ((pend_list)->next != (pend_list))
 
 osz_events_t g_static_events_grp[OSZ_EVENT_STATIC_MAX_CNT] = { 0 };
-
 STATIC uint32_t module_events_init(void_t)
 {
     for (int i = 0; i < OSZ_EVENT_STATIC_MAX_CNT; ++i) {
         osz_obj_t *obj = (osz_obj_t *)&g_static_events_grp[i];
-        uint32_t ret = object_init(obj, OSZ_MOD_IPC, NULL, 0);
+        uint32_t ret = object_init(obj, OSZ_MOD_EVENTS, NULL, 0);
         if (ret != OS_OK) {
             return ret;
         }
@@ -26,7 +25,7 @@ STATIC uint32_t inner_events_check(osz_events_t *events)
     if (events == NULL) {
         return EVENT_READ_EVENTS_NULL_ERR;
     }
-    if (events->supper.module != &g_modules[OSZ_MOD_IPC]) {
+    if (events->supper.module != &g_modules[OSZ_MOD_EVENTS]) {
         return EVENT_READ_EVENTS_OBJ_NOT_IPC_ERR;
     }
     if (events->attr.ipc_obj_used == IPC_NOT_USED) {
@@ -56,7 +55,7 @@ STATIC uint32_t inner_events_obj_init(osz_events_t *obj, uint8_t *name, uint8_t 
 uint32_t osz_events_init(uint8_t *name, uint8_t name_size, osz_events_t **outter_obj)
 {
     uint32_t ret = OS_OK;
-    ret = get_free_obj(OSZ_MOD_IPC, ((osz_obj_t **)outter_obj));
+    ret = get_free_obj(OSZ_MOD_EVENTS, ((osz_obj_t **)outter_obj));
     if (ret != OS_OK) {
         goto OUT;
     }

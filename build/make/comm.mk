@@ -74,7 +74,7 @@ MODULES_$(OSZ_CFG_IPC) += kernel/base/ipc
 MODULES_$(OSZ_CFG_TRAP) += kernel/base/trap
 MODULES_$(OSZ_CFG_INIT) += kernel/base/init
 MODULES_$(OSZ_CFG_RISCV) += arch/riscv
-MODULES_$(OSZ_CFG_TEST) += test
+MODULES_$(OSZ_CFG_TEST_SUITE) += test_suite
 MODULES_$(OSZ_CFG_TARGETS) += targets
 
 # global compile macro

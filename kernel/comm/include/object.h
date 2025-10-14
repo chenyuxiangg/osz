@@ -22,8 +22,11 @@ typedef enum __osz_module_enum {
 #ifdef OSZ_CFG_TASK
     OSZ_MOD_TASK,
 #endif
-#ifdef OSZ_CFG_IPC
-    OSZ_MOD_IPC,
+#ifdef OSZ_CFG_EVENT
+    OSZ_MOD_EVENTS,
+#endif
+#ifdef OSZ_CFG_SEM
+    OSZ_MOD_SEM,
 #endif
 #ifdef OSZ_CFG_SOFTTIMER
     OSZ_MOD_SWT,

@@ -11,6 +11,10 @@ ifeq ($(OSZ_CFG_EVENT), y)
 LOCAL_$(CONFIG_MODULE)_INCLUDE += -I$(CONFIG_CURRENT_DIR)/include/event
 endif
 
+ifeq ($(OSZ_CFG_SEM), y)
+LOCAL_$(CONFIG_MODULE)_INCLUDE += -I$(CONFIG_CURRENT_DIR)/include/sem
+endif
+
 ifeq ($(OSZ_CFG_ATOMIC), y)
 LOCAL_$(CONFIG_MODULE)_INCLUDE += -I$(CONFIG_CURRENT_DIR)/include/atomic
 endif
