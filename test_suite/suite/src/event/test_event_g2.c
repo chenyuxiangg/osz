@@ -19,6 +19,8 @@
 #include "event.h"
 #include "et.h"
 
+#define OS_WAIT_FOREVER                     (0xFFFFFFFF)
+
 static void_t setup(void_t) {}
 static void_t teardown(void_t) {}
 
@@ -38,7 +40,25 @@ TEST_GROUP(ET_MODULE_EVENT, 2, "Event Read Tests", setup, teardown)
         //   - Event bits remain unchanged (no CLEAN flag)
         
         // TODO: Implement test code here
+        osz_events_t *event_obj = NULL;
+        uint8_t name[] = "test_event";
+        uint8_t name_size = sizeof(name) - 1;
+        uint32_t result = osz_events_init(name, name_size, &event_obj);
+        VERIFY(result == OS_OK);
+        VERIFY(event_obj != NULL);
         
+        // Set specific event bits
+        event_obj->field.events = 0x03; // Set bits 0 and 1
+        
+        uint32_t out_events = 0;
+        result = osz_events_read(event_obj, 0x03, EVENT_FLAG_AND, OS_WAIT_FOREVER, &out_events);
+        
+        VERIFY(result == OS_OK);
+        VERIFY(out_events == 0x03);
+        VERIFY(event_obj->field.events == 0x03); // Events remain unchanged
+        
+        result = osz_events_detach(event_obj);
+        VERIFY(result == OS_OK);
     }
 
     TEST("Test_2_2: Normal Event Read (OR Operation, Events Exist)") {
@@ -52,7 +72,25 @@ TEST_GROUP(ET_MODULE_EVENT, 2, "Event Read Tests", setup, teardown)
         //   - Event bits remain unchanged (no CLEAN flag)
         
         // TODO: Implement test code here
+        osz_events_t *event_obj = NULL;
+        uint8_t name[] = "test_event";
+        uint8_t name_size = sizeof(name) - 1;
+        uint32_t result = osz_events_init(name, name_size, &event_obj);
+        VERIFY(result == OS_OK);
+        VERIFY(event_obj != NULL);
         
+        // Set specific event bits
+        event_obj->field.events = 0x05; // Set bits 0 and 2
+        
+        uint32_t out_events = 0;
+        result = osz_events_read(event_obj, 0x04, EVENT_FLAG_OR, OS_WAIT_FOREVER, &out_events);
+        
+        VERIFY(result == OS_OK);
+        VERIFY(out_events == 0x04); // Only bit 2 matches (0x04)
+        VERIFY(event_obj->field.events == 0x05); // Events remain unchanged
+        
+        result = osz_events_detach(event_obj);
+        VERIFY(result == OS_OK);
     }
 
     TEST("Test_2_3: Event Read with Clean Flag") {
@@ -66,7 +104,25 @@ TEST_GROUP(ET_MODULE_EVENT, 2, "Event Read Tests", setup, teardown)
         //   - Event bits are cleared after reading
         
         // TODO: Implement test code here
+        osz_events_t *event_obj = NULL;
+        uint8_t name[] = "test_event";
+        uint8_t name_size = sizeof(name) - 1;
+        uint32_t result = osz_events_init(name, name_size, &event_obj);
+        VERIFY(result == OS_OK);
+        VERIFY(event_obj != NULL);
         
+        // Set specific event bits
+        event_obj->field.events = 0x07; // Set bits 0, 1 and 2
+        
+        uint32_t out_events = 0;
+        result = osz_events_read(event_obj, 0x03, EVENT_FLAG_AND | EVENT_FLAG_CLEAN, OS_WAIT_FOREVER, &out_events);
+        
+        VERIFY(result == OS_OK);
+        VERIFY(out_events == 0x03);
+        VERIFY(event_obj->field.events == 0x04); // Events cleared for bits 0 and 1, bit 2 remains
+        
+        result = osz_events_detach(event_obj);
+        VERIFY(result == OS_OK);
     }
 
     TEST("Test_2_4: Event Read No Wait (Timeout Zero)") {
@@ -79,7 +135,24 @@ TEST_GROUP(ET_MODULE_EVENT, 2, "Event Read Tests", setup, teardown)
         //   - Current task does not enter waiting state
         
         // TODO: Implement test code here
+        osz_events_t *event_obj = NULL;
+        uint8_t name[] = "test_event";
+        uint8_t name_size = sizeof(name) - 1;
+        uint32_t result = osz_events_init(name, name_size, &event_obj);
+        VERIFY(result == OS_OK);
+        VERIFY(event_obj != NULL);
         
+        // Event has no requested bits set
+        event_obj->field.events = 0x04; // Set bit 2, but we'll wait for bit 1
+        
+        uint32_t out_events = 0;
+        result = osz_events_read(event_obj, 0x02, EVENT_FLAG_AND, 0, &out_events);
+        
+        VERIFY(result == EVENT_READ_NO_WAIT_ERR);
+        VERIFY(event_obj->field.events == 0x04); // Events remain unchanged
+        
+        result = osz_events_detach(event_obj);
+        VERIFY(result == OS_OK);
     }
 
     TEST("Test_2_5: Operation Flag Conflict Error Test") {
@@ -92,7 +165,20 @@ TEST_GROUP(ET_MODULE_EVENT, 2, "Event Read Tests", setup, teardown)
         //   - No state change, no task blocking
         
         // TODO: Implement test code here
+        osz_events_t *event_obj = NULL;
+        uint8_t name[] = "test_event";
+        uint8_t name_size = sizeof(name) - 1;
+        uint32_t result = osz_events_init(name, name_size, &event_obj);
+        VERIFY(result == OS_OK);
+        VERIFY(event_obj != NULL);
         
+        uint32_t out_events = 0;
+        result = osz_events_read(event_obj, 0x01, EVENT_FLAG_AND | EVENT_FLAG_OR, OS_WAIT_FOREVER, &out_events);
+        
+        VERIFY(result == EVENT_READ_OP_CONFLICT_ERR);
+        
+        result = osz_events_detach(event_obj);
+        VERIFY(result == OS_OK);
     }
 
     TEST("Test_2_6: Non-existent Operation Flag Error Test") {
@@ -105,7 +191,21 @@ TEST_GROUP(ET_MODULE_EVENT, 2, "Event Read Tests", setup, teardown)
         //   - No state change
         
         // TODO: Implement test code here
+        osz_events_t *event_obj = NULL;
+        uint8_t name[] = "test_event";
+        uint8_t name_size = sizeof(name) - 1;
+        uint32_t result = osz_events_init(name, name_size, &event_obj);
+        VERIFY(result == OS_OK);
+        VERIFY(event_obj != NULL);
         
+        uint32_t out_events = 0;
+        // Call osz_events_read without AND or OR flags (operation flag = 0)
+        result = osz_events_read(event_obj, 0x01, 0, OS_WAIT_FOREVER, &out_events);
+        
+        VERIFY(result == EVENT_READ_OP_NOT_EXSIT_ERR);
+        
+        result = osz_events_detach(event_obj);
+        VERIFY(result == OS_OK);
     }
 
     TEST("Test_2_7: Read NULL Event Object") {
@@ -118,7 +218,10 @@ TEST_GROUP(ET_MODULE_EVENT, 2, "Event Read Tests", setup, teardown)
         //   - No state change, no task blocking
         
         // TODO: Implement test code here
+        uint32_t out_events = 0;
+        uint32_t result = osz_events_read(NULL, 0x01, EVENT_FLAG_AND, OS_WAIT_FOREVER, &out_events);
         
+        VERIFY(result == EVENT_READ_EVENTS_NULL_ERR);
     }
 
     TEST("Test_2_8: Read Non-Event Type Object") {
@@ -131,7 +234,23 @@ TEST_GROUP(ET_MODULE_EVENT, 2, "Event Read Tests", setup, teardown)
         //   - No state change
         
         // TODO: Implement test code here
+        osz_events_t *event_obj = NULL;
+        uint8_t name[] = "test_event";
+        uint8_t name_size = sizeof(name) - 1;
+        uint32_t result = osz_events_init(name, name_size, &event_obj);
+        VERIFY(result == OS_OK);
+        VERIFY(event_obj != NULL);
         
+        // Modify the object type to non-event type (e.g., set to OSZ_MOD_TASK or other value)
+        event_obj->attr.ipc_type = IPC_NONE_OBJECT; // Set to a non-event type
+        
+        uint32_t out_events = 0;
+        result = osz_events_read(event_obj, 0x01, EVENT_FLAG_AND, OS_WAIT_FOREVER, &out_events);
+        
+        VERIFY(result == EVENT_READ_NOT_EVENTS_TYPE_ERR);
+        
+        result = osz_events_detach(event_obj);
+        VERIFY(result == OS_OK);
     }
 
     TEST("Test_2_9: Read Unused Event Object") {
@@ -144,6 +263,22 @@ TEST_GROUP(ET_MODULE_EVENT, 2, "Event Read Tests", setup, teardown)
         //   - No state change
         
         // TODO: Implement test code here
+        osz_events_t *event_obj = NULL;
+        uint8_t name[] = "test_event";
+        uint8_t name_size = sizeof(name) - 1;
+        uint32_t result = osz_events_init(name, name_size, &event_obj);
+        VERIFY(result == OS_OK);
+        VERIFY(event_obj != NULL);
         
+        // Mark the event object as unused by setting ipc_obj_used to 0
+        event_obj->attr.ipc_obj_used = 0;
+        
+        uint32_t out_events = 0;
+        result = osz_events_read(event_obj, 0x01, EVENT_FLAG_AND, OS_WAIT_FOREVER, &out_events);
+        
+        VERIFY(result == EVENT_READ_EVENTS_OBJ_NOT_USED_ERR);
+        
+        result = osz_events_detach(event_obj);
+        VERIFY(result == OS_OK);
     }
 }

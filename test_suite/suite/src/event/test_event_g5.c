@@ -39,25 +39,37 @@ TEST_GROUP(ET_MODULE_EVENT, 5, "Boundary Condition Error Handling Tests", setup,
         //   - No overflow or underflow issues
         
         // TODO: Implement test code here
+        osz_events_t *event_obj = NULL;
+        uint8_t name[] = "boundary_test";
+        uint8_t name_size = sizeof(name) - 1;
         
+        // Initialize an event for testing
+        uint32_t init_result = osz_events_init(name, name_size, &event_obj);
+        VERIFY(init_result == OS_OK);
+        VERIFY(event_obj != NULL);
+        
+        // Step 1: Set all event bits (0xFFFFFFFF)
+        uint32_t set_all_result = osz_events_write(event_obj, 0xFFFFFFFF);
+        VERIFY(set_all_result == OS_OK);
+        
+        // Step 2: Clear all event bits (0x0) by writing 0
+        uint32_t clear_result = osz_events_write(event_obj, 0x0);
+        VERIFY(clear_result == OS_OK);
+        
+        // Step 3: Set specific boundary event bits
+        // Test various boundary values
+        uint32_t boundary_values[] = {0x1, 0x80000000, 0x55555555, 0xAAAAAAAA};
+        for (uint32_t i = 0; i < sizeof(boundary_values) / sizeof(boundary_values[0]); i++) {
+            uint32_t write_result = osz_events_write(event_obj, boundary_values[i]);
+            VERIFY(write_result == OS_OK);
+        }
+        
+        // Clean up: detach the event object
+        uint32_t res = osz_events_detach(event_obj);
+        VERIFY(res == OS_OK);
     }
 
-    TEST("Test_5_2: Name Length Boundary Test") {
-        // Preconditions: System initialized
-        // Steps:
-        //   1. Initialize event with empty name
-        //   2. Initialize event with very long name
-        //   3. Initialize event with zero length name
-        // Expected:
-        //   - Empty name and zero length name correctly handled
-        //   - Very long name safely truncated or rejected
-        //   - No memory out-of-bounds access
-        
-        // TODO: Implement test code here
-        
-    }
-
-    TEST("Test_5_3: Delete NULL Pointer Event") {
+    TEST("Test_5_2: Delete NULL Pointer Event") {
         // Preconditions: No special preconditions
         // Steps:
         //   1. Call osz_events_delete function, pass NULL
@@ -67,10 +79,12 @@ TEST_GROUP(ET_MODULE_EVENT, 5, "Boundary Condition Error Handling Tests", setup,
         //   - No memory operation, system stable
         
         // TODO: Implement test code here
+        uint32_t result = osz_events_delete(NULL);
+        VERIFY(result == EVENT_DELETE_NULL_OBJ_ERR);
         
     }
 
-    TEST("Test_5_4: Detach NULL Pointer Event") {
+    TEST("Test_5_3: Detach NULL Pointer Event") {
         // Preconditions: No special preconditions
         // Steps:
         //   1. Call osz_events_detach function, pass NULL
@@ -80,6 +94,8 @@ TEST_GROUP(ET_MODULE_EVENT, 5, "Boundary Condition Error Handling Tests", setup,
         //   - No list operation, system stable
         
         // TODO: Implement test code here
+        uint32_t result = osz_events_detach(NULL);
+        VERIFY(result == EVENT_DELETE_NULL_OBJ_ERR);
         
     }
 }

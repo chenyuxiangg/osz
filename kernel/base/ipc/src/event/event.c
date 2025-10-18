@@ -43,12 +43,24 @@ STATIC uint32_t inner_events_obj_init(osz_events_t *obj, uint8_t *name, uint8_t 
     obj->attr.ipc_obj_used = IPC_USED;
     obj->attr.ipc_type = IPC_EVENTS;
     dlink_init(&(obj->pend_list));
+    name_size = (name_size > OSZ_CFG_OBJ_NAME_MAX_LENS) ? OSZ_CFG_OBJ_NAME_MAX_LENS : name_size;
     if (name != NULL && name_size != 0) {
         memcpy(obj->supper.name, name, name_size);
     }
     if (create_type == IPC_STATIC_CREATE) {
         dlink_insert_tail(&(obj->supper.module->used_obj_list), &(obj->supper.obj_list));
     }
+    return OS_OK;
+}
+
+STATIC uint32_t inner_events_deinit(osz_events_t *obj)
+{
+    obj->attr.ipc_create_type = IPC_NO_CREATE;
+    obj->attr.ipc_obj_used = IPC_NOT_USED;
+    obj->attr.ipc_type = IPC_NONE_OBJECT;
+    obj->field.events = 0;
+    obj->supper.owner = 0xff;
+    memset((void_t *)obj->supper.name, 0, OSZ_CFG_OBJ_NAME_MAX_LENS);
     return OS_OK;
 }
 
@@ -208,8 +220,9 @@ uint32_t osz_events_detach(osz_events_t *events)
         uint16_t tid = osz_get_task_id_by_task_cb(task);
         osz_task_wake(tid);
     }
-    ARCH_INT_UNLOCK(intsave);
+    inner_events_deinit(events);
     dlink_del_node(&(events->supper.obj_list));
     dlink_insert_tail(&(events->supper.module->free_obj_list), &(events->supper.obj_list));
+    ARCH_INT_UNLOCK(intsave);
     return OS_OK;
 }

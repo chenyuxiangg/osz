@@ -7,7 +7,8 @@
 #define IPC_NOT_USED            0x0
 
 typedef enum __osz_ipc_obj_type_t {
-    IPC_EVENTS = 0,
+    IPC_NONE_OBJECT = 0,
+    IPC_EVENTS,
     IPC_SEM,
     IPC_MUTEX,
     IPC_MAIL_BOX,
@@ -15,7 +16,8 @@ typedef enum __osz_ipc_obj_type_t {
 } osz_ipc_obj_type_t;
 
 typedef enum __osz_ipc_obj_create_type_t {
-    IPC_STATIC_CREATE = 0,
+    IPC_NO_CREATE = 0,
+    IPC_STATIC_CREATE,
     IPC_DYNAMIC_CREATE,
 } osz_ipc_obj_create_type_t;
 
@@ -23,9 +25,9 @@ typedef struct __osz_ipc_t {
     osz_obj_t supper;
     struct {
         uint32_t   ipc_type : 16;
-        uint32_t   ipc_create_type : 1;
+        uint32_t   ipc_create_type : 2;
         uint32_t   ipc_obj_used : 1;
-        uint32_t   ipc_reserv : 14;
+        uint32_t   ipc_reserv : 13;
     } attr;
     union {
         uint32_t events;

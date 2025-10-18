@@ -20,5 +20,5 @@
 ## 代码规范
 
 1. 代码必须保证可读性强；
-2. 函数、变量及类型必须遵循匈牙利命名法变体，例如：`uint32_t osz_sem_init(uint8_t *name, uint8_t name_size, uint32_t val, osz_sem_t **outter_obj)`；
+2. 函数、变量及类型必须遵循用户自定义风格，例如：`uint32_t osz_sem_init(uint8_t *name, uint8_t name_size, uint32_t val, osz_sem_t **outter_obj)`；
 3. 当需要使用到基础类型时，优先参考`kernel/comm/include/ztype.h`文件中的定义；

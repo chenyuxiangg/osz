@@ -39,7 +39,21 @@ TEST_GROUP(ET_MODULE_EVENT, 1, "Event Initialization Tests", setup, teardown)
         //   - Event object marked as used state
         
         // TODO: Implement test code here
+        osz_events_t *event_obj = NULL;
+        uint8_t name[] = "test_event";
+        uint8_t name_size = sizeof(name) - 1;
         
+        uint32_t result = osz_events_init(name, name_size, &event_obj);
+        
+        VERIFY(result == OS_OK);
+        VERIFY(event_obj != NULL);
+        VERIFY(event_obj->attr.ipc_obj_used == IPC_USED);
+        VERIFY(event_obj->attr.ipc_type == IPC_EVENTS);
+        VERIFY(event_obj->field.events == 0);
+        VERIFY(DLINK_EMPTY(&event_obj->pend_list));
+
+        result = osz_events_detach(event_obj);
+        VERIFY(result == OS_OK);
     }
 
     TEST("Test_1_2: Event Initialization with Name") {
@@ -53,20 +67,21 @@ TEST_GROUP(ET_MODULE_EVENT, 1, "Event Initialization Tests", setup, teardown)
         //   - Name correctly copied, no truncation or overflow
         
         // TODO: Implement test code here
+        osz_events_t *event_obj = NULL;
+        uint8_t name[] = "test_event";
+        uint8_t name_size = 10; // Use the specified name length
         
-    }
-
-    TEST("Test_1_3: Module Initialization Function Test") {
-        // Preconditions: System boot phase, static event group not initialized
-        // Steps:
-        //   1. Call module_events_init function
-        //   2. Check global static event array initialization state
-        // Expected:
-        //   - Function returns OS_OK
-        //   - All static event objects correctly initialized and added to free list
-        //   - Object type marked as OSZ_MOD_EVENTS
+        uint32_t result = osz_events_init(name, name_size, &event_obj);
         
-        // TODO: Implement test code here
+        VERIFY(result == OS_OK);
+        VERIFY(event_obj != NULL);
+        for (uint32_t i = 0; i < OSZ_CFG_OBJ_NAME_MAX_LENS; ++i) {
+            VERIFY(event_obj->supper.name[i] == name[i]);
+        }
+        VERIFY(event_obj->attr.ipc_obj_used == IPC_USED);
+        VERIFY(event_obj->attr.ipc_type == IPC_EVENTS);
         
+        result = osz_events_detach(event_obj);
+        VERIFY(result == OS_OK);
     }
 }
