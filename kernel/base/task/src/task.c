@@ -336,6 +336,18 @@ osz_task_t *osz_get_taskcb_by_tid(uint32_t tid)
     return &g_tasks[tid];
 }
 
+uint32_t osz_get_task_priotity_by_tid(uint32_t tid)
+{
+    return g_tasks[tid].tsk_priority;
+}
+
+uint32_t osz_set_task_priotity_by_tid(uint32_t tid, uint32_t new_pri)
+{
+    uint32_t old_pri = g_tasks[tid].tsk_priority;
+    g_tasks[tid].tsk_priority = new_pri;
+    return old_pri;
+}
+
 uint16_t osz_get_task_id_by_task_cb(osz_task_t *tcb)
 {
     ASSERT(tcb);

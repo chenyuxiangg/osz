@@ -143,6 +143,8 @@ void_t      osz_delete_task(uint32_t task_id);
 uint32_t    osz_create_idle_task(uint16_t *task_id);
 uint32_t    osz_get_current_tid(void_t);
 osz_task_t  *osz_get_taskcb_by_tid(uint32_t tid);
+uint32_t    osz_get_task_priotity_by_tid(uint32_t tid);
+uint32_t    osz_set_task_priotity_by_tid(uint32_t tid, uint32_t new_pri);
 uint16_t    osz_get_task_id_by_task_cb(osz_task_t *task);
 void_t      osz_udelay(uint64_t usec);
 void_t      osz_msleep(uint64_t msec);

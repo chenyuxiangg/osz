@@ -27,11 +27,12 @@ typedef struct __osz_ipc_t {
         uint32_t   ipc_type : 16;
         uint32_t   ipc_create_type : 2;
         uint32_t   ipc_obj_used : 1;
-        uint32_t   ipc_reserv : 13;
+        uint32_t   ipc_mutex_origin_pri : 8;
+        uint32_t   ipc_mutex_reentrant_cnt : 5;
     } attr;
     union {
         uint32_t events;
-        uint8_t  mutex;
+        uint32_t mutex;
         uint32_t sem;
         uint32_t *msg;
     } field;

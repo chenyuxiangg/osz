@@ -28,6 +28,9 @@ typedef enum __osz_module_enum {
 #ifdef OSZ_CFG_SEM
     OSZ_MOD_SEM,
 #endif
+#ifdef OSZ_CFG_MUTEX
+    OSZ_MOD_MUTEX,
+#endif
 #ifdef OSZ_CFG_SOFTTIMER
     OSZ_MOD_SWT,
 #endif
