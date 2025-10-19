@@ -29,21 +29,21 @@
  * - Function coverage: 100%
  */
 ```
-1. 测试用例文件必须有`void_t setup(void_t)`和`void_t teardown(void_t)`两个函数的留空实现；
-2. 测试用例组必须用`TEST_GROUP()`宏定义，参数为测试组名，例如：
+7. 测试用例文件必须有`void_t setup(void_t)`和`void_t teardown(void_t)`两个函数的留空实现；
+8. 测试用例组必须用`TEST_GROUP()`宏定义，参数为测试组名，例如：
 ```c
 TEST_GROUP("Semaphore Initialization Tests")
 {
     ...
 }
 ```
-1. 测试用例必须用`TEST()`宏定义，参数为测试用例名，例如：
+9. 测试用例必须用`TEST()`宏定义，参数为测试用例名，例如：
 ```c
 TEST("Test_1_1: Normal Static Semaphore Initialization") {
     ...
 }
 ```
-1. 每条测试用例都应该包含：用例描述、前置条件、测试步骤以及预期结果，且这些信息应该以如下格式放置：
+10. 每条测试用例都应该包含：用例描述、前置条件、测试步骤以及预期结果，且这些信息应该以如下格式放置：
 ```c
 TEST("") {
         // Preconditions: System initialized, static semaphore pool has available objects
@@ -60,7 +60,7 @@ TEST("") {
         
     }
 ```
-1. 测试用例与测试组的代码组织必须遵循测试用例定义在测试组中，一个测试组可以包含多个测试用例，同一个测试用例不能放置在不同的测试组，例如：
+11. 测试用例与测试组的代码组织必须遵循测试用例定义在测试组中，一个测试组可以包含多个测试用例，同一个测试用例不能放置在不同的测试组，例如：
 ```c
 TEST_GROUP("Semaphore Initialization Tests")
 {
@@ -74,5 +74,6 @@ TEST_GROUP("Semaphore Initialization Tests")
     ...
 }
 ```
-1.  每个测试文件中有且仅有一个测试组；
-2.  测试文件文件名应该包含组号，例如sem模块的第一组测试用例对应的测试文件名为`test_sem_g1.c`;
+12.  每个测试文件中有且仅有一个测试组；
+13.  测试文件文件名应该包含组号，例如sem模块的第一组测试用例对应的测试文件名为`test_sem_g1.c`;
+14.  分析测试框架时，必须要先将测试用例分组，再进一步细化组内的测试用例；

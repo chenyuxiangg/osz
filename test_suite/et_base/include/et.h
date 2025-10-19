@@ -96,6 +96,7 @@ typedef struct __et_tc_group_t {
 typedef enum {
     ET_MODULE_SEM = 0,
     ET_MODULE_EVENT,
+    ET_MODULE_MUTEX,
     // can not add anything enum item behand ET_GROUP_MAX
     ET_MODULE_MAX,
 } et_module_t;

@@ -59,6 +59,7 @@ uint32_t osz_mutex_init(uint8_t *name, uint8_t name_size, uint32_t val, osz_mute
         goto OUT;
     }
     inner_mutex_obj_init(*outter_obj, name, name_size, IPC_STATIC_CREATE);
+    (*outter_obj)->field.mutex = val;
 OUT:
     return ret;
 }
