@@ -11,11 +11,10 @@
 6. 当符号无法在整个项目中搜索到时，必须询问用户下一步操作；
 7. 测试用例需要检查结果与预期是否符合时，只能使用`VERIFY()`宏，其中参数为一个返回值为bool类型的表达式，比如：`VERIFY(sem == NULL)`;
 8. 当测试用例需要实现新函数时，需要将测试需要的新函数实现在helper文件中，例如当前正在往`test_sem.c`文件中写测试用例，则应该将测试需要的新函数实现在`test_sem_helper.c`文件中，新函数需要声明在`test_sem_helper.h`中；
-9. helper的.c文件必须与测试文件处于同级目录，例如`test_sem.c`位于`test_suite/suite/src/`路径下，则`test_sem_helper.c`必须也在`test_suite/suite/src/`路径下；
-10. helper的.c文件必须与测试文件处于同级目录，例如`test_sem.c`位于`test_suite/suite/src/`路径下，则`test_sem_helper.c`必须也在`test_suite/suite/src/`路径下；
-11. helper的.h文件必须在测试文件上级目录下的include目录下，例如`test_sem.c`位于`test_suite/suite/src/`路径下，则`test_sem_helper.h`必须在`test_suite/suite/include`路径下；
-12. 当文件不存在时，需要创建相应文件；
-13. 新增加的函数必须按顺序追加到文件中；
+9. helper的.c文件必须与测试文件处于同级目录，例如`test_sem_g1.c`位于`test_suite/suite/src/sem/ut`路径下，则`test_sem_helper.c`必须也在`test_suite/suite/src/sem/ut/`路径下；
+10. helper的.h文件必须在suite目录下的`include/ut`目录下，例如`test_sem_g1.c`位于`test_suite/suite/src/sem/ut`路径下，则`test_sem_helper.h`必须在`test_suite/suite/include/ut`路径下；
+11. 当文件不存在时，需要创建相应文件；
+12. 新增加的函数必须按顺序追加到文件中；
 
 ## 代码规范
 

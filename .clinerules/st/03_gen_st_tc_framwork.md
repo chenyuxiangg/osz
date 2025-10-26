@@ -1,19 +1,19 @@
 ## 概述
 
-该文档仅适用于osz代码仓生成UT测试用例框架生成，描述生成测试用例时的要求与约束。
+该文档仅适用于osz代码仓生成ST测试用例框架生成，描述生成测试用例时的要求与约束。
 
 ## 要求
 
-1. 生成UT测试用例前，必须进行方案分析，并得到用户批准；
+1. 生成ST测试用例前，必须进行方案分析，并得到用户批准；
 2. 每个模块都有独立的测试用例目录，且模块测试用例目录归档在`test_suite/suite/src/`路径下，例如sem模块，测试用例目录为`test_suite/suite/src/sem`；
-3. 测试用例文件必须归档在对应的模块目录，比如sem模块的`test_sem_g1.c`测试文件，归档路径必须为`test_suite/suite/src/sem/test_sem_g1.c`；
-4. 生成的测试用例文件格式必须参考`test_suite/suite/src/sem/test_sem_g1.c`文件;
-5. 测试用例文件名必须以`test_`开头；
-6. 测试用例文件必须以如下信息开头：
+3. 测试用例文件必须归档在对应的模块目录，比如sem模块的`test_st_sem_g1.c`测试文件，归档路径必须为`test_suite/suite/src/sem/st/test_st_sem_g1.c`；
+4. 生成的测试用例文件格式必须参考`test_suite/suite/src/sem/ut/test_ut_sem_g1.c`文件,仅需参考格式！仅需参考格式！仅需参考格式！;
+5. 测试用例文件名必须以`test_st_`开头；
+6. 测试用例文件必须以如下模版开头：
 ```c
 /**
- * @file test_event.c
- * @brief Unit test cases for event module
+ * @file test_st_sem_g1.c
+ * @brief Unit test cases for sem module
  * @version 1.0
  * @date 2025
  * @author zyzs
@@ -21,7 +21,7 @@
  * @copyright Copyright (c) 2025 zyzs
  * 
  * @test
- * @brief Test suite for event functionality
+ * @brief Test suite for sem functionality
  * 
  * Coverage targets:
  * - Statement coverage: 100%
@@ -75,5 +75,5 @@ TEST_GROUP("Semaphore Initialization Tests")
 }
 ```
 12.  每个测试文件中有且仅有一个测试组；
-13.  测试文件文件名应该包含组号，例如sem模块的第一组测试用例对应的测试文件名为`test_sem_g1.c`;
+13.  测试文件文件名应该包含组号，例如sem模块的第一组测试用例对应的测试文件名为`test_st_sem_g1.c`;
 14.  分析测试框架时，必须要先将测试用例分组，再进一步细化组内的测试用例；
