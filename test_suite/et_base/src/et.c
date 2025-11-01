@@ -30,13 +30,6 @@
 //============================================================================
 #include "et.h" // ET: embedded test
 
-//..........................................................................
-static void print_str(char const *str);
-static void print_dec(unsigned const num);
-static void print_summary(unsigned ok);
-static void test_end(void);
-static int  str_cmp(char const *str1, char const *str2);
-
 static unsigned l_test_count;
 static unsigned l_skip_count;
 static unsigned l_skip_last;
@@ -44,45 +37,43 @@ static unsigned l_skip_last;
 static char const *l_expect_assert_module;
 static int         l_expect_assert_label;
 
-unsigned int et_group_start = (unsigned int)&_et_group_start;
-unsigned int et_group_end = (unsigned int)&_et_group_end;
 et_tc_group_t *et_curr_group;
 
 //..........................................................................
-int main(int argc, char *argv[]) {
-    ET_onInit(argc, argv);
+// int main(int argc, char *argv[]) {
+//     ET_onInit(argc, argv);
 
-    print_str("\nET embedded test " ET_VERSION
-              ", https://github.com/QuantumLeaps/ET\n");
+//     print_str("\nET embedded test " ET_VERSION
+//               ", https://github.com/QuantumLeaps/ET\n");
 
-    et_curr_group = ET_FIRST_GROUP;
-    int group_cnt = ET_GROUP_COUNT;
-    for (int i = 0; i < group_cnt; ++i) {
-        print_str("---------------- group: ");
-        print_str(et_curr_group->name);
-        print_str(" -----------------\n");
-        if (et_curr_group->op_func.setup) {
-            et_curr_group->op_func.setup();
-        }
-        if (et_curr_group->op_func.entry) {
-            et_curr_group->op_func.entry();
-            test_end();
-        } else {
-            print_str("No test entry for group.\n");
-            et_curr_group = (et_tc_group_t *)((unsigned int)et_curr_group + sizeof(et_tc_group_t));
-            continue;
-        }
-        if (et_curr_group->op_func.clean) {
-            et_curr_group->op_func.clean();
-        }
-        et_curr_group = (et_tc_group_t *)((unsigned int)et_curr_group + sizeof(et_tc_group_t));
-    }
-    et_curr_group = (et_tc_group_t*)0;
+//     et_curr_group = ET_FIRST_GROUP;
+//     int group_cnt = ET_GROUP_COUNT;
+//     for (int i = 0; i < group_cnt; ++i) {
+//         print_str("---------------- group: ");
+//         print_str(et_curr_group->name);
+//         print_str(" -----------------\n");
+//         if (et_curr_group->op_func.setup) {
+//             et_curr_group->op_func.setup();
+//         }
+//         if (et_curr_group->op_func.entry) {
+//             et_curr_group->op_func.entry();
+//             test_end();
+//         } else {
+//             print_str("No test entry for group.\n");
+//             et_curr_group = (et_tc_group_t *)((unsigned int)et_curr_group + sizeof(et_tc_group_t));
+//             continue;
+//         }
+//         if (et_curr_group->op_func.clean) {
+//             et_curr_group->op_func.clean();
+//         }
+//         et_curr_group = (et_tc_group_t *)((unsigned int)et_curr_group + sizeof(et_tc_group_t));
+//     }
+//     et_curr_group = (et_tc_group_t*)0;
 
-    print_summary(1U);
+//     print_summary(1U);
 
-    ET_onExit(0); // success
-}
+//     ET_onExit(0); // success
+// }
 
 //..........................................................................
 int ET_test_(char const *title, int skip) {
@@ -104,7 +95,7 @@ int ET_test_(char const *title, int skip) {
     return skip == 0;
 }
 //..........................................................................
-static void test_end(void) {
+void test_end(void) {
     if (l_expect_assert_module != (char const *)0) {
         ET_fail("Expected Assertion didn't fire",
                 l_expect_assert_module, l_expect_assert_label);
@@ -156,7 +147,7 @@ void ET_verify_assert_(char const *module, int label) {
 }
 
 //..........................................................................
-static void print_summary(unsigned ok) {
+void print_summary(unsigned ok) {
     print_str("------------ ");
     print_dec(l_test_count);
     print_str(" test(s), ");
@@ -165,14 +156,14 @@ static void print_summary(unsigned ok) {
     print_str(ok ? "OK\n" : "FAILED\n");
 }
 //..........................................................................
-static void print_str(char const *str) {
+void print_str(char const *str) {
     for (; *str != '\0'; ++str) {
         ET_onPrintChar(*str);
     }
 }
 
 //..........................................................................
-static void print_dec(unsigned const num) {
+void print_dec(unsigned const num) {
     // find power of 10 of the first decimal digit of the number
     unsigned pwr10 = 1U;
     for (; num > (pwr10 * 9U); pwr10 *= 10U) {
@@ -185,7 +176,7 @@ static void print_dec(unsigned const num) {
 }
 
 //..........................................................................
-static int  str_cmp(char const *str1, char const *str2) {
+int  str_cmp(char const *str1, char const *str2) {
     while (*str1 == *str2++) {
        if (*str1++ == '\0') {
            return 0;

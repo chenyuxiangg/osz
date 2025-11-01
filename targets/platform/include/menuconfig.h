@@ -41,6 +41,7 @@
 #define OSZ_CFG_UART	1
 #define OSZ_CFG_TIMER	1
 #define OSZ_CFG_TEST_SUITE	1
+#define OSZ_CFG_TARGETS	1
 #define OSZ_CFG_PLATFORM	qemu_virt
 #define OSZ_CFG_SHELL	1
 #define OSZ_CFG_SHELL_HISTORY_CMD_NUM	10

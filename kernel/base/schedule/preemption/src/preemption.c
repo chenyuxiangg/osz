@@ -16,15 +16,20 @@ STATIC UINT32 g_keep_a0 = 0xffffffff;
 
 VOID SECTION_KERNEL_INIT_TEXT os_preemp_sched_init(VOID)
 {
-    UINT16 task_id = -1;
-    UINT32 ret = osz_create_idle_task(&task_id);
+    UINT16 idle_task_id = -1;
+    UINT32 ret = osz_create_idle_task(&idle_task_id);
     if (ret != OS_OK) {
         return;
     }
-    TASK_STATUS_CLEAN(task_id, TSK_FLAG_READY);
-    TASK_STATUS_SET(task_id, TSK_FLAG_RUNNING);
-    pri_queue_dequeue(TASK_PRIORITY(task_id), TASK_LIST(task_id, ready));
-    gp_new_task = osz_get_taskcb_by_tid(task_id);
+    UINT16 app_task_id = -1;
+    ret = osz_create_app_task(&app_task_id);
+    if (ret != OS_OK) {
+        return;
+    }
+    TASK_STATUS_CLEAN(idle_task_id, TSK_FLAG_READY);
+    TASK_STATUS_SET(idle_task_id, TSK_FLAG_RUNNING);
+    pri_queue_dequeue(TASK_PRIORITY(idle_task_id), TASK_LIST(idle_task_id, ready));
+    gp_new_task = osz_get_taskcb_by_tid(idle_task_id);
 }
 MODULE_INIT(os_preemp_sched_init, l2)
 

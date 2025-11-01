@@ -3,7 +3,11 @@ include $(COMM_MK)
 MODULE_NAME := targets
 MODULE := libtargets.a
 
-C_SRCS = $(wildcard qemu_virt/src/*.c)
+ifeq ($(OSZ_CFG_TEST_SUITE), y)
+C_SRCS = $(wildcard qemu_virt/src/test_main.c)
+else
+C_SRCS = $(wildcard qemu_virt/src/main.c)
+endif
 OBJS := $(patsubst %.c, %.o, $(C_SRCS))
 
 LOCAL_FLAGS := 

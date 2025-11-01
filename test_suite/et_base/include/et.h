@@ -95,8 +95,11 @@ typedef struct __et_tc_group_t {
 
 typedef enum {
     ET_MODULE_SEM = 0,
+    ET_MODULE_SEM_ST,
     ET_MODULE_EVENT,
+    ET_MODULE_EVENT_ST,
     ET_MODULE_MUTEX,
+    ET_MODULE_MUTEX_ST,
     // can not add anything enum item behand ET_GROUP_MAX
     ET_MODULE_MAX,
 } et_module_t;
@@ -110,6 +113,11 @@ void ET_onExit(int err);
 void ET_fail(char const *cond, char const *group, int line);
 void ET_expect_assert(char const *module, int label);
 void ET_verify_assert_(char const *module, int label);
+void print_summary(unsigned ok);
+void print_str(char const *str);
+void print_dec(unsigned const num);
+int  str_cmp(char const *str1, char const *str2);
+void test_end(void);
 
 // private helpers
 void ET_run_(void);

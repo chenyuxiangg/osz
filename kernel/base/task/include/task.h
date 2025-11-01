@@ -141,6 +141,7 @@ typedef struct __osz_task_params_t {
 uint32_t    osz_create_task(uint16_t *task_id, osz_task_params_t *params);
 void_t      osz_delete_task(uint32_t task_id);
 uint32_t    osz_create_idle_task(uint16_t *task_id);
+uint32_t    osz_create_app_task(uint16_t *task_id);
 uint32_t    osz_get_current_tid(void_t);
 osz_task_t  *osz_get_taskcb_by_tid(uint32_t tid);
 uint32_t    osz_get_task_priotity_by_tid(uint32_t tid);
@@ -159,5 +160,6 @@ extern osz_task_t *gp_new_task;
 extern osz_task_t *gp_current_task;
 extern osz_task_t g_tasks[OSZ_CFG_TASK_LIMIT];
 extern osz_sortlink_t g_task_sortlink;
+void app_main(void *);
 
 #endif

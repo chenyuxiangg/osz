@@ -10,6 +10,7 @@
 #define US_PER_MS       (1000)
 
 STATIC uint8_t SECTION_KERNEL_INIT_DATA g_idle_task_stack[OSZ_CFG_TASK_STACK_DEFAULT_SIZE];
+STATIC uint8_t SECTION_KERNEL_INIT_DATA g_app_task_stack[OSZ_CFG_TASK_STACK_DEFAULT_SIZE];
 STATIC osz_list_t SECTION_KERNEL_INIT_DATA g_freelist;
 STATIC osz_list_t SECTION_KERNEL_INIT_DATA g_pendlist;
 STATIC uint32_t     SECTION_KERNEL_INIT_DATA g_task_sortlink_bitmap;
@@ -312,6 +313,26 @@ uint32_t osz_create_idle_task(uint16_t *task_id)
         .stack_size = OSZ_CFG_TASK_STACK_DEFAULT_SIZE,
         .priority = TASK_PRIORITY_DEFAULT,
         .thread = (task_callback_t)idle_task_thread,
+        .data = NULL
+    };
+    uint32_t ret = OS_OK;
+    ret = osz_create_task(task_id, &params);
+    if (ret != OS_OK) {
+        return ret;
+    }
+    osz_task_resume(*task_id);
+    return ret;
+}
+
+uint32_t osz_create_app_task(uint16_t *task_id)
+{
+    osz_task_params_t params = {
+        .name = "app_main",
+        .stack_attr = STACK_MEM_STATIC,
+        .stack_base = (uintptr_t)&g_app_task_stack,
+        .stack_size = OSZ_CFG_TASK_STACK_DEFAULT_SIZE,
+        .priority = TASK_PRIORITY_DEFAULT,
+        .thread = (task_callback_t)app_main,
         .data = NULL
     };
     uint32_t ret = OS_OK;
