@@ -1,5 +1,7 @@
 #define OSZ_CFG_OBJ_NAME_MAX_LENS	8
 #define OSZ_CFG_INIT	1
+#define OSZ_CFG_HOOK	1
+#define OSZ_CFG_DFX	1
 #define OSZ_CFG_STARTUP	1
 #define OSZ_CFG_STRUCT	1
 #define OSZ_CFG_STRUCT_DLINK	1

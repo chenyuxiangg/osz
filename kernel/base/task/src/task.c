@@ -346,7 +346,11 @@ uint32_t osz_create_app_task(uint16_t *task_id)
 
 uint32_t osz_get_current_tid()
 {
-    return osz_get_task_id_by_task_cb(gp_current_task);
+    uint32_t intsave = 0;
+    ARCH_INT_LOCK(intsave);
+    uint32_t id = osz_get_task_id_by_task_cb(gp_current_task);
+    ARCH_INT_UNLOCK(intsave);
+    return id;
 }
 
 osz_task_t *osz_get_taskcb_by_tid(uint32_t tid)

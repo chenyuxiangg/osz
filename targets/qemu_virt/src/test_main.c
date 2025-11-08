@@ -1,5 +1,6 @@
 #include "comm.h"
 #include "csr.h"
+#include "hook.h"
 #include "task.h"
 #include "schedule.h"
 #include "uart.h"
@@ -7,6 +8,10 @@
 #include "mem.h"
 #include "event.h"
 #include "shell.h"
+
+osz_hook_entry_t g_hook_table[HOOK_ID_MAX] = {
+    {HOOK_ID_PRINT, (uintptr_t)printf},
+};
 
 void_t test_uart_recv_handler(void_t *args)
 {

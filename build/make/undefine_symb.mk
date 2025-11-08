@@ -7,6 +7,10 @@ OSZ_UNDEFUINE_SYMB += -uinit_inner_pri_queue_init
 OSZ_UNDEFUINE_SYMB += -uinit_os_preemp_sched_init
 OSZ_UNDEFUINE_SYMB += -uinit_inner_shell_init
 OSZ_UNDEFUINE_SYMB += -uinit_softtimer_init
+OSZ_UNDEFUINE_SYMB += -uinit_inner_hook_init
+
+# for static cmd
+OSZ_UNDEFUINE_SYMB += -ucmd_node_task
 
 # for test
 OSZ_UNDEFUINE_SYMB += -uET_group_ET_MODULE_EVENT1

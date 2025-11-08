@@ -13,6 +13,7 @@
 #include "stdint.h"
 #include "float.h"
 #include "string.h"
+#include "strtoul.h"
 
 #include "printf.h"
 

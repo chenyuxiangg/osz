@@ -18,6 +18,9 @@ typedef void_t (*task_callback_t)(void_t *data);
 
 #define TASK_NAME(task_id)                  (g_tasks[(task_id)].tsk_name)
 #define TASK_THREAD(task_id)                (g_tasks[(task_id)].tsk_entry)
+#define TASK_STACK_TOP(task_id)             (g_tasks[(task_id)].tsk_stack_top)
+#define TASK_STACK_SIZE(task_id)            (g_tasks[(task_id)].tsk_stack_size)
+#define TASK_STACK_SP(task_id)              (g_tasks[(task_id)].tsk_context_pointer)
 #define TASK_PRIORITY(task_id)              (g_tasks[(task_id)].tsk_priority)
 #define TASK_STATE(task_id)                 (g_tasks[(task_id)].tsk_state)
 #define TASK_DATA(task_id)                  (g_tasks[(task_id)].data)
