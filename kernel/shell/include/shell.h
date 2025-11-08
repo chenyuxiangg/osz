@@ -6,6 +6,14 @@
 #include "fifo.h"
 
 #define SHELL_BUFFER_MAX_NUM        (0x400)
+#define SECTION_STATIC_CMD          __attribute__((section(".osz_cmd")))
+
+#define REGISTER_STATIC_CMD(cmd_, func_, max_argc_) \
+CMD_PARAMS cmd_node_##cmd_ SECTION_STATIC_CMD = { \
+    .cmd_name = #cmd_, \
+    .cmd_func = func_, \
+    .argc = max_argc_, \
+};
 
 typedef void (*CMD_CALLBACK_FUNC)(UINT32 argc, CHAR *argv[]);
 

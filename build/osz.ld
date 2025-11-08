@@ -53,6 +53,10 @@ SECTIONS
 	.data : {
 		_data_start = .;
 		*(.data .sdata .comment)
+		. = ALIGN(0x20);
+		__cmd_start = .;
+		KEEP(*(.osz_cmd))
+		__cmd_end = .;
 		_data_end = .;
 	} > DTCM :data
 

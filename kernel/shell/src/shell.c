@@ -4,6 +4,11 @@
 #include "shell.h"
 #include "inner_shell_err.h"
 
+extern UINT32 __cmd_start;
+extern UINT32 __cmd_end;
+UINT32 g_cmd_start = (UINT32)&__cmd_start;
+UINT32 g_cmd_end = (UINT32)&__cmd_end;
+
 #define SHELL_NAME                  "OSZ"
 #define SHELL_NAME_SIZE             (sizeof(SHELL_NAME)+2)
 #define SHELL_CMD_KEY_LEN_MAX       (0x16)
@@ -49,6 +54,14 @@ STATIC VOID inner_shell_task_create(VOID)
     osz_task_resume(task_id);
 }
 
+STATIC VOID inner_shell_register_system_cmd(VOID)
+{
+    for (UINT32 addr = g_cmd_start; addr < g_cmd_end; addr += sizeof(CMD_PARAMS)) {
+        CMD_PARAMS *cmd = (CMD_PARAMS *)addr;
+        shell_register_cmd(cmd);
+    }
+}
+
 STATIC VOID inner_shell_init(VOID)
 {
     dlink_init(&(g_cmd_head.list));
@@ -63,6 +76,7 @@ STATIC VOID inner_shell_init(VOID)
     g_shell_history.history_has_cmd = 0;
     g_shell_history.history_max_cmd_len = 0;
     inner_shell_task_create();
+    inner_shell_register_system_cmd();
 }
 MODULE_INIT(inner_shell_init, l4)
 
