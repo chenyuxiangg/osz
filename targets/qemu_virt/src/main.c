@@ -76,6 +76,12 @@ void_t test_cmd_func(uint32_t argc, int8_t *argv[])
     }
 }
 
+void_t app_main(void_t *) {
+    while(1) {
+        osz_msleep(0x20);   
+    }
+}
+
 int32_t main(int32_t argc, int8_t *argv[])
 {
     printf("==== Enter Main ====\n");
@@ -103,8 +109,8 @@ int32_t main(int32_t argc, int8_t *argv[])
     shell_register_cmd(&params1);
     shell_register_cmd(&params2);
     shell_register_cmd(&params3);
-    test_create_task("test1", (task_callback_t)test_thread1_handle, 0x9);
-    test_create_task("test2", (task_callback_t)test_thread2_handle, 0xa);
+    // test_create_task("test1", (task_callback_t)test_thread1_handle, 0x9);
+    // test_create_task("test2", (task_callback_t)test_thread2_handle, 0xa);
     first_schedule();
     while(1);
     return 0;
