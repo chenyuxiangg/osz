@@ -29,8 +29,9 @@ STATIC void_t inner_task_handler(uint16_t task_id)
     g_tasks[task_id].tsk_entry(g_tasks[task_id].data);
 }
 
-STATIC void_t inner_task_exit(uint16_t task_id)
+STATIC void_t inner_task_exit()
 {
+    uint16_t task_id = osz_get_current_tid();
     osz_delete_task(task_id);
 }
 
@@ -257,6 +258,9 @@ void_t osz_delete_task(uint32_t task_id)
 {
     uint32_t intSave = 0;
     TASK_INT_LOCK(&intSave);
+    if (task_id >= OSZ_CFG_TASK_LIMIT) {
+        return;
+    }
     if (TASK_STATE(task_id) == TSK_FLAG_FREE) {
         return;
     }
@@ -289,14 +293,9 @@ void_t osz_delete_task(uint32_t task_id)
     if (TASK_STACK_ATTR(task_id) == STACK_MEM_DYNAMIC) {
         osz_free((void *)(g_tasks[task_id].tsk_stack_top - g_tasks[task_id].tsk_stack_size));
     }
-    // free task param
-    if (TASK_DATA(task_id) != NULL) {
-        osz_free(g_tasks[task_id].data);
-        g_tasks[task_id].data = NULL;
-    }
     // mount task_id to free list
-    dlink_insert_tail(&g_freelist, (TASK_LIST(task_id, free)));
     TASK_STATE(task_id) |= TSK_FLAG_FREE;
+    dlink_insert_tail(&g_freelist, (TASK_LIST(task_id, free)));
 
     if (g_need_preemp == TRUE) {
         os_schedule();
