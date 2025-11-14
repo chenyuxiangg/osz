@@ -20,7 +20,7 @@ typedef osz_ipc_t osz_sem_t;
 uint32_t osz_sem_init(uint8_t *name, uint8_t name_size, uint32_t val, osz_sem_t **outter_obj);
 uint32_t osz_sem_pend(osz_sem_t *sem, uint32_t timeout);
 uint32_t osz_sem_post(osz_sem_t *sem);
-uint32_t osz_sem_create(uint8_t *name, uint8_t name_size, osz_sem_t **outter_obj);
+uint32_t osz_sem_create(uint8_t *name, uint8_t name_size, uint32_t val,osz_sem_t **outter_obj);
 uint32_t osz_sem_delete(osz_sem_t *sem);
 uint32_t osz_sem_detach(osz_sem_t *sem);
 

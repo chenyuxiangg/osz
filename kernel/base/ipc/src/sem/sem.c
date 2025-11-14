@@ -123,7 +123,7 @@ uint32_t osz_sem_post(osz_sem_t *sem)
     return OS_OK;
 }
 
-uint32_t osz_sem_create(uint8_t *name, uint8_t name_size, osz_sem_t **outter_obj)
+uint32_t osz_sem_create(uint8_t *name, uint8_t name_size, uint32_t val, osz_sem_t **outter_obj)
 {
     if (*outter_obj != NULL) {
         return SEM_CREATE_OUTTER_NOT_NULL_ERR;
@@ -133,6 +133,7 @@ uint32_t osz_sem_create(uint8_t *name, uint8_t name_size, osz_sem_t **outter_obj
         return SEM_CREATE_OUTTER_MALLOC_FAIL_ERR;
     }
     inner_sem_obj_init(*outter_obj, name, name_size, IPC_DYNAMIC_CREATE);
+    (*outter_obj)->field.sem = val;
     return OS_OK;
 }
 
