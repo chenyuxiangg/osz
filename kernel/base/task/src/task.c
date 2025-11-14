@@ -73,6 +73,14 @@ STATIC bool_t inner_task_sortlink_is_mounted(uint32_t task_id)
     return ((g_task_sortlink_bitmap >> task_id) & 0x1);
 }
 
+STATIC bool_t inner_task_pending_is_mounted(uint32_t task_id)
+{
+    if (task_id >= OSZ_CFG_TASK_LIMIT) {
+        return FALSE;
+    }
+    return ((TASK_LIST(task_id, pending)->next != NULL) && (TASK_LIST(task_id, pending)->pre != NULL));
+}
+
 STATIC uint32_t inner_task_delete_sortlink(osz_sortlink_t *link, uint16_t task_id)
 {
     g_task_sortlink_bitmap &= ~(1 << task_id);
@@ -218,6 +226,9 @@ STATIC void_t inner_task_check_timeout(void_t)
             TASK_STATUS_CLEAN(task_id, TSK_FLAG_BLOCKING);
             TASK_STATUS_SET(task_id, TSK_FLAG_READY);
             inner_task_delete_sortlink(sl, task_id);
+            if (inner_task_pending_is_mounted(task_id)) {
+                dlink_del_node(TASK_LIST(task_id, pending));
+            }
             pri_queue_enqueue(TASK_PRIORITY(task_id), TASK_LIST(task_id, ready), EQ_MODE_TAIL);
             sl = STRUCT_ENTRY(osz_sortlink_t, list, SORTLINK_LIST(g_task_sortlink).next);
         } while((sl != NULL) && (PSORTLINK_TIMEOUT(sl) == 0));
@@ -481,10 +492,15 @@ uint32_t osz_task_wait(uint64_t timeout)
     if (timeout == 0) {
         return TASK_NO_WAIT_ERR;
     }
+    uint16_t tid = osz_get_current_tid();
+    uint32_t intsave = 0;
     if (timeout == WAIT_FOREVER) {
         os_schedule();
         return TASK_WAIT_WAKE_UP_ERR;
     }
+    ARCH_INT_LOCK(intsave);
+    TASK_STATUS_CLEAN(tid, TSK_FLAG_PENDING);
+    ARCH_INT_UNLOCK(intsave);
     osz_msleep(timeout);
     return TASK_WAIT_TIMEOUT_ERR;
 }
