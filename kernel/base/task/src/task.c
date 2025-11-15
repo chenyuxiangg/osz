@@ -78,7 +78,7 @@ STATIC bool_t inner_task_pending_is_mounted(uint32_t task_id)
     if (task_id >= OSZ_CFG_TASK_LIMIT) {
         return FALSE;
     }
-    return ((TASK_LIST(task_id, pending)->next != NULL) && (TASK_LIST(task_id, pending)->pre != NULL));
+    return ((TASK_STATE(task_id) & TSK_FLAG_PENDING) == TSK_FLAG_PENDING);
 }
 
 STATIC uint32_t inner_task_delete_sortlink(osz_sortlink_t *link, uint16_t task_id)
@@ -498,9 +498,6 @@ uint32_t osz_task_wait(uint64_t timeout)
         os_schedule();
         return TASK_WAIT_WAKE_UP_ERR;
     }
-    ARCH_INT_LOCK(intsave);
-    TASK_STATUS_CLEAN(tid, TSK_FLAG_PENDING);
-    ARCH_INT_UNLOCK(intsave);
     osz_msleep(timeout);
     return TASK_WAIT_TIMEOUT_ERR;
 }

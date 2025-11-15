@@ -29,6 +29,7 @@ Qxxx: 待解决的问题（非bug）id
 8. [B004]带延时的`osz_sem_pend`函数处理有异常，函数状态会被置为0xc，且无法被加入就绪队列；
 
 > a. 原因是待延时的`osz_sem_pend`函数既会将任务挂载到sem的pending列表，也会将任务挂载到sortlink的block列表。当超时唤醒时，由于pending链表和ready链表共用同一个结构体（互斥），且pending链表已经被挂载到sem上，所以无法将ready链表加入就绪队列，导致任务状态虽然被置为ready，但是无法被调度。-- 2025.11.14
+> b. 该bug并未完全解决，当时仅考虑到超时后通过定时器唤醒的场景，并没有考虑`osz_sem_post`优先唤醒任务的场景，因此解决该问题的方法应该是将任务的状态置位为`TSK_FLAG_PENDING` | `TSK_FLAG_BLOCKING`。 -- 2025.11.15
 
 ## 2025.11.15
 9. [B005]在osz_task_wake函数中增加一行printf打印后出现死机，问题所指的mepc为0；
