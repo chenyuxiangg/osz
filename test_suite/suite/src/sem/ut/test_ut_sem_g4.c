@@ -43,7 +43,7 @@ TEST_GROUP(ET_MODULE_SEM, 4, "Dynamic Semaphore Management Tests", setup, teardo
         uint8_t arrName[] = "dynam_sem";
         uint8_t u8NameSize = 9;
         // Step 1: Call osz_sem_create function with name and output pointer
-        u32Ret = osz_sem_create(arrName, u8NameSize, &pstSemaphore);
+        u32Ret = osz_sem_create(arrName, u8NameSize, 0, &pstSemaphore);
         
         // Step 2: Check return status and created object
         VERIFY(u32Ret == OS_OK);
@@ -79,7 +79,7 @@ TEST_GROUP(ET_MODULE_SEM, 4, "Dynamic Semaphore Management Tests", setup, teardo
         // through the API contract.
         
         // Step 1: Call osz_sem_create function
-        u32Ret = osz_sem_create(arrName, u8NameSize, &pstSemaphore);
+        u32Ret = osz_sem_create(arrName, u8NameSize, 0, &pstSemaphore);
         
         // Step 2: Check return status
         VERIFY(u32Ret == SEM_CREATE_OUTTER_MALLOC_FAIL_ERR);
@@ -106,7 +106,7 @@ TEST_GROUP(ET_MODULE_SEM, 4, "Dynamic Semaphore Management Tests", setup, teardo
         uint8_t u8NameSize = sizeof(arrName) - 1;
         
         // Step 1: Call osz_sem_create function with non-NULL output parameter
-        u32Ret = osz_sem_create(arrName, u8NameSize, &pstSemaphore);
+        u32Ret = osz_sem_create(arrName, u8NameSize, 0, &pstSemaphore);
         
         // Step 2: Check return status
         VERIFY(u32Ret == SEM_CREATE_OUTTER_NOT_NULL_ERR);
@@ -133,7 +133,7 @@ TEST_GROUP(ET_MODULE_SEM, 4, "Dynamic Semaphore Management Tests", setup, teardo
         uint8_t u8NameSize = sizeof(arrName) - 1;
         
         // Create a dynamic semaphore first
-        u32Ret = osz_sem_create(arrName, u8NameSize, &pstSemaphore);
+        u32Ret = osz_sem_create(arrName, u8NameSize, 0, &pstSemaphore);
         VERIFY(u32Ret == OS_OK);
         VERIFY(pstSemaphore != NULL);
         VERIFY(pstSemaphore->attr.ipc_create_type == IPC_DYNAMIC_CREATE);
