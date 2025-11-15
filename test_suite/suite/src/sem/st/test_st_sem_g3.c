@@ -22,6 +22,8 @@
 #include "clint.h"
 #include "test_st_sem_g3_helper.h"
 
+#define TASK_STACK_SIZE_DEFAULT     (0x2000)
+
 static void_t setup(void_t) {}
 static void_t teardown(void_t) {}
 
@@ -57,7 +59,7 @@ TEST_GROUP(ET_MODULE_SEM_ST, 3, "Semaphore and Interrupt Interaction Tests", set
             .wake_task = 0,
         };
 
-        res = helper_task_create("test_3_1", PRIORITY_FOR_TEST_SEM_DEFAULT, 0x800, (task_callback_t)helper_3_1_task_entry, (void_t *)&checker);
+        res = helper_task_create("test_3_1", PRIORITY_FOR_TEST_SEM_DEFAULT, TASK_STACK_SIZE_DEFAULT, (task_callback_t)helper_3_1_task_entry, (void_t *)&checker);
         VERIFY(res == OS_OK);
 
         osz_msleep(0x200);
@@ -100,18 +102,18 @@ TEST_GROUP(ET_MODULE_SEM_ST, 3, "Semaphore and Interrupt Interaction Tests", set
 
         helper_software_interrupt_init((interrupt_callback)helper_software_int_handler_3_2);
 
-        res = helper_task_create("test_3_2_task1", PRIORITY_FOR_TEST_SEM_DEFAULT, 0x800, (task_callback_t)helper_3_2_task_entry, (void_t *)&checker);
+        res = helper_task_create("test_3_2_task1", PRIORITY_FOR_TEST_SEM_DEFAULT, TASK_STACK_SIZE_DEFAULT, (task_callback_t)helper_3_2_task_entry, (void_t *)&checker);
         VERIFY(res == OS_OK);
 
         osz_msleep(0x100);
         VERIFY(checker.pend_cnt == 1);
 
-        res = helper_task_create("test_3_2_task2", PRIORITY_FOR_TEST_SEM_DEFAULT, 0x800, (task_callback_t)helper_3_2_task_entry, (void_t *)&checker);
+        res = helper_task_create("test_3_2_task2", PRIORITY_FOR_TEST_SEM_DEFAULT, TASK_STACK_SIZE_DEFAULT, (task_callback_t)helper_3_2_task_entry, (void_t *)&checker);
         VERIFY(res == OS_OK);
         osz_msleep(0x100);
         VERIFY(checker.pend_cnt == 2);
 
-        res = helper_task_create("test_3_2_task3", PRIORITY_FOR_TEST_SEM_DEFAULT, 0x800, (task_callback_t)helper_3_2_task_entry, (void_t *)&checker);
+        res = helper_task_create("test_3_2_task3", PRIORITY_FOR_TEST_SEM_DEFAULT, TASK_STACK_SIZE_DEFAULT, (task_callback_t)helper_3_2_task_entry, (void_t *)&checker);
         VERIFY(res == OS_OK);
         osz_msleep(0x100);
         VERIFY(checker.pend_cnt == 3);

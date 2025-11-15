@@ -21,6 +21,8 @@
 #include "et.h"
 #include "test_st_sem_g1_helper.h"
 
+#define TASK_STACK_SIZE_DEFAULT     (0x2000)
+
 static void_t setup(void_t) {}
 static void_t teardown(void_t) {}
 
@@ -53,13 +55,13 @@ TEST_GROUP(ET_MODULE_SEM_ST, 1, "Semaphore Basic Synchronization Function Tests"
         };
 
         uint16_t task_pend_id = 0;
-        void_t *pend_stack_addr = osz_malloc(0x800);
+        void_t *pend_stack_addr = osz_malloc(TASK_STACK_SIZE_DEFAULT);
         osz_task_params_t params = {
             .name = "Test_Sem_Pend",
             .priority = PRIORITY_FOR_TEST_SEM_DEFAULT,
             .stack_base = (uintptr_t)pend_stack_addr,
             .stack_attr = STACK_MEM_DYNAMIC,
-            .stack_size = 0x800,
+            .stack_size = TASK_STACK_SIZE_DEFAULT,
             .thread = (task_callback_t)helper_task_sem_pend_entry,
             .data = (void_t *)(&checker),
         };
@@ -76,13 +78,13 @@ TEST_GROUP(ET_MODULE_SEM_ST, 1, "Semaphore Basic Synchronization Function Tests"
         VERIFY(checker.sem->field.sem == 0);
 
         uint16_t task_post_id = 0;
-        void_t *post_stack_addr = osz_malloc(0x800);
+        void_t *post_stack_addr = osz_malloc(TASK_STACK_SIZE_DEFAULT);
         osz_task_params_t params1 = {
             .name = "Test_Sem_Post",
             .priority = PRIORITY_FOR_TEST_SEM_DEFAULT,
             .stack_attr = STACK_MEM_DYNAMIC,
             .stack_base = (uintptr_t)post_stack_addr,
-            .stack_size = 0x800,
+            .stack_size = TASK_STACK_SIZE_DEFAULT,
             .thread = (task_callback_t)helper_task_sem_post_entry,
             .data = (void_t *)(&checker),
         };
@@ -134,13 +136,13 @@ TEST_GROUP(ET_MODULE_SEM_ST, 1, "Semaphore Basic Synchronization Function Tests"
 
         // Create task to perform 3 pend operations
         uint16_t task_pend_id = 0;
-        void_t *pend_stack_addr = osz_malloc(0x800);
+        void_t *pend_stack_addr = osz_malloc(TASK_STACK_SIZE_DEFAULT);
         osz_task_params_t params = {
             .name = "Test_Sem_Pend_3",
             .priority = PRIORITY_FOR_TEST_SEM_DEFAULT,
             .stack_base = (uintptr_t)pend_stack_addr,
             .stack_attr = STACK_MEM_DYNAMIC,
-            .stack_size = 0x800,
+            .stack_size = TASK_STACK_SIZE_DEFAULT,
             .thread = (task_callback_t)helper_task_sem_multiple_pend_entry,
             .data = (void_t *)(&checker),
         };
@@ -159,13 +161,13 @@ TEST_GROUP(ET_MODULE_SEM_ST, 1, "Semaphore Basic Synchronization Function Tests"
 
         // Create task to perform 3 post operations
         uint16_t task_post_id = 0;
-        void_t *post_stack_addr = osz_malloc(0x800);
+        void_t *post_stack_addr = osz_malloc(TASK_STACK_SIZE_DEFAULT);
         osz_task_params_t params1 = {
             .name = "Test_Sem_Post_3",
             .priority = PRIORITY_FOR_TEST_SEM_DEFAULT,
             .stack_attr = STACK_MEM_DYNAMIC,
             .stack_base = (uintptr_t)post_stack_addr,
-            .stack_size = 0x800,
+            .stack_size = TASK_STACK_SIZE_DEFAULT,
             .thread = (task_callback_t)helper_task_sem_multiple_post_entry,
             .data = (void_t *)(&checker),
         };
@@ -219,13 +221,13 @@ TEST_GROUP(ET_MODULE_SEM_ST, 1, "Semaphore Basic Synchronization Function Tests"
 
         // Create Task A (pend task)
         uint16_t task_pend_id = 0;
-        void_t *pend_stack_addr = osz_malloc(0x800);
+        void_t *pend_stack_addr = osz_malloc(TASK_STACK_SIZE_DEFAULT);
         osz_task_params_t params_pend = {
             .name = "Task_A_Sync_Pend",
             .priority = PRIORITY_FOR_TEST_SEM_DEFAULT,
             .stack_base = (uintptr_t)pend_stack_addr,
             .stack_attr = STACK_MEM_DYNAMIC,
-            .stack_size = 0x800,
+            .stack_size = TASK_STACK_SIZE_DEFAULT,
             .thread = (task_callback_t)helper_task_sem_pend_entry,
             .data = (void_t *)(&checker),
         };
@@ -245,13 +247,13 @@ TEST_GROUP(ET_MODULE_SEM_ST, 1, "Semaphore Basic Synchronization Function Tests"
 
         // Create Task B (post task)
         uint16_t task_post_id = 0;
-        void_t *post_stack_addr = osz_malloc(0x800);
+        void_t *post_stack_addr = osz_malloc(TASK_STACK_SIZE_DEFAULT);
         osz_task_params_t params_post = {
             .name = "Task_B_Sync_Post",
             .priority = PRIORITY_FOR_TEST_SEM_DEFAULT,
             .stack_attr = STACK_MEM_DYNAMIC,
             .stack_base = (uintptr_t)post_stack_addr,
-            .stack_size = 0x800,
+            .stack_size = TASK_STACK_SIZE_DEFAULT,
             .thread = (task_callback_t)helper_task_sem_post_entry,
             .data = (void_t *)(&checker),
         };

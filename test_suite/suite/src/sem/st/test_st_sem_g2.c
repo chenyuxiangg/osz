@@ -21,6 +21,8 @@
 #include "et.h"
 #include "test_st_sem_g2_helper.h"
 
+#define TASK_STACK_SIZE_DEFAULT     (0x2000)
+
 static void_t setup(void_t) {}
 static void_t teardown(void_t) {}
 
@@ -58,33 +60,33 @@ TEST_GROUP(ET_MODULE_SEM_ST, 2, "Multiple Task Semaphore Synchronization Tests",
         VERIFY(checker.sem != NULL);
         
         uint16_t task1_id, task2_id, task3_id;
-        void_t *stack_addr1 = osz_malloc(1024);
+        void_t *stack_addr1 = osz_malloc(TASK_STACK_SIZE_DEFAULT);
         osz_task_params_t task_params1 = {
             .name = "task1",
             .stack_base = (uintptr_t)stack_addr1,
-            .stack_size = 1024,
+            .stack_size = TASK_STACK_SIZE_DEFAULT,
             .stack_attr = STACK_MEM_DYNAMIC,
             .thread = helper_multiple_task_sem_pend_entry,
             .priority = 8,
             .data = &checker
         };
         
-        void_t *stack_addr2 = osz_malloc(1024);
+        void_t *stack_addr2 = osz_malloc(TASK_STACK_SIZE_DEFAULT);
         osz_task_params_t task_params2 = {
             .name = "task2",
             .stack_base = (uintptr_t)stack_addr2,
-            .stack_size = 1024,
+            .stack_size = TASK_STACK_SIZE_DEFAULT,
             .stack_attr = STACK_MEM_DYNAMIC,
             .thread = helper_multiple_task_sem_pend_entry,
             .priority = 8,
             .data = &checker
         };
 
-        void_t *stack_addr3 = osz_malloc(1024);
+        void_t *stack_addr3 = osz_malloc(TASK_STACK_SIZE_DEFAULT);
         osz_task_params_t task_params3 = {
             .name = "task3",
             .stack_base = (uintptr_t)stack_addr3,
-            .stack_size = 1024,
+            .stack_size = TASK_STACK_SIZE_DEFAULT,
             .stack_attr = STACK_MEM_DYNAMIC,
             .thread = helper_multiple_task_sem_pend_entry,
             .priority = 8,
@@ -155,7 +157,7 @@ TEST_GROUP(ET_MODULE_SEM_ST, 2, "Multiple Task Semaphore Synchronization Tests",
         };
         
         uint16_t task1_id, task2_id, task3_id;
-        void_t *stack_addr1 = osz_malloc(1024);
+        void_t *stack_addr1 = osz_malloc(TASK_STACK_SIZE_DEFAULT);
         st_sem_task_input data1 = {
             .checker = &checker,
             .data = 1,
@@ -163,7 +165,7 @@ TEST_GROUP(ET_MODULE_SEM_ST, 2, "Multiple Task Semaphore Synchronization Tests",
         osz_task_params_t task_params1 = {
             .name = "task_high",
             .stack_base = (uintptr_t)stack_addr1,
-            .stack_size = 1024,
+            .stack_size = TASK_STACK_SIZE_DEFAULT,
             .stack_attr = STACK_MEM_DYNAMIC,
             .thread = helper_multiple_task_order_wake_entry,
             .priority = 5,  // Highest priority
@@ -174,7 +176,7 @@ TEST_GROUP(ET_MODULE_SEM_ST, 2, "Multiple Task Semaphore Synchronization Tests",
         VERIFY(ret == OS_OK);
         osz_task_resume(task1_id);
         
-        void_t *stack_addr2 = osz_malloc(1024);
+        void_t *stack_addr2 = osz_malloc(TASK_STACK_SIZE_DEFAULT);
         st_sem_task_input data2 = {
             .checker = &checker,
             .data = 2,
@@ -182,7 +184,7 @@ TEST_GROUP(ET_MODULE_SEM_ST, 2, "Multiple Task Semaphore Synchronization Tests",
         osz_task_params_t task_params2 = {
             .name = "task_med",
             .stack_base = (uintptr_t)stack_addr2,
-            .stack_size = 1024,
+            .stack_size = TASK_STACK_SIZE_DEFAULT,
             .stack_attr = STACK_MEM_DYNAMIC,
             .thread = helper_multiple_task_order_wake_entry,
             .priority = 10,  // Highest priority
@@ -192,7 +194,7 @@ TEST_GROUP(ET_MODULE_SEM_ST, 2, "Multiple Task Semaphore Synchronization Tests",
         VERIFY(ret == OS_OK);
         osz_task_resume(task2_id);
         
-        void_t *stack_addr3 = osz_malloc(1024);
+        void_t *stack_addr3 = osz_malloc(TASK_STACK_SIZE_DEFAULT);
         st_sem_task_input data3 = {
             .checker = &checker,
             .data = 4,
@@ -200,7 +202,7 @@ TEST_GROUP(ET_MODULE_SEM_ST, 2, "Multiple Task Semaphore Synchronization Tests",
         osz_task_params_t task_params3 = {
             .name = "task_low",
             .stack_base = (uintptr_t)stack_addr3,
-            .stack_size = 1024,
+            .stack_size = TASK_STACK_SIZE_DEFAULT,
             .stack_attr = STACK_MEM_DYNAMIC,
             .thread = helper_multiple_task_order_wake_entry,
             .priority = 15,  // Highest priority
@@ -280,11 +282,11 @@ TEST_GROUP(ET_MODULE_SEM_ST, 2, "Multiple Task Semaphore Synchronization Tests",
         };
         
         uint16_t task1_id, task2_id;
-        void_t *stack_addr1 = osz_malloc(1024);
+        void_t *stack_addr1 = osz_malloc(TASK_STACK_SIZE_DEFAULT);
         osz_task_params_t task_params1 = {
             .name = "task_a",
             .stack_base = (uintptr_t)stack_addr1,
-            .stack_size = 1024,
+            .stack_size = TASK_STACK_SIZE_DEFAULT,
             .stack_attr = STACK_MEM_DYNAMIC,
             .thread = helper_task_sem_mixed_ops_entry,
             .priority = 10,
@@ -295,11 +297,11 @@ TEST_GROUP(ET_MODULE_SEM_ST, 2, "Multiple Task Semaphore Synchronization Tests",
         VERIFY(ret == OS_OK);
         osz_task_resume(task1_id);
         
-        void_t *stack_addr2 = osz_malloc(1024);
+        void_t *stack_addr2 = osz_malloc(TASK_STACK_SIZE_DEFAULT);
         osz_task_params_t task_params2 = {
             .name = "task_a",
             .stack_base = (uintptr_t)stack_addr2,
-            .stack_size = 1024,
+            .stack_size = TASK_STACK_SIZE_DEFAULT,
             .stack_attr = STACK_MEM_DYNAMIC,
             .thread = helper_task_sem_mixed_ops_entry,
             .priority = 9,
@@ -353,11 +355,11 @@ TEST_GROUP(ET_MODULE_SEM_ST, 2, "Multiple Task Semaphore Synchronization Tests",
         };
         
         uint16_t task1_id, task2_id, task3_id;
-        void_t *stack_addr1 = osz_malloc(1024);
+        void_t *stack_addr1 = osz_malloc(TASK_STACK_SIZE_DEFAULT);
         osz_task_params_t task_params = {
             .name = "task_short",
             .stack_base = (uintptr_t)stack_addr1,
-            .stack_size = 1024,
+            .stack_size = TASK_STACK_SIZE_DEFAULT,
             .stack_attr = STACK_MEM_DYNAMIC,
             .thread = helper_task_sem_timeout_wait_entry,
             .priority = 10,
@@ -372,11 +374,11 @@ TEST_GROUP(ET_MODULE_SEM_ST, 2, "Multiple Task Semaphore Synchronization Tests",
             .checker = &checker,
             .data = 2,
         };
-        void_t *stack_addr2 = osz_malloc(1024);
+        void_t *stack_addr2 = osz_malloc(TASK_STACK_SIZE_DEFAULT);
         osz_task_params_t task_params2 = {
             .name = "task_med",
             .stack_base = (uintptr_t)stack_addr2,
-            .stack_size = 1024,
+            .stack_size = TASK_STACK_SIZE_DEFAULT,
             .stack_attr = STACK_MEM_DYNAMIC,
             .thread = helper_task_sem_timeout_wait_entry,
             .priority = 10,
@@ -390,11 +392,11 @@ TEST_GROUP(ET_MODULE_SEM_ST, 2, "Multiple Task Semaphore Synchronization Tests",
             .checker = &checker,
             .data = 3,
         };
-        void_t *stack_addr3 = osz_malloc(1024);
+        void_t *stack_addr3 = osz_malloc(TASK_STACK_SIZE_DEFAULT);
         osz_task_params_t task_params3 = {
             .name = "task_short",
             .stack_base = (uintptr_t)stack_addr3,
-            .stack_size = 1024,
+            .stack_size = TASK_STACK_SIZE_DEFAULT,
             .stack_attr = STACK_MEM_DYNAMIC,
             .thread = helper_task_sem_timeout_wait_entry,
             .priority = 10,
