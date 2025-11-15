@@ -80,7 +80,7 @@ uint32_t helper_task_create(uint8_t *task_name, uint32_t prio, uint32_t stack_si
     uint16_t task_id = 0;
     void_t *stack_addr = osz_malloc(0x800);
     osz_task_params_t params = {
-        .name = "Test_Int_Release",
+        .name = task_name,
         .priority = PRIORITY_FOR_TEST_SEM_DEFAULT,
         .stack_base = (uintptr_t)stack_addr,
         .stack_attr = STACK_MEM_DYNAMIC,
