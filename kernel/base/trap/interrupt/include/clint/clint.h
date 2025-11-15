@@ -23,14 +23,22 @@ do { \
     *(volatile UINT32 *)((base) + CLINT_MTIMECMP_BASE_OFFSET + 0x8 * (hart) + 0x4) = high; \
 } while(0);
 
+// sip mem map will be 1 how ever write any integers.
 #define CLINT_PEND_MSIP(base, hart) \
 do { \
     *(volatile UINT32 *)((base) + CLINT_MSIP_BASE_OFFSET + 0x4 * (hart)) = 0x1; \
 } while(0);
 
-#define CLINT_CLEAN_MSIP(base) \
+#define CLINT_CLEAN_MSIP(base, hart) \
 do { \
     *(volatile UINT32 *)((base) + CLINT_MSIP_BASE_OFFSET + 0x4 * (hart)) = 0x0; \
 } while(0);
+
+#define CLINT_GET_MSIP(base, hart)						\
+({								                        \
+	uint32_t _tmp;                                      \
+    _tmp = *(volatile UINT32 *)((base) + CLINT_MSIP_BASE_OFFSET + 0x4 * (hart));                                            \
+    _tmp;   						                    \
+})
 
 #endif

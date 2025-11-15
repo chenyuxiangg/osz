@@ -25,6 +25,11 @@ do { \
     *(volatile UINT32 *)((base) + PLIC_ENABLE_BASE_OFFSET + (0x80 * (context_id)) + ((source_id)/32 * 4)) |= (1 << ((source_id) & 0x1f)); \
 } while(0);
 
+#define PLIC_CLEAN_IE(base, context_id, source_id) \
+do { \
+    *(volatile UINT32 *)((base) + PLIC_ENABLE_BASE_OFFSET + (0x80 * (context_id)) + ((source_id)/32 * 4)) &= ~(1 << ((source_id) & 0x1f)); \
+} while(0);
+
 #define PLIC_GET_IP(base, source_id, ret) \
 do { \
     (ret) = *(volatile UINT32 *)((base) + PLIC_PENDING_BASE_OFFSET + (source_id)/32 * 4); \

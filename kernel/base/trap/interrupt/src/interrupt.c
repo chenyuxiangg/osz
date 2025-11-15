@@ -88,6 +88,24 @@ UINT32 osz_interrupt_enable(UINT32 source_id)
     return OS_OK;
 }
 
+UINT32 osz_interrupt_disable(UINT32 source_id)
+{
+    if (source_id >= OSZ_CFG_INT_LIMIT) {
+        return PLIC_ERRNO_INVALID_SOURCE_ID;
+    }
+    if (INT_IS_TIMER(source_id) || INT_IS_SOFTWARE(source_id)) {
+        w_mie(r_mie() & (~(1 << (source_id & 0x1f))));
+    } else {
+        source_id -= LOCAL_INTERRUPT_MAX_NUM;
+        // PLIC 全局控制器的0号中断为无效中断
+        if (source_id == LOCAL_INTERRUPT_MAX_NUM) {
+            return PLIC_ERRNO_SOURCE_ID_IS_ZERO;
+        }
+        PLIC_CLEAN_IE(PLIC_BASE_ADDR, get_context_id(), source_id);
+    }
+    return OS_OK;
+}
+
 UINT32 osz_interrupt_set_pri(UINT32 source_id, UINT32 pri)
 {
     if (source_id >= OSZ_CFG_INT_LIMIT) {

@@ -23,6 +23,7 @@ UINT32 osz_interrupt_init(VOID);
 UINT32 osz_interrupt_regist(UINT32 source_id, interrupt_callback func);
 UINT32 osz_interrupt_unregist(UINT32 source_id);
 UINT32 osz_interrupt_enable(UINT32 source_id);
+UINT32 osz_interrupt_disable(UINT32 source_id);
 UINT32 osz_interrupt_set_pri(UINT32 source_id, UINT32 pri);
 UINT32 osz_interrupt_set_pri_th(UINT32 pri_th);
 

@@ -16,7 +16,7 @@
 #define PLIC_HART0_MACHINE      (0x0)
 
 /* ======== CLINT ======== */
-#define CLINT_BASE_ADDR         (0x200000)
+#define CLINT_BASE_ADDR         (0x2000000)
 
 /* ======== INT NUM ====== */
 #define LOCAL_INTERRUPT_MAX_NUM (16)
