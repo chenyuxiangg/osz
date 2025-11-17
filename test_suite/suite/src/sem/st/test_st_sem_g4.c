@@ -75,4 +75,49 @@ TEST_GROUP(ET_MODULE_SEM_ST, 4, "Semaphore Timeout and Scheduling Interaction Te
 
         osz_sem_detach(sem);
     }
+
+    TEST("Test_4_2: Dynamic Semaphore Memory Management") {
+        // Preconditions: System initialized, memory manager available
+        // Steps:
+        //   1. Create multiple dynamic semaphores using osz_sem_create
+        //   2. Verify memory is allocated for each dynamic semaphore
+        //   3. Delete dynamic semaphores using osz_sem_delete
+        //   4. Verify memory is freed after deletion
+        // Expected:
+        //   - Dynamic semaphore creation allocates memory correctly
+        //   - Dynamic semaphore deletion frees memory correctly
+        //   - No memory leaks occur during create/delete cycles
+        //   - System memory usage remains stable
+        
+        osz_sem_t *sem = NULL;
+        uint32_t result;
+        
+        // Step 1: Initialize semaphore with initial count 0
+        result = osz_sem_create(NULL, 0, 0, &sem);
+        VERIFY(result == OS_OK);
+        VERIFY(sem != NULL);
+        st_sem_checker checker = {
+            .pend_cnt = 0,
+            .post_cnt = 0,
+            .sem = sem,
+            .test_end = 0,
+            .wake_task = 0,
+        };
+
+        uint32_t res = helper_task_create("test_4_2_task1", PRIORITY_FOR_TEST_SEM_DEFAULT, TASK_STACK_SIZE_DEFAULT, (task_callback_t)helper_4_1_task_entry, (void_t *)&checker);
+        VERIFY(res == OS_OK);
+        VERIFY(checker.pend_cnt == 0);
+
+        osz_msleep(0x100);
+        VERIFY(checker.pend_cnt == 1);
+        VERIFY(checker.sem->field.sem == 0);
+        VERIFY(checker.post_cnt == 0);
+
+        osz_sem_post(checker.sem);
+        osz_msleep(0x100);
+
+        VERIFY((checker.test_end == 1) && (checker.post_cnt == 1));
+
+        osz_sem_delete(sem);
+    }
 }

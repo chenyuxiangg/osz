@@ -62,7 +62,7 @@ typedef struct __osz_obj_t {
 #define MODULE_FREE_LIST_HEAD(mod_id)               (&(g_modules[(mod_id)].free_obj_list))
 #define CURRENT_RT_CONTEXT                          (g_rt_context.is_on_int == 0 ? g_rt_context.tid : g_rt_context.hwi)
 
-uint32_t object_init(osz_obj_t *obj, osz_module_enum_t module_id, uint8_t *name, uint8_t name_size);
+uint32_t object_init(osz_obj_t *obj, osz_module_enum_t module_id);
 uint32_t get_free_obj(osz_module_enum_t module_id, osz_obj_t **outter_obj);
 
 extern osz_module_t g_modules[OSZ_MOD_MAX];

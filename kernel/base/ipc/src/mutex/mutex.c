@@ -10,7 +10,7 @@ STATIC uint32_t module_mutex_init(void_t)
 {
     for (int i = 0; i < OSZ_MUTEX_STATIC_MAX_CNT; ++i) {
         osz_obj_t *obj = (osz_obj_t *)&g_static_mutex_grp[i];
-        uint32_t ret = object_init(obj, OSZ_MOD_MUTEX, NULL, 0);
+        uint32_t ret = object_init(obj, OSZ_MOD_MUTEX);
         if (ret != OS_OK) {
             return ret;
         }

@@ -19,16 +19,13 @@ STATIC uint32_t module_init(void_t)
 }
 MODULE_INIT(module_init, l0)
 
-uint32_t object_init(osz_obj_t *obj, osz_module_enum_t module_id, uint8_t *name, uint8_t name_size)
+uint32_t object_init(osz_obj_t *obj, osz_module_enum_t module_id)
 {
     if (obj == NULL) {
         return OBJECT_IS_NULL_ERR;
     }
     if (module_id >= OSZ_MOD_MAX) {
         return OBJECT_MOD_ID_OVER_ERR;
-    }
-    if (name != NULL && name_size != 0) {
-        memcpy(obj->name, name, name_size);
     }
     dlink_init(&(obj->obj_list));
     obj->owner = CURRENT_RT_CONTEXT;

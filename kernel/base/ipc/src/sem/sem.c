@@ -11,7 +11,7 @@ STATIC uint32_t module_sem_init(void_t)
 {
     for (int i = 0; i < OSZ_SEM_STATIC_MAX_CNT; ++i) {
         osz_obj_t *obj = (osz_obj_t *)&g_static_sem_grp[i];
-        uint32_t ret = object_init(obj, OSZ_MOD_SEM, NULL, 0);
+        uint32_t ret = object_init(obj, OSZ_MOD_SEM);
         if (ret != OS_OK) {
             return ret;
         }
@@ -131,6 +131,10 @@ uint32_t osz_sem_create(uint8_t *name, uint8_t name_size, uint32_t val, osz_sem_
     *outter_obj = (osz_sem_t *)osz_malloc(sizeof(osz_sem_t));
     if (*outter_obj == NULL) {
         return SEM_CREATE_OUTTER_MALLOC_FAIL_ERR;
+    }
+    uint32_t ret = object_init((osz_obj_t *)*outter_obj, OSZ_MOD_SEM);
+    if (ret != OS_OK) {
+        return ret;
     }
     inner_sem_obj_init(*outter_obj, name, name_size, IPC_DYNAMIC_CREATE);
     (*outter_obj)->field.sem = val;

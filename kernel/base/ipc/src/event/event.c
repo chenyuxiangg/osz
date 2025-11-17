@@ -10,7 +10,7 @@ STATIC uint32_t module_events_init(void_t)
 {
     for (int i = 0; i < OSZ_EVENT_STATIC_MAX_CNT; ++i) {
         osz_obj_t *obj = (osz_obj_t *)&g_static_events_grp[i];
-        uint32_t ret = object_init(obj, OSZ_MOD_EVENTS, NULL, 0);
+        uint32_t ret = object_init(obj, OSZ_MOD_EVENTS);
         if (ret != OS_OK) {
             return ret;
         }
