@@ -1,12 +1,15 @@
 # 说明
 
-Bxxx: Bug id
-Dxxx: 设计改进点id
-Qxxx: 待解决的问题（非bug）id
+* Bxxx: Bug id
+* Dxxx: 设计改进点id
+* Qxxx: 待解决的问题（非bug）id
 
 ## 2025.11.8
 
 1. [B001]`osz_msleep` 函数延时不准问题，比如 `osz_msleep(20)` 并不是真正的延时20ms;
+
+> a. 已解决。-- 2025.11.12
+
 2. [B002]任务运行结束return时无法正确处理逻辑，比如任务体return时，会进入到`inner_task_exit`函数，该函数处理完逻辑后是否应该调度？
 
 > a. `inner_task_exit`中会调用`osz_task_delete`，该函数中会调度
