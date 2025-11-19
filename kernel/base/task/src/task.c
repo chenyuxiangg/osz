@@ -7,7 +7,7 @@
 #include "timer.h"
 #include "barrier.h"
 
-#define US_PER_MS       (1000)
+#define MS_PER_SECOND       (1000)
 
 STATIC uint8_t SECTION_KERNEL_INIT_DATA g_idle_task_stack[OSZ_CFG_TASK_STACK_DEFAULT_SIZE];
 STATIC uint8_t SECTION_KERNEL_INIT_DATA g_app_task_stack[OSZ_CFG_TASK_STACK_DEFAULT_SIZE];
@@ -409,7 +409,7 @@ void_t osz_udelay(uint64_t usec)
 void_t osz_msleep(uint64_t msec)
 {
     uint32_t intSave = 0;
-    uint64_t tick = ((msec * US_PER_MS) * CYCLES_PER_US) / CYCLES_PER_TICK;
+    uint64_t tick = (msec * SYSTEM_BASE_FREQ / MS_PER_SECOND) / CYCLES_PER_TICK;
     uint16_t task_id = osz_get_current_tid();
     TASK_INT_LOCK(&intSave);
     TASK_STATUS_CLEAN(task_id, TSK_FLAG_RUNNING);
