@@ -1,6 +1,7 @@
 #include "comm.h"
 #include "csr.h"
 #include "task.h"
+#include "hook.h"
 #include "schedule.h"
 #include "uart.h"
 #include "platform.h"
@@ -9,6 +10,10 @@
 #include "shell.h"
 
 osz_events_t *g_ecb = NULL;
+
+osz_hook_entry_t g_hook_table[HOOK_ID_MAX] = {
+    {HOOK_ID_PRINT, (uintptr_t)printf},
+};
 
 void_t test_thread1_handle(void_t)
 {
@@ -78,7 +83,8 @@ void_t test_cmd_func(uint32_t argc, int8_t *argv[])
 
 void_t app_main(void_t *) {
     while(1) {
-        osz_msleep(0x20);   
+        printf("%s, %d\n", __FUNCTION__, __LINE__);
+        osz_msleep(5000);   
     }
 }
 
