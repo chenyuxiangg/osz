@@ -420,8 +420,8 @@ void_t osz_msleep(uint64_t msec)
     }
     PSORTLINK_TIMEOUT(sl) = tick;
     inner_task_insert_sortlink(sl);
-    TASK_INT_UNLOCK(intSave);
     os_schedule();
+    TASK_INT_UNLOCK(intSave);
 }
 
 void_t osz_update_task(void_t)

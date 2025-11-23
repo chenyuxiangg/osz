@@ -55,7 +55,7 @@ BOOL is_need_preemp(VOID)
     }
     osz_task_t *tmp = STRUCT_ENTRY(osz_task_t, tsk_list_ready, dn);
     UINT16 tmp_id = osz_get_task_id_by_task_cb(tmp);
-    if (tmp_id == cur_task_id) {
+    if (tmp_id == cur_task_id || TASK_PRIORITY(tmp_id) > TASK_PRIORITY(cur_task_id)) {
         g_need_preemp = FALSE;
     } else {
         gp_new_task = tmp;
@@ -82,9 +82,11 @@ VOID os_preemp_schedule_with_pm(VOID)
     UINT16 new_task_id = osz_get_task_id_by_task_cb(gp_new_task);
     UINT16 cur_task_id = osz_get_current_tid();
 
-    TASK_STATUS_CLEAN(cur_task_id, TSK_FLAG_RUNNING);
-    TASK_STATUS_SET(cur_task_id, TSK_FLAG_READY);
-    pri_queue_enqueue(TASK_PRIORITY(cur_task_id), TASK_LIST(cur_task_id, ready), EQ_MODE_TAIL);
+    if ((TASK_STATE(cur_task_id) & TSK_FLAG_RUNNING) == TSK_FLAG_RUNNING) {
+        TASK_STATUS_CLEAN(cur_task_id, TSK_FLAG_RUNNING);
+        TASK_STATUS_SET(cur_task_id, TSK_FLAG_READY);
+        pri_queue_enqueue(TASK_PRIORITY(cur_task_id), TASK_LIST(cur_task_id, ready), EQ_MODE_TAIL);
+    }
 
     TASK_STATUS_CLEAN(new_task_id, TSK_FLAG_READY);
     TASK_STATUS_SET(new_task_id, TSK_FLAG_RUNNING);

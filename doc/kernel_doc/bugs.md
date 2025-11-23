@@ -47,3 +47,31 @@
 11. [B006]为什么sem ST "Test_4_2" 的测试结果会与 "Test_4_1"有差异？
 
 > a. 原因是Test_4_2中使用了`osz_sem_create`接口，接口并未对`osz_ipc_t`结构体首字段`supper`进行初始化，导致调用`osz_sem_pend`接口时返回`SEM_PEND_OBJ_NOT_SEM_ERR`从而跳过等待。-- 2025.11.17
+
+## 2025.11.18
+
+12. [B007]适配时钟后，`test_st_sem_g1.c`中的`Test_1_1: Single Task Semaphore Acquire and Release`用例概率性卡住，卡住时，app_main任务的状态一直为`RUNNING`。
+
+> 该问题由两个异常引起： -- 2025.11.23
+> a. 每个中断会执行`is_need_preemp`函数，该函数会从就绪队列取出一个就绪任务进行判定，当取出的任务不是当前任务时就调度，但这存在的问题是所有任务均会被抢占，而无关优先级；
+> b. `osz_msleep`函数中主动调度的函数调用`os_schedule`未放置在关中断中，导致概率出现一种情况：当执行完`TASK_INT_UNLOCK(intSave);`后系统如果产生中断并调度走之后，如果该任务超时唤醒了，那它就会继续执行主动调度，而此时任务的状态是`RUNNING`态，`os_schedule`调度时并不会将当前任务置为`READY`态，因此导致当前任务脱离系统的管控，再也无法得到调度，下述为问题代码：
+
+```c
+void_t osz_msleep(uint64_t msec)
+{
+    uint32_t intSave = 0;
+    uint64_t tick = (msec * SYSTEM_BASE_FREQ / MS_PER_SECOND) / CYCLES_PER_TICK;
+    uint16_t task_id = osz_get_current_tid();
+    TASK_INT_LOCK(&intSave);
+    TASK_STATUS_CLEAN(task_id, TSK_FLAG_RUNNING);
+    TASK_STATUS_SET(task_id, TSK_FLAG_BLOCKING);
+    osz_sortlink_t *sl = STRUCT_ENTRY(osz_sortlink_t, list, TASK_LIST(task_id, blocking));
+    if (inner_task_sortlink_is_mounted(task_id)) {
+        inner_task_delete_sortlink(sl, task_id);
+    }
+    PSORTLINK_TIMEOUT(sl) = tick;
+    inner_task_insert_sortlink(sl);
+    TASK_INT_UNLOCK(intSave);
+    os_schedule();              // 异常
+}
+```
