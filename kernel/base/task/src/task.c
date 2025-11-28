@@ -227,6 +227,7 @@ STATIC void_t inner_task_check_timeout(void_t)
             TASK_STATUS_SET(task_id, TSK_FLAG_READY);
             inner_task_delete_sortlink(sl, task_id);
             if (inner_task_pending_is_mounted(task_id)) {
+                TASK_STATUS_CLEAN(task_id, TSK_FLAG_PENDING);
                 dlink_del_node(TASK_LIST(task_id, pending));
             }
             pri_queue_enqueue(TASK_PRIORITY(task_id), TASK_LIST(task_id, ready), EQ_MODE_TAIL);
