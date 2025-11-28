@@ -51,6 +51,8 @@ STATIC uint32_t inner_events_obj_init(osz_events_t *obj, uint8_t *name, uint8_t 
     if (create_type == IPC_STATIC_CREATE) {
         dlink_insert_tail(&(obj->supper.module->used_obj_list), &(obj->supper.obj_list));
     }
+    // events is NULL when create event.
+    obj->field.events = 0;
     return OS_OK;
 }
 
@@ -133,6 +135,9 @@ uint32_t osz_events_read(osz_events_t *events, uint32_t event_set, osz_events_op
     if (status == TASK_WAIT_WAKE_UP_ERR) {
         ARCH_INT_LOCK(intsave);
         *outter_events = events->field.events & event_set;
+        if ((op_flag & EVENT_FLAG_CLEAN) == EVENT_FLAG_CLEAN) {
+            events->field.events &= ~(*outter_events);
+        }
         ARCH_INT_UNLOCK(intsave);
     }
 
@@ -172,9 +177,6 @@ uint32_t osz_events_write(osz_events_t *events, uint32_t event_set)
                 recv_event = TASK_EVENT_WAIT(tid) & events->field.events;
                 osz_task_wake(tid);
             }
-        }
-        if ((TASK_EVENT_OP(tid) & EVENT_FLAG_CLEAN) == EVENT_FLAG_CLEAN) {
-            events->field.events &= ~(recv_event);
         }
         pos = next;
     }

@@ -50,6 +50,7 @@ TEST_GROUP(ET_MODULE_EVENT_ST, 1, "Single Task Event Operation Scenarios", setup
         uint32_t res = osz_events_init(NULL, 0, &events);
         VERIFY(res == OS_OK);
         VERIFY(events != NULL);
+        VERIFY(events->field.events == 0);
 
         st_event_checker checker = {
             .events = events,
@@ -133,7 +134,61 @@ TEST_GROUP(ET_MODULE_EVENT_ST, 1, "Single Task Event Operation Scenarios", setup
         //   - CLEAN operation returns events and clears them
         //   - Subsequent read returns no events (or cleared state)
         //   - Event object state properly managed
+
+        osz_events_t *events = NULL;
+        uint32_t res = osz_events_init(NULL, 0, &events);
+        VERIFY(res == OS_OK);
+        VERIFY(events != NULL);
+        VERIFY(events->field.events == 0);
+
+        st_event_checker checker = {
+            .events = events,
+            .read_cnt = 0,
+            .write_cnt = 0,
+            .test_end = 0,
+            .read_events = 0,
+            .expected_events = 0x00000002, // Test with bits 0-3 set
+        };
+
+        // Create read task (will wait for events)
+        uint16_t task_read_id = 0;
+        void_t *read_stack_addr = osz_malloc(TASK_STACK_SIZE_DEFAULT);
+        osz_task_params_t params_read = {
+            .name = "event_1_2_read",
+            .priority = PRIORITY_FOR_TEST_EVENT_DEFAULT,
+            .stack_base = (uintptr_t)read_stack_addr,
+            .stack_attr = STACK_MEM_DYNAMIC,
+            .stack_size = TASK_STACK_SIZE_DEFAULT,
+            .thread = (task_callback_t)helper_task_event_1_2_read_entry,
+            .data = (void_t *)(&checker),
+        };
+        res = osz_create_task(&task_read_id, &params_read);
+        VERIFY(res == OS_OK);
+        osz_task_resume(task_read_id);
+
+        // Wait for read task to start waiting
+        while (checker.read_cnt == 0) {
+            osz_msleep(30);
+        }
         
+        VERIFY(checker.read_cnt == 1);
+        VERIFY(checker.write_cnt == 0);
+        VERIFY(checker.test_end == 0); // Read task should be blocked waiting
+
+        osz_events_write(checker.events, 0x3);
+
+        // Wait for read task to complete after receiving events
+        while (checker.test_end == 0) {
+            osz_msleep(30);
+        }
+        VERIFY(checker.test_end == 1); // Read task resumed execution
+        VERIFY(checker.read_events == checker.expected_events); // Verify correct events received
+        printf("\n%s, %d, events: %#x\n", __FUNCTION__, __LINE__, checker.events->field.events);
+        VERIFY(checker.events->field.events == 0x1);
+
+        // Clean up
+        res = osz_events_detach(events);
+        VERIFY(res == OS_OK);
     }
 
     TEST("Test_1_3: Repeated Event Read-Write Scenario") {
