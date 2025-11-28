@@ -10,6 +10,7 @@ C_SRCS += $(wildcard et_adapt/src/*.c)
 endif
 ifeq ($(OSZ_CFG_EVENT), y)
 C_SRCS += $(wildcard suite/src/event/ut/*.c)
+C_SRCS += $(wildcard suite/src/event/st/*.c)
 endif
 ifeq ($(OSZ_CFG_SEM), y)
 C_SRCS += $(wildcard suite/src/sem/ut/*.c)
