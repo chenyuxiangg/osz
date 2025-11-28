@@ -1,6 +1,7 @@
 #include "arch_adapter.h"
 #include "event.h"
 #include "task.h"
+#include "inner_task_err.h"
 #include "mem.h"
 
 #define IS_EMPTY(pend_list)     ((pend_list)->next != (pend_list))
@@ -128,6 +129,12 @@ uint32_t osz_events_read(osz_events_t *events, uint32_t event_set, osz_events_op
     dlink_insert_tail(&(events->pend_list), TASK_LIST(tid, pending));
     ARCH_INT_UNLOCK(intsave);
     status = osz_task_wait(timeout);
+
+    if (status == TASK_WAIT_WAKE_UP_ERR) {
+        ARCH_INT_LOCK(intsave);
+        *outter_events = events->field.events & event_set;
+        ARCH_INT_UNLOCK(intsave);
+    }
 
     return status;
 }

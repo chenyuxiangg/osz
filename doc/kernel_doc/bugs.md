@@ -75,3 +75,9 @@ void_t osz_msleep(uint64_t msec)
     os_schedule();              // 异常
 }
 ```
+
+## 2025.11.28
+
+1.  [B008]`osz_events_read`函数在被唤醒场景下无法获取到读取到的事件，导致`outter_events`出参异常。
+
+> a. 原因是`osz_events_read`中未在唤醒后对outter_events赋值。-- 2025.11.28
