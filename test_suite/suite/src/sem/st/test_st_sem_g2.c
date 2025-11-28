@@ -357,7 +357,7 @@ TEST_GROUP(ET_MODULE_SEM_ST, 2, "Multiple Task Semaphore Synchronization Tests",
         uint16_t task1_id, task2_id, task3_id;
         void_t *stack_addr1 = osz_malloc(TASK_STACK_SIZE_DEFAULT);
         osz_task_params_t task_params = {
-            .name = "task_short",
+            .name = "task1",
             .stack_base = (uintptr_t)stack_addr1,
             .stack_size = TASK_STACK_SIZE_DEFAULT,
             .stack_attr = STACK_MEM_DYNAMIC,
@@ -376,7 +376,7 @@ TEST_GROUP(ET_MODULE_SEM_ST, 2, "Multiple Task Semaphore Synchronization Tests",
         };
         void_t *stack_addr2 = osz_malloc(TASK_STACK_SIZE_DEFAULT);
         osz_task_params_t task_params2 = {
-            .name = "task_med",
+            .name = "task2",
             .stack_base = (uintptr_t)stack_addr2,
             .stack_size = TASK_STACK_SIZE_DEFAULT,
             .stack_attr = STACK_MEM_DYNAMIC,
@@ -394,7 +394,7 @@ TEST_GROUP(ET_MODULE_SEM_ST, 2, "Multiple Task Semaphore Synchronization Tests",
         };
         void_t *stack_addr3 = osz_malloc(TASK_STACK_SIZE_DEFAULT);
         osz_task_params_t task_params3 = {
-            .name = "task_short",
+            .name = "task3",
             .stack_base = (uintptr_t)stack_addr3,
             .stack_size = TASK_STACK_SIZE_DEFAULT,
             .stack_attr = STACK_MEM_DYNAMIC,
