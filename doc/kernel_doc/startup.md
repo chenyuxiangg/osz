@@ -2,7 +2,7 @@
 
 本文将介绍OSZ从系统上电开始到`main`函数第一条指令运行中间的整个过程。
 
-![系统启动图示]()
+![系统启动图示](https://github.com/chenyuxiangg/osz/blob/main/doc/kernel_doc/images/osz_init_flow.png)
 
 OSZ中启动主要分为两大部分：C运行环境初始化、内核资源初始化
 
@@ -15,7 +15,7 @@ OSZ中启动主要分为两大部分：C运行环境初始化、内核资源初�
 
 #### RISCV栈增长方向
 
-![RISCV栈增长方向]()
+![RISCV栈增长方向](https://github.com/chenyuxiangg/osz/blob/main/doc/kernel_doc/images/riscv_stack_grow_dir.png)
 
 RISCV中栈是从高地址向低地址增长，即**栈顶位于高地址，压栈时先将sp减小后再保存数据。**
 
