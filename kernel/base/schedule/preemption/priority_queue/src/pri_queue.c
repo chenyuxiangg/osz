@@ -50,9 +50,11 @@ DLINK_NODE * pri_queue_dequeue(UINT8 queue_id, DLINK_NODE *node)
 DLINK_NODE *pri_queue_top(UINT8 queue_id)
 {
     if (queue_id < 0 || queue_id >= PRI_QUEUE_MAX_NUM) {
+        printf("[%s, %d] queue id is error!(id: %d)\n", __FUNCTION__, __LINE__, queue_id);
         return NULL;
     }
     if (DLINK_EMPTY(&(g_task_pri_queues[queue_id]))) {
+        printf("[%s, %d] priority is empty!\n", __FUNCTION__, __LINE__);
         return NULL;
     }
     return (g_task_pri_queues[queue_id].next);

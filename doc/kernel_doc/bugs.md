@@ -94,3 +94,9 @@ void_t osz_msleep(uint64_t msec)
 4. [B010]当事件pend并被唤醒后，读清功能失效。
 
 > a. 新增唤醒后读清功能。2025.11.28
+
+## 2026.02.23
+
+1. [B011]idle任务第一次被抢占后直接进入task exit函数，导致系统无背景线程，调度异常。
+
+> a. g_is_positive_schechule被定义为BOOL，读取时只需要使用lb即可，使用lw会导致多读数据。

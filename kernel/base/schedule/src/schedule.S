@@ -20,7 +20,7 @@ save_current_task:
     addi    sp, sp, -16 * REGBYTES
     save_callee_reg
     la      t0, g_is_positive_schechule
-    lw      t0, 0(t0)
+    lb      t0, 0(t0)
     beqz    t0, __not_change_mepc
     csrw    mepc, ra
 __not_change_mepc:
