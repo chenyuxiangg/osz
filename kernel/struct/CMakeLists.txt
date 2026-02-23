@@ -1,0 +1,4 @@
+add_subdirectory(double_link)
+add_subdirectory(fifo)
+add_subdirectory(single_link)
+add_subdirectory(sortlink)

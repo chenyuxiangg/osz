@@ -1,0 +1,8 @@
+add_subdirectory(hook)
+add_subdirectory(init)
+add_subdirectory(ipc)
+add_subdirectory(mem)
+add_subdirectory(schedule)
+add_subdirectory(softtimer)
+add_subdirectory(task)
+add_subdirectory(trap)

@@ -1,0 +1,8 @@
+add_subdirectory(base)
+add_subdirectory(comm)
+add_subdirectory(debug)
+add_subdirectory(dfx)
+add_subdirectory(drivers)
+add_subdirectory(shell)
+add_subdirectory(startup)
+add_subdirectory(struct)
