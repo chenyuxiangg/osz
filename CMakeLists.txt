@@ -3,7 +3,7 @@
 
 cmake_minimum_required(VERSION 3.5)
 # 编译工具链的配置必须放置在 project 前
-include(${CMAKE_SOURCE_DIR}/build/cmake/comm.cmake)
+include(${CMAKE_SOURCE_DIR}/construct/cmake/comm.cmake)
 
 project(OSZ LANGUAGES C CXX ASM)
 

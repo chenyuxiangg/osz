@@ -1,6 +1,6 @@
-include(${CMAKE_SOURCE_DIR}/build/cmake/riscv32_toolchain.cmake)
-include(${CMAKE_SOURCE_DIR}/build/cmake/global_var.cmake)
-include(${CMAKE_SOURCE_DIR}/build/cmake/module.cmake)
+include(${CMAKE_SOURCE_DIR}/construct/cmake/riscv32_toolchain.cmake)
+include(${CMAKE_SOURCE_DIR}/construct/cmake/global_var.cmake)
+include(${CMAKE_SOURCE_DIR}/construct/cmake/module.cmake)
 
 # ==================================== Functions ===============================
 # Function to add a test executable

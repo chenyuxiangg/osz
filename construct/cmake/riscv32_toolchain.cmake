@@ -37,7 +37,7 @@ set(CMAKE_CXX_FLAGS "-march=${RISCV_ARCH} -mabi=${RISCV_ABI} -ffreestanding -nos
 set(CMAKE_ASM_FLAGS "-march=${RISCV_ARCH} -mabi=${RISCV_ABI}" CACHE STRING "Assembler flags")
 
 # 设置链接标志
-set(CMAKE_EXE_LINKER_FLAGS "-nostdlib -nostartfiles -Wl,--gc-sections -T${CMAKE_SOURCE_DIR}/build/osz.ld" CACHE STRING "Linker flags")
+set(CMAKE_EXE_LINKER_FLAGS "-nostdlib -nostartfiles -Wl,--gc-sections -T${CMAKE_SOURCE_DIR}/construct/osz.ld" CACHE STRING "Linker flags")
 
 # 设置库路径（重要！）
 set(CMAKE_C_LINK_FLAGS "-L${TOOLCHAIN_PATH}/lib/gcc/riscv32-unknown-elf/14.2.0 -L${TOOLCHAIN_PATH}/riscv32-unknown-elf/lib")

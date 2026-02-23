@@ -31,7 +31,7 @@
 clone该仓库，将`riscv-unknown-elf.tar.gz`压缩包解压到tools目录，然后执行下述命令即可编译运行：
 
 ```shell
-cd build
+cd construct
 ./build.sh run
 
 # 调试命令
@@ -47,7 +47,7 @@ cd build
 ### 介绍
 
 编译框架当前为分为三个组件，入口、公共部分及模块私有。
-编译入口为`build/Makefile`，通过该文件中的`$(TARGET)`标签遍历`$(MODULES)`进行各模块的编译；公共部分为`build/make/comm.mk`以及`build/make/module.mk`，前者提供全局的路径变量的定义以及公用的一些Makefile宏，后者提供各模块编译依赖的公共部分；模块私有的部分需要在模块的顶层目录下新建Makefile文件，增加并按需修改如下模版即可：
+编译入口为`construct/Makefile`，通过该文件中的`$(TARGET)`标签遍历`$(MODULES)`进行各模块的编译；公共部分为`construct/make/comm.mk`以及`construct/make/module.mk`，前者提供全局的路径变量的定义以及公用的一些Makefile宏，后者提供各模块编译依赖的公共部分；模块私有的部分需要在模块的顶层目录下新建Makefile文件，增加并按需修改如下模版即可：
 ```Makefile
 include $(COMM_MK)
 
@@ -66,12 +66,12 @@ include $(MODULE_MK)
 
 当增加的模块提供了源码，且需要编译源码时，定义为新增加一个源码组件，需要按照如下规则执行:
 
-1. 确认`MODULE_NAME`,可以用户自定义，但需要确保与`build/config/osz.config`中的配置`OSZ_CFG_XXX`中的XXX一致;
+1. 确认`MODULE_NAME`,可以用户自定义，但需要确保与`construct/config/osz.config`中的配置`OSZ_CFG_XXX`中的XXX一致;
 2. 配置`MODULE`变量为**lib$(MODULE_NAME).a**;
 3. 确保待编译的文件已放置在`C_SRCS`变量中;
 4. 配置`LOCAL_FLAGS`,新增源文件编译依赖的头文件目录、宏定义、编译选项;
 5. 在入口Makefile文件中的`MODULES`变量中增加模块（模块顶层目录的相对路径）;
-6. 在`build/config/osz.confg`文件中添加模块配置，即`OSZ_CFG_XXX=y`。
+6. 在`construct/config/osz.confg`文件中添加模块配置，即`OSZ_CFG_XXX=y`。
 
 ### 增加一个库组件
 
@@ -79,8 +79,8 @@ include $(MODULE_MK)
 
 1. `C_SRCS`、`LOCAL_FLAGS`留空，且`MODULE`变量应该与`MODULE_NAME`变量相等。
 2. 组件的目录结构应该为: 
-    * `G_OPENSOURCE_PATH`(由build/comm.mk定义)/<组件名> 定义组件顶层目录；
-    * `G_OPENSOURCE_PATH`(由build/comm.mk定义)/<组件名> 下应该包含`include`、`lib`、`src`三个目录，如果没有源码，则不需要`src`；
+    * `G_OPENSOURCE_PATH`(由construct/comm.mk定义)/<组件名> 定义组件顶层目录；
+    * `G_OPENSOURCE_PATH`(由construct/comm.mk定义)/<组件名> 下应该包含`include`、`lib`、`src`三个目录，如果没有源码，则不需要`src`；
 3. 参考 **增加一个源码组件** 一节中的5、6两步将组件添加到编译框架。
 
 ## FAQ

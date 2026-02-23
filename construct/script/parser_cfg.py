@@ -2,7 +2,7 @@ import os
 import sys
 
 PROJECT_PATH = os.path.dirname(os.getcwd())
-BUILD_PATH = os.path.join(PROJECT_PATH, "build")
+BUILD_PATH = os.path.join(PROJECT_PATH, "construct")
 SCRIPT_PATH = os.path.join(BUILD_PATH, "script")
 CONFIG_PATH = os.path.join(BUILD_PATH, "config")
 MAKE_PATH = os.path.join(BUILD_PATH, "make")

@@ -14,7 +14,7 @@ GDB := $(CROSS)gdb
 # set global env path, every mk file can use
 G_PROJECT_PATH := $(dir $(COMM_CURRENT_PATH))/../..
 G_KERNEL_PATH := $(G_PROJECT_PATH)/kernel
-G_BUILD_PATH := $(G_PROJECT_PATH)/build
+G_BUILD_PATH := $(G_PROJECT_PATH)/construct
 G_TEST_PATH := $(G_PROJECT_PATH)/test
 G_ARCH_PATH := $(G_PROJECT_PATH)/arch
 G_OUTPUT_PATH := $(G_PROJECT_PATH)/output
