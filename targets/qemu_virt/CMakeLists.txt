@@ -22,4 +22,17 @@ define_module(
         k_debug
         k_drv_uart
         k_comm
+    # QEMU配置
+    ENABLE_QEMU_RUN ON
+    QEMU_EXECUTABLE ${OSZ_TOOLS_DIR}/qemu/bin/qemu-system-riscv32
+    QEMU_MACHINE virt
+    QEMU_CPU rv32
+    QEMU_OPTIONS
+        -nographic
+        -bios none
+    # GDB配置
+    ENABLE_GDB_DEBUG ON
+    GDB_EXECUTABLE ${OSZ_TOOLS_DIR}/toolchain/riscv32-unknown-elf/bin/riscv32-unknown-elf-gdb
+    GDB_PORT 1234
+    GDB_SCRIPT ${OSZ_BUILD_DIR}/script/gdbinit
 )

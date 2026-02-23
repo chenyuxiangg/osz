@@ -1,165 +1,112 @@
-# ====================================================
-# 模块定义宏
-# ====================================================
 #[[
-define_module: 统一模块定义宏
+define_module - 定义OSZ项目的CMake模块
 
-这个宏提供了一个统一的接口来定义各种类型的CMake模块，包括静态库、共享库、接口库和可执行文件。
-它封装了目标的创建、属性设置、依赖管理和安装规则，简化了CMakeLists.txt的编写。
+这个宏用于定义OSZ项目中的各种模块（库、可执行文件、接口库）。它提供了统一的配置接口，
+支持反汇编生成、QEMU模拟运行、GDB调试等嵌入式开发特性。
 
-语法：
-    define_module(
-        NAME <target_name>                    # 必需：目标名称
-        TYPE <type>                           # 必需：目标类型，可选值：STATIC, SHARED, INTERFACE, EXECUTABLE
-        
-        # 源文件相关
-        SOURCES <source_file>...              # 可选：C/C++源文件列表
-        ASM_SOURCES <asm_file>...             # 可选：汇编源文件列表
-        
-        # 包含目录
-        PUBLIC_INCLUDES <include_dir>...      # 可选：公共包含目录，会传递给依赖此目标的目标
-        PRIVATE_INCLUDES <include_dir>...     # 可选：私有包含目录，仅本目标使用
-        
-        # 编译定义
-        PUBLIC_DEFINITIONS <definition>...    # 可选：公共编译定义
-        PRIVATE_DEFINITIONS <definition>...   # 可选：私有编译定义
-        
-        # 编译选项
-        PUBLIC_COMPILE_OPTIONS <option>...    # 可选：公共编译选项
-        PRIVATE_COMPILE_OPTIONS <option>...   # 可选：私有编译选项
-        
-        # 链接选项
-        PUBLIC_LINK_OPTIONS <option>...       # 可选：公共链接选项
-        PRIVATE_LINK_OPTIONS <option>...      # 可选：私有链接选项
-        
-        # 依赖关系
-        PUBLIC_DEPENDENCIES <target>...       # 可选：公共依赖，会传递给依赖此目标的目标
-        PRIVATE_DEPENDENCIES <target>...      # 可选：私有依赖，仅本目标使用
-        INTERFACE_DEPENDENCIES <target>...    # 可选：接口依赖（主要用于接口库）
-    )
+参数分类：
+----------
 
-参数说明：
-    NAME: 目标的名称，必需参数。
-    
-    TYPE: 目标类型，必需参数。支持以下值：
-        - STATIC: 创建静态库
-        - SHARED: 创建共享库
-        - INTERFACE: 创建接口库（无源文件）
-        - EXECUTABLE: 创建可执行文件
-    
-    SOURCES: C/C++源文件列表。对于非INTERFACE类型的目标是必需的。
-            支持相对路径和绝对路径，相对路径相对于当前CMakeLists.txt所在目录。
-    
-    ASM_SOURCES: 汇编源文件列表。如果需要汇编支持，可以在这里指定。
-                注意：汇编文件会自动设置LANGUAGE属性为ASM。
-    
-    PUBLIC_INCLUDES: 公共包含目录列表。这些目录会被添加到目标的包含路径中，
-                    并且会传递给任何链接此目标的其他目标。
-    
-    PRIVATE_INCLUDES: 私有包含目录列表。这些目录仅被添加到本目标的包含路径中，
-                      不会传递给其他目标。
-    
-    PUBLIC_DEFINITIONS: 公共编译定义（宏定义）。这些定义会被添加到目标的编译选项中，
-                        并且会传递给任何链接此目标的其他目标。
-    
-    PRIVATE_DEFINITIONS: 私有编译定义（宏定义）。这些定义仅被添加到本目标的编译选项中，
-                         不会传递给其他目标。
-    
-    PUBLIC_COMPILE_OPTIONS: 公共编译选项。这些选项会被添加到目标的编译命令中，
-                            并且会传递给任何链接此目标的其他目标。
-    
-    PRIVATE_COMPILE_OPTIONS: 私有编译选项。这些选项仅被添加到本目标的编译命令中，
-                             不会传递给其他目标。
-    
-    PUBLIC_LINK_OPTIONS: 公共链接选项。这些选项会被添加到目标的链接命令中，
-                         并且会传递给任何链接此目标的其他目标。
-    
-    PRIVATE_LINK_OPTIONS: 私有链接选项。这些选项仅被添加到本目标的链接命令中，
-                          不会传递给其他目标。
-    
-    PUBLIC_DEPENDENCIES: 公共依赖目标列表。这些目标会被链接到本目标，
-                         并且它们的公共属性会传递给任何链接此目标的其他目标。
-    
-    PRIVATE_DEPENDENCIES: 私有依赖目标列表。这些目标会被链接到本目标，
-                          但它们的属性不会传递给其他目标。
-    
-    INTERFACE_DEPENDENCIES: 接口依赖目标列表。主要用于接口库，
-                            表示这些目标的接口属性应该被继承。
+### 选项参数 (options)
+- 无
 
-特性：
-    1. 自动处理相对路径：所有包含目录的相对路径会自动转换为绝对路径。
-    2. 汇编文件支持：ASM_SOURCES中的文件会自动设置为汇编语言。
-    3. 统一的标准设置：所有目标都使用C++11标准，且标准要求严格。
-    4. 安装规则：库目标会自动添加到安装规则中，可执行文件也会被安装。
-    5. 目标导出：库目标会被添加到导出集中，方便其他项目使用。
-    6. 详细日志：配置过程中会输出详细的日志信息，便于调试。
+### 单值参数 (oneValueArgs)
+- NAME (必需): 模块名称
+- TYPE (必需): 模块类型，必须是以下之一：
+  * STATIC: 静态库
+  * SHARED: 共享库  
+  * INTERFACE: 接口库
+  * EXECUTABLE: 可执行文件
+- LINKER_SCRIPT: 链接器脚本文件路径
+- DISASSEMBLE: 是否生成反汇编文件 (ON/OFF)，默认可执行文件为ON，其他为OFF
+- DISASSEMBLE_TOOL: 反汇编工具路径（如objdump），自动从编译器推导
+- DISASSEMBLE_FORMAT: 反汇编文件格式，默认"dis"
+- QEMU_EXECUTABLE: QEMU模拟器路径
+- QEMU_MACHINE: QEMU机器类型，默认"virt"（针对RISC-V）
+- QEMU_CPU: QEMU CPU类型，默认"rv32"（针对RISC-V）
+- QEMU_SERIAL: 串口设置
+- QEMU_MONITOR: 监控器设置
+- GDB_EXECUTABLE: GDB调试器路径
+- GDB_PORT: GDB调试端口，默认1234
+- ENABLE_QEMU_RUN: 是否启用QEMU运行目标 (ON/OFF)，默认OFF
+- ENABLE_GDB_DEBUG: 是否启用GDB调试目标 (ON/OFF)，默认OFF
 
-示例：
-    # 创建静态库
-    define_module(
-        NAME my_static_lib
-        TYPE STATIC
-        SOURCES src/lib1.cpp src/lib2.cpp
-        PUBLIC_INCLUDES include
-        PRIVATE_INCLUDES src/internal
-        PUBLIC_DEFINITIONS MYLIB_API=EXPORT
-        PRIVATE_DEPENDENCIES some_utility
-    )
-    
-    # 创建共享库
-    define_module(
-        NAME my_shared_lib
-        TYPE SHARED
-        SOURCES src/shared.cpp
-        PUBLIC_INCLUDES include
-        PUBLIC_DEFINITIONS MYSHAREDLIB_EXPORTS
-        PUBLIC_DEPENDENCIES my_static_lib
-    )
-    
-    # 创建接口库
-    define_module(
-        NAME my_interface
-        TYPE INTERFACE
-        PUBLIC_INCLUDES interface
-        PUBLIC_COMPILE_OPTIONS -Wall -Wextra
-        INTERFACE_DEPENDENCIES some_interface_lib
-    )
-    
-    # 创建可执行文件
-    define_module(
-        NAME my_app
-        TYPE EXECUTABLE
-        SOURCES src/main.cpp src/app.cpp
-        PRIVATE_INCLUDES src
-        PRIVATE_DEPENDENCIES my_static_lib my_shared_lib
-        PRIVATE_COMPILE_OPTIONS -O2
-    )
-    
-    # 创建带汇编文件的目标
-    define_module(
-        NAME asm_library
-        TYPE STATIC
-        SOURCES src/code.cpp
-        ASM_SOURCES src/asm/vector_ops.S src/asm/matrix_mult.S
-        PRIVATE_INCLUDES src/asm
-    )
+### 多值参数 (multiValueArgs)
+- SOURCES: C/C++源文件列表
+- ASM_SOURCES: 汇编源文件列表
+- PUBLIC_INCLUDES: 公共头文件目录（传递给依赖目标）
+- PRIVATE_INCLUDES: 私有头文件目录（仅本模块使用）
+- PUBLIC_DEFINITIONS: 公共宏定义
+- PRIVATE_DEFINITIONS: 私有宏定义
+- PUBLIC_COMPILE_OPTIONS: 公共编译选项
+- PRIVATE_COMPILE_OPTIONS: 私有编译选项
+- PUBLIC_LINK_OPTIONS: 公共链接选项
+- PRIVATE_LINK_OPTIONS: 私有链接选项
+- PUBLIC_DEPENDENCIES: 公共依赖库
+- PRIVATE_DEPENDENCIES: 私有依赖库
+- INTERFACE_DEPENDENCIES: 接口依赖库
+- DISASSEMBLE_FLAGS: 反汇编工具标志，默认"-d -S"
+- QEMU_OPTIONS: QEMU额外选项
+- GDB_OPTIONS: GDB额外选项
+- GDB_SCRIPT: GDB脚本文件
+
+功能特性：
+---------
+
+1. 自动目标创建：根据TYPE创建相应的CMake目标（add_library或add_executable）
+2. 反汇编生成：对于可执行文件，可自动生成反汇编文件（.dis）和内存映射文件（.map）
+3. QEMU集成：支持在QEMU中运行和调试嵌入式程序
+4. GDB调试：支持通过GDB连接QEMU进行调试
+5. 链接器脚本：支持指定自定义链接器脚本
+6. 标准配置：自动设置C++11标准、版本号等
+7. 安装规则：自动生成安装规则（库和可执行文件）
+
+示例用法：
+----------
+
+```cmake
+# 定义静态库
+define_module(
+    NAME my_lib
+    TYPE STATIC
+    SOURCES src1.c src2.c
+    PUBLIC_INCLUDES include
+    PUBLIC_DEFINITIONS MYLIB_EXPORT
+)
+
+# 定义可执行文件（带反汇编和QEMU支持）
+define_module(
+    NAME my_app
+    TYPE EXECUTABLE
+    SOURCES main.c
+    PUBLIC_DEPENDENCIES my_lib
+    DISASSEMBLE ON
+    ENABLE_QEMU_RUN ON
+    QEMU_MACHINE virt
+    QEMU_CPU rv32
+    LINKER_SCRIPT ${CMAKE_SOURCE_DIR}/linker.ld
+)
+```
 
 注意事项：
-    1. INTERFACE类型的目标不需要指定SOURCES或ASM_SOURCES。
-    2. 对于EXECUTABLE类型，某些属性（如VERSION）不会设置。
-    3. 使用相对路径时，宏会自动将其转换为绝对路径。
-    4. 汇编文件需要正确设置文件扩展名（.S, .s, .asm等），以便CMake识别。
-]]
-# ====================================================
+---------
 
-#[[
-define_module: 统一模块定义宏（增强版）
-功能：
-1. 支持创建静态库、共享库、接口库和可执行文件
-2. 支持链接器脚本配置
-3. 支持为可执行文件自动生成反汇编文件
-4. 支持自定义汇编文件处理
+1. NAME和TYPE是必需参数
+2. 非接口模块必须指定SOURCES或ASM_SOURCES
+3. 相对路径会自动转换为基于当前源目录的绝对路径
+4. 反汇编默认只对可执行文件启用
+5. QEMU和GDB配置需要相应工具已安装
+
+创建的目标：
+-----------
+
+- ${MODULE_NAME}: 主构建目标
+- ${MODULE_NAME}_disasm: 生成反汇编文件（如果DISASSEMBLE=ON）
+- ${MODULE_NAME}_all: 构建并生成反汇编文件
+- ${MODULE_NAME}_run: 在QEMU中运行（如果ENABLE_QEMU_RUN=ON）
+- ${MODULE_NAME}_debug: 启动QEMU并连接GDB调试（如果ENABLE_GDB_DEBUG=ON）
 ]]
+
 macro(define_module)
     # 解析参数 - 添加反汇编相关参数
     set(options "")
@@ -170,6 +117,15 @@ macro(define_module)
         DISASSEMBLE            # 是否生成反汇编 (ON/OFF)
         DISASSEMBLE_TOOL       # 反汇编工具路径 (如objdump)
         DISASSEMBLE_FORMAT     # 反汇编文件格式 (默认为dis)
+        QEMU_EXECUTABLE        # QEMU模拟器路径
+        QEMU_MACHINE           # QEMU机器类型
+        QEMU_CPU               # QEMU CPU类型
+        QEMU_SERIAL            # 串口设置
+        QEMU_MONITOR           # 监控器设置
+        GDB_EXECUTABLE         # GDB调试器路径
+        GDB_PORT               # GDB调试端口
+        ENABLE_QEMU_RUN        # 是否启用QEMU运行目标
+        ENABLE_GDB_DEBUG       # 是否启用GDB调试目标
     )
     set(multiValueArgs
         SOURCES
@@ -186,6 +142,9 @@ macro(define_module)
         PRIVATE_DEPENDENCIES
         INTERFACE_DEPENDENCIES
         DISASSEMBLE_FLAGS      # 反汇编工具标志
+        QEMU_OPTIONS           # QEMU额外选项
+        GDB_OPTIONS            # GDB额外选项
+        GDB_SCRIPT             # GDB脚本文件
     )
     
     cmake_parse_arguments(MODULE
@@ -203,12 +162,10 @@ macro(define_module)
     if(NOT MODULE_TYPE)
         message(FATAL_ERROR "模块必须指定 TYPE 参数 (STATIC, SHARED, INTERFACE, or EXECUTABLE)")
     endif()
-
     # 检查类型是否有效
     if(NOT MODULE_TYPE MATCHES "^(STATIC|SHARED|INTERFACE|EXECUTABLE)$")
         message(FATAL_ERROR "无效的模块类型: ${MODULE_TYPE}。必须是 STATIC, SHARED, INTERFACE 或 EXECUTABLE")
     endif()
-
     # 检查必需参数
     if(NOT MODULE_SOURCES AND NOT MODULE_ASM_SOURCES AND NOT MODULE_TYPE STREQUAL "INTERFACE")
         message(FATAL_ERROR "非接口模块必须指定 SOURCES 或 ASM_SOURCES 参数")
@@ -258,6 +215,77 @@ macro(define_module)
         if(NOT MODULE_DISASSEMBLE_FLAGS)
             set(MODULE_DISASSEMBLE_FLAGS -d -S)  # 反汇编代码段，并与源码混合显示
         endif()
+        
+        # 设置默认的QEMU和GDB配置
+        if(NOT DEFINED MODULE_ENABLE_QEMU_RUN)
+            set(MODULE_ENABLE_QEMU_RUN OFF)
+        endif()
+        
+        if(NOT DEFINED MODULE_ENABLE_GDB_DEBUG)
+            set(MODULE_ENABLE_GDB_DEBUG OFF)
+        endif()
+        
+        # 设置默认的QEMU可执行文件
+        if(MODULE_ENABLE_QEMU_RUN AND NOT MODULE_QEMU_EXECUTABLE)
+            # 尝试查找QEMU
+            find_program(QEMU_SYSTEM qemu-system-riscv32)
+            if(QEMU_SYSTEM)
+                set(MODULE_QEMU_EXECUTABLE ${QEMU_SYSTEM})
+            else()
+                # 尝试其他可能的QEMU名称
+                find_program(QEMU_SYSTEM_X86 qemu-system-x86_64)
+                if(QEMU_SYSTEM_X86)
+                    set(MODULE_QEMU_EXECUTABLE ${QEMU_SYSTEM_X86})
+                else()
+                    set(MODULE_QEMU_EXECUTABLE "qemu-system-riscv32")
+                endif()
+            endif()
+        endif()
+        
+        # 设置默认的QEMU机器类型（针对RISC-V）
+        if(MODULE_ENABLE_QEMU_RUN AND NOT MODULE_QEMU_MACHINE)
+            set(MODULE_QEMU_MACHINE "virt")
+        endif()
+        
+        # 设置默认的QEMU CPU类型（针对RISC-V）
+        if(MODULE_ENABLE_QEMU_RUN AND NOT MODULE_QEMU_CPU)
+            set(MODULE_QEMU_CPU "rv32")
+        endif()
+        
+        # 设置默认的GDB可执行文件
+        if(MODULE_ENABLE_GDB_DEBUG AND NOT MODULE_GDB_EXECUTABLE)
+            # 尝试从编译器推导GDB工具
+            if(CMAKE_C_COMPILER)
+                get_filename_component(COMPILER_PATH ${CMAKE_C_COMPILER} DIRECTORY)
+                get_filename_component(COMPILER_NAME ${CMAKE_C_COMPILER} NAME_WE)
+                
+                # 尝试几种常见的GDB工具命名规则
+                if(EXISTS "${COMPILER_PATH}/${COMPILER_NAME}-gdb")
+                    set(MODULE_GDB_EXECUTABLE "${COMPILER_PATH}/${COMPILER_NAME}-gdb")
+                elseif(EXISTS "${COMPILER_PATH}/gdb")
+                    set(MODULE_GDB_EXECUTABLE "${COMPILER_PATH}/gdb")
+                else()
+                    find_program(GDB_TOOL gdb)
+                    if(GDB_TOOL)
+                        set(MODULE_GDB_EXECUTABLE ${GDB_TOOL})
+                    else()
+                        set(MODULE_GDB_EXECUTABLE "gdb")
+                    endif()
+                endif()
+            else()
+                find_program(GDB_TOOL gdb)
+                if(GDB_TOOL)
+                    set(MODULE_GDB_EXECUTABLE ${GDB_TOOL})
+                else()
+                    set(MODULE_GDB_EXECUTABLE "gdb")
+                endif()
+            endif()
+        endif()
+        
+        # 设置默认的GDB端口
+        if(MODULE_ENABLE_GDB_DEBUG AND NOT MODULE_GDB_PORT)
+            set(MODULE_GDB_PORT 1234)
+        endif()
     else()
         # 对于非可执行文件，默认不生成反汇编
         if(NOT DEFINED MODULE_DISASSEMBLE)
@@ -287,22 +315,23 @@ macro(define_module)
             set(DISASM_FILE "${CMAKE_CURRENT_BINARY_DIR}/${MODULE_NAME}.${MODULE_DISASSEMBLE_FORMAT}")
             set(MAP_FILE "${CMAKE_CURRENT_BINARY_DIR}/${MODULE_NAME}.map")
             
-            # 创建反汇编目标
+            # 创建反汇编目标 - 使用列表形式传递参数
             add_custom_target(${DISASM_TARGET}
                 COMMAND ${CMAKE_COMMAND} -E echo "生成 ${MODULE_NAME} 的反汇编文件..."
-                COMMAND ${MODULE_DISASSEMBLE_TOOL} ${MODULE_DISASSEMBLE_FLAGS} 
-                    $<TARGET_FILE:${MODULE_NAME}> > ${DISASM_FILE} 2>&1 || true
+                COMMAND ${MODULE_DISASSEMBLE_TOOL} ${MODULE_DISASSEMBLE_FLAGS} $<TARGET_FILE:${MODULE_NAME}> > ${DISASM_FILE}
                 COMMAND ${CMAKE_COMMAND} -E echo "反汇编文件已生成: ${DISASM_FILE}"
                 DEPENDS ${MODULE_NAME}
                 COMMENT "为 ${MODULE_NAME} 生成反汇编文件"
+                VERBATIM
             )
             
             # 可选：生成内存映射文件（对于嵌入式开发很有用）
             add_custom_command(TARGET ${DISASM_TARGET} POST_BUILD
                 COMMAND ${CMAKE_COMMAND} -E echo "生成内存映射文件..."
-                COMMAND ${MODULE_DISASSEMBLE_TOOL} -x $<TARGET_FILE:${MODULE_NAME}> > ${MAP_FILE} 2>&1 || true
+                COMMAND ${MODULE_DISASSEMBLE_TOOL} -x $<TARGET_FILE:${MODULE_NAME}> > ${MAP_FILE}
                 COMMAND ${CMAKE_COMMAND} -E echo "内存映射文件已生成: ${MAP_FILE}"
                 COMMENT "生成 ${MODULE_NAME} 的内存映射文件"
+                VERBATIM
             )
             
             # 创建合并目标：构建并生成反汇编
@@ -311,6 +340,127 @@ macro(define_module)
                 COMMENT "构建 ${MODULE_NAME} 并生成反汇编文件"
             )
         endif()
+        
+        # 如果启用了QEMU运行，添加运行目标
+        if(MODULE_ENABLE_QEMU_RUN)
+            message(STATUS "  [${MODULE_NAME}] QEMU配置: 启用")
+            message(STATUS "  [${MODULE_NAME}] QEMU可执行文件: ${MODULE_QEMU_EXECUTABLE}")
+            message(STATUS "  [${MODULE_NAME}] QEMU机器类型: ${MODULE_QEMU_MACHINE}")
+            message(STATUS "  [${MODULE_NAME}] QEMU CPU类型: ${MODULE_QEMU_CPU}")
+            
+            # 定义QEMU运行目标
+            set(QEMU_TARGET "${MODULE_NAME}_run")
+            
+            # 构建QEMU命令列表
+            set(QEMU_CMD ${MODULE_QEMU_EXECUTABLE})
+            
+            # 添加基本参数
+            list(APPEND QEMU_CMD -machine ${MODULE_QEMU_MACHINE})
+            list(APPEND QEMU_CMD -cpu ${MODULE_QEMU_CPU})
+            
+            # 添加串口设置
+            if(MODULE_QEMU_SERIAL)
+                list(APPEND QEMU_CMD -serial ${MODULE_QEMU_SERIAL})
+            endif()
+            
+            # 添加监控器设置
+            if(MODULE_QEMU_MONITOR)
+                list(APPEND QEMU_CMD -monitor ${MODULE_QEMU_MONITOR})
+            endif()
+            
+            # 添加额外选项
+            foreach(option ${MODULE_QEMU_OPTIONS})
+                list(APPEND QEMU_CMD ${option})
+            endforeach()
+            
+            # 添加内核文件
+            list(APPEND QEMU_CMD -kernel $<TARGET_FILE:${MODULE_NAME}>)
+            
+            # 创建QEMU运行目标 - 正确传递列表参数
+            add_custom_target(${QEMU_TARGET}
+                COMMAND ${CMAKE_COMMAND} -E echo "在QEMU中运行 ${MODULE_NAME}..."
+                COMMAND ${CMAKE_COMMAND} -E echo "命令: $<JOIN:${QEMU_CMD}, >"
+                COMMAND ${QEMU_CMD}
+                DEPENDS ${MODULE_NAME}
+                COMMENT "在QEMU中运行 ${MODULE_NAME}"
+                VERBATIM
+            )
+        endif()
+
+        # 如果需要调试支持，添加-s、-S和-gdb选项，并后台执行
+        if(MODULE_ENABLE_GDB_DEBUG)
+            message(STATUS "  [${MODULE_NAME}] GDB配置: 启用")
+            message(STATUS "  [${MODULE_NAME}] GDB可执行文件: ${MODULE_GDB_EXECUTABLE}")
+            message(STATUS "  [${MODULE_NAME}] GDB端口: ${MODULE_GDB_PORT}")
+
+            # 设置调试目标名
+            set(DEBUG_TARGET "${MODULE_NAME}_debug")
+
+            # 设置调试目标参数
+            # =================================
+            # 构建QEMU命令列表
+            set(DEBUG_QEMU_CMD ${MODULE_QEMU_EXECUTABLE})
+            
+            # 添加基本参数
+            list(APPEND DEBUG_QEMU_CMD -machine ${MODULE_QEMU_MACHINE})
+            list(APPEND DEBUG_QEMU_CMD -cpu ${MODULE_QEMU_CPU})
+            
+            # 添加串口设置
+            if(MODULE_QEMU_SERIAL)
+                list(APPEND DEBUG_QEMU_CMD -serial ${MODULE_QEMU_SERIAL})
+            endif()
+            
+            # 添加监控器设置
+            if(MODULE_QEMU_MONITOR)
+                list(APPEND DEBUG_QEMU_CMD -monitor ${MODULE_QEMU_MONITOR})
+            endif()
+            
+            # 添加额外选项
+            foreach(option ${MODULE_QEMU_OPTIONS})
+                list(APPEND DEBUG_QEMU_CMD ${option})
+            endforeach()
+            
+            # 添加内核文件
+            list(APPEND DEBUG_QEMU_CMD -kernel $<TARGET_FILE:${MODULE_NAME}>)
+
+            list(APPEND DEBUG_QEMU_CMD -s -S)
+
+            # 构建GDB命令列表
+            set(GDB_CMD ${MODULE_GDB_EXECUTABLE})
+
+            # 添加GDB脚本
+            if(MODULE_GDB_SCRIPT)
+                if(NOT IS_ABSOLUTE ${MODULE_GDB_SCRIPT})
+                    set(MODULE_GDB_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/${MODULE_GDB_SCRIPT})
+                endif()
+                list(APPEND GDB_CMD -x ${MODULE_GDB_SCRIPT})
+            endif()
+            
+            # 添加GDB启动命令
+            list(APPEND GDB_CMD -q)
+            
+            # 添加额外选项（使用列表形式）
+            foreach(option ${MODULE_GDB_OPTIONS})
+                list(APPEND GDB_CMD ${option})
+            endforeach()
+            
+            # 添加要调试的可执行文件
+            list(APPEND GDB_CMD $<TARGET_FILE:${MODULE_NAME}>)
+            
+            # 创建QEMU运行目标 - 使用shell执行以支持后台操作
+            add_custom_target(${DEBUG_TARGET}
+                COMMAND ${CMAKE_COMMAND} -E echo "在QEMU中运行 ${MODULE_NAME}..."
+                COMMAND ${CMAKE_COMMAND} -E echo "QEMU命令: $<JOIN:${DEBUG_QEMU_CMD}, >"
+                COMMAND ${CMAKE_COMMAND} -E echo "GDB命令: $<JOIN:${GDB_CMD}, >"
+                COMMAND bash -c "$<JOIN:${DEBUG_QEMU_CMD}, > & $<JOIN:${GDB_CMD}, >"
+                DEPENDS ${MODULE_NAME}
+                COMMENT "在QEMU中运行 ${MODULE_NAME} 并启动GDB调试"
+                VERBATIM
+            )
+            # =================================
+
+        endif()
+        
     else()
         message(STATUS "创建库: ${MODULE_NAME} (${MODULE_TYPE})")
         add_library(${MODULE_NAME} ${MODULE_TYPE}
@@ -520,68 +670,3 @@ macro(define_module)
     
     message(STATUS "模块 ${MODULE_NAME} (${MODULE_TYPE}) 配置完成")
 endmacro()
-
-#[[
-辅助函数：为目标生成多种格式的反汇编文件
-可用于更复杂的反汇编需求
-]]
-function(generate_extended_disassembly target_name)
-    # 解析参数
-    set(options "")
-    set(oneValueArgs 
-        TOOL
-        OUTPUT_DIR
-    )
-    set(multiValueArgs "")
-    
-    cmake_parse_arguments(ARG
-        "${options}"
-        "${oneValueArgs}"
-        "${multiValueArgs}"
-        ${ARGN}
-    )
-    
-    if(NOT ARG_TOOL)
-        # 尝试查找objdump工具
-        find_program(OBJDUMP_TOOL objdump)
-        if(NOT OBJDUMP_TOOL)
-            message(WARNING "未找到objdump工具，无法生成扩展反汇编")
-            return()
-        endif()
-        set(ARG_TOOL ${OBJDUMP_TOOL})
-    endif()
-    
-    if(NOT ARG_OUTPUT_DIR)
-        set(ARG_OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR})
-    endif()
-    
-    # 生成基本反汇编
-    add_custom_command(TARGET ${target_name} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E echo "生成基本反汇编..."
-        COMMAND ${ARG_TOOL} -d $<TARGET_FILE:${target_name}> > ${ARG_OUTPUT_DIR}/${target_name}_basic.dis
-        COMMENT "生成 ${target_name} 的基本反汇编"
-    )
-    
-    # 生成带源码的反汇编
-    add_custom_command(TARGET ${target_name} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E echo "生成带源码的反汇编..."
-        COMMAND ${ARG_TOOL} -d -S $<TARGET_FILE:${target_name}> > ${ARG_OUTPUT_DIR}/${target_name}_source.dis
-        COMMENT "生成 ${target_name} 的带源码反汇编"
-    )
-    
-    # 生成节头信息
-    add_custom_command(TARGET ${target_name} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E echo "生成节头信息..."
-        COMMAND ${ARG_TOOL} -h $<TARGET_FILE:${target_name}> > ${ARG_OUTPUT_DIR}/${target_name}_sections.txt
-        COMMENT "生成 ${target_name} 的节头信息"
-    )
-    
-    # 生成符号表
-    add_custom_command(TARGET ${target_name} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E echo "生成符号表..."
-        COMMAND ${ARG_TOOL} -t $<TARGET_FILE:${target_name}> > ${ARG_OUTPUT_DIR}/${target_name}_symbols.txt
-        COMMENT "生成 ${target_name} 的符号表"
-    )
-    
-    message(STATUS "已为 ${target_name} 配置扩展反汇编生成")
-endfunction()
