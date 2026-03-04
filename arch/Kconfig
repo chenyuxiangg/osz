@@ -1,0 +1,26 @@
+# Architecture-specific configuration
+#
+# Copyright (c) 2025 zyzs
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+menu "Architecture Configuration"
+	config OSZ_CFG_RISCV
+		bool "Enable RISC-V architecture support"
+		default y
+		help
+		  Enable RISC-V architecture specific code.
+
+	config OSZ_CFG_INTERRUPT_STACK_SIZE
+		hex "Interrupt stack size"
+		default 0x800
+		help
+		  Stack size for interrupt handling.
+
+	config OSZ_CFG_EXCEPTION_STACK_SIZE
+		hex "Exception stack size"
+		default 0x800
+		help
+		  Stack size for exception handling.
+endmenu

@@ -2,8 +2,14 @@
 user_home="${HOME:-$(getent passwd $USER | cut -d: -f6)}"
 global_toolchain_path=${user_home}/tools/toolchains
 compiler_name=riscv32-unknown-elf
-tools_path=${current_path}/../tools
-build_path=${current_path}
+
+# Determine paths relative to this script
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CONSTRUCT_DIR="$(dirname "$SCRIPT_DIR")"
+PROJECT_ROOT="$(dirname "$CONSTRUCT_DIR")"
+
+tools_path=${PROJECT_ROOT}/tools
+build_path=${CONSTRUCT_DIR}
 qemu_path=${tools_path}/qemu
 toolchain_path=${tools_path}/toolchain
 compiler_path=${tools_path}/toolchain/${compiler_name}
@@ -42,7 +48,7 @@ set_env() {
     export COMM_MK=${build_path}/make/comm.mk
     export CFG_MK=${build_path}/make/cfg.mk
     export MODULE_MK=${build_path}/make/module.mk
-    export OUTPUT_PATH=${current_path}/../output
+    export OUTPUT_PATH=${PROJECT_ROOT}/output
 }
 
 gen_config() {
@@ -51,5 +57,5 @@ gen_config() {
 
 config_process
 config_toolchain
-gen_config
+# gen_config   # Now handled by Makefile's gen_header target
 set_env

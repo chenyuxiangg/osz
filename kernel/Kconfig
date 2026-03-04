@@ -1,0 +1,289 @@
+# Kernel Configuration
+#
+# Copyright (c) 2025 zyzs
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+menu "Object Configuration"
+	config OSZ_CFG_OBJ_NAME_MAX_LENS
+		int "Maximum length of object names"
+		default 8
+		range 1 255
+		help
+		  Maximum length of object names in characters.
+endmenu
+
+menu "Kernel Base Configuration"
+	config OSZ_CFG_INIT
+		bool "Enable kernel initialization"
+		default y
+		help
+		  Enable kernel initialization module.
+
+	config OSZ_CFG_HOOK
+		bool "Enable kernel hooks"
+		default y
+		help
+		  Enable kernel hook mechanism for debugging and monitoring.
+
+	config OSZ_CFG_DFX
+		bool "Enable DFX (Design For eXperience)"
+		default y
+		help
+		  Enable DFX features for better development experience.
+
+	config OSZ_CFG_STARTUP
+		bool "Enable startup module"
+		default y
+		help
+		  Enable kernel startup module.
+
+	config OSZ_CFG_STRUCT
+		bool "Enable data structures"
+		default y
+		help
+		  Enable kernel data structures module.
+
+	if OSZ_CFG_STRUCT
+		config OSZ_CFG_STRUCT_DLINK
+			bool "Enable doubly linked lists"
+			default y
+			help
+			  Enable doubly linked list implementation.
+
+		config OSZ_CFG_STRUCT_FIFO
+			bool "Enable FIFO queues"
+			default y
+			help
+			  Enable FIFO (First-In-First-Out) queue implementation.
+
+		config OSZ_CFG_STRUCT_SORTLINK
+			bool "Enable sorted linked lists"
+			default y
+			help
+			  Enable sorted linked list implementation.
+	endif
+
+	config OSZ_CFG_COMM
+		bool "Enable common utilities"
+		default y
+		help
+		  Enable common utilities module.
+
+	config OSZ_CFG_MEM
+		bool "Enable memory management"
+		default y
+		help
+		  Enable memory management module.
+
+	if OSZ_CFG_MEM
+		config OSZ_CFG_BESTFIT
+			bool "Enable best-fit memory allocation"
+			default y
+			help
+			  Enable best-fit algorithm for memory allocation.
+	endif
+
+	config OSZ_CFG_DEBUG
+		bool "Enable debug module"
+		default y
+		help
+		  Enable debug module.
+
+	config OSZ_CFG_TRAP
+		bool "Enable trap handling"
+		default y
+		help
+		  Enable trap handling module.
+
+	if OSZ_CFG_TRAP
+		config OSZ_CFG_EXCEPTION
+			bool "Enable exception handling"
+			default y
+			help
+			  Enable exception handling.
+
+		config OSZ_CFG_INTERRUPT
+			bool "Enable interrupt handling"
+			default y
+			help
+			  Enable interrupt handling.
+	endif
+
+	config OSZ_CFG_STARTUP_STACK_SIZE
+		hex "Startup stack size"
+		default 0x400
+		help
+		  Size of the startup stack in bytes.
+
+	config OSZ_CFG_PRI_QUEUE_LIMIT
+		hex "Priority queue limit"
+		default 0x20
+		help
+		  Maximum number of entries in priority queues.
+
+	config OSZ_CFG_IPC
+		bool "Enable IPC (Inter-Process Communication)"
+		default y
+		help
+		  Enable IPC mechanisms.
+
+	if OSZ_CFG_IPC
+		config OSZ_CFG_SEM
+			bool "Enable semaphores"
+			default y
+			help
+			  Enable semaphore support.
+
+		if OSZ_CFG_SEM
+			config OSZ_SEM_STATIC_MAX_CNT
+				int "Maximum static semaphore count"
+				default 10
+				help
+				  Maximum number of static semaphores.
+		endif
+
+		config OSZ_CFG_EVENT
+			bool "Enable events"
+			default y
+			help
+			  Enable event mechanism.
+
+		if OSZ_CFG_EVENT
+			config OSZ_EVENT_STATIC_MAX_CNT
+				int "Maximum static event count"
+				default 10
+				help
+				  Maximum number of static events.
+		endif
+
+		config OSZ_CFG_MUTEX
+			bool "Enable mutexes"
+			default y
+			help
+			  Enable mutex support.
+
+		if OSZ_CFG_MUTEX
+			config OSZ_MUTEX_STATIC_MAX_CNT
+				int "Maximum static mutex count"
+				default 10
+				help
+				  Maximum number of static mutexes.
+		endif
+	endif
+
+	config OSZ_CFG_ATOMIC
+		bool "Enable atomic operations"
+		default y
+		help
+		  Enable atomic operations support.
+
+	config OSZ_CFG_SOFTTIMER
+		bool "Enable software timers"
+		default y
+		help
+		  Enable software timer module.
+
+	if OSZ_CFG_SOFTTIMER
+		config OSZ_CFG_SOFTTIMER_TASK_STACK
+			hex "Software timer task stack size"
+			default 0x1000
+			help
+			  Stack size for software timer task.
+
+		config OSZ_CFG_SOFTTIMER_TASK_PRIORITY
+			int "Software timer task priority"
+			default 9
+			help
+			  Priority for software timer task.
+	endif
+
+	config OSZ_CFG_SWT_MAX
+		hex "Maximum number of software timers"
+		default 0x20
+		help
+		  Maximum number of software timers that can be created.
+endmenu
+
+menu "Kernel Task Configuration"
+	config OSZ_CFG_TASK
+		bool "Enable task management"
+		default y
+		help
+		  Enable task management module.
+
+	if OSZ_CFG_TASK
+		config OSZ_CFG_SCHEDULE
+			bool "Enable scheduler"
+			default y
+			help
+			  Enable scheduler module.
+
+		config OSZ_CFG_COORDINATION
+			bool "Enable task coordination"
+			default n
+			help
+			  Enable task coordination module.
+
+		config OSZ_CFG_PREEMPTION
+			bool "Enable preemption"
+			default y
+			help
+			  Enable preemptive scheduling.
+
+		config OSZ_CFG_TASK_STACK_DEFAULT_SIZE
+			hex "Default task stack size"
+			default 0x2000
+			help
+			  Default stack size for tasks.
+
+		config OSZ_CFG_TASK_LIMIT
+			int "Maximum number of tasks"
+			default 16
+			help
+			  Maximum number of tasks that can be created.
+
+		config OSZ_CFG_TASK_PRI_LOWEST
+			int "Lowest task priority"
+			default 31
+			help
+			  Lowest priority value for tasks (higher number = lower priority).
+
+		config OSZ_CFG_TASK_TICK_PER_US
+			int "System ticks per microsecond"
+			default 10
+			help
+			  Number of system ticks per microsecond.
+	endif
+endmenu
+
+menu "Kernel Interrupt Configuration"
+	config OSZ_CFG_INT_LIMIT
+		int "Maximum number of interrupts"
+		default 90
+		help
+		  Maximum number of interrupt sources supported.
+endmenu
+
+menu "Base Driver Configuration"
+	config OSZ_CFG_DRIVERS
+		bool "Enable base drivers"
+		default y
+		help
+		  Enable base driver framework.
+
+	if OSZ_CFG_DRIVERS
+		config OSZ_CFG_UART
+			bool "Enable UART driver"
+			default y
+			help
+			  Enable UART (Universal Asynchronous Receiver-Transmitter) driver.
+
+		config OSZ_CFG_TIMER
+			bool "Enable timer driver"
+			default y
+			help
+			  Enable timer driver.
+	endif
+endmenu

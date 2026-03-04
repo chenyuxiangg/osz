@@ -1,0 +1,23 @@
+# OSZ Kernel Configuration - Main Entry
+#
+# Copyright (c) 2025 zyzs
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+mainmenu "OSZ Kernel Configuration"
+
+# Source architecture-specific configuration
+source "arch/Kconfig"
+
+# Source kernel configuration
+source "kernel/Kconfig"
+
+# Source platform configuration
+source "platform/Kconfig"
+
+# Source targets configuration
+source "targets/Kconfig"
+
+# Source shell configuration
+source "kernel/shell/Kconfig"

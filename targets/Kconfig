@@ -1,0 +1,14 @@
+# Targets Configuration
+#
+# Copyright (c) 2025 zyzs
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+menu "Target Configuration"
+	config OSZ_CFG_TARGETS
+		bool "Enable target-specific code"
+		default y
+		help
+		  Enable target-specific code and configurations.
+endmenu

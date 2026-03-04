@@ -1,0 +1,14 @@
+# Platform Configuration
+#
+# Copyright (c) 2025 zyzs
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+menu "Platform Configuration"
+	config OSZ_CFG_PLATFORM
+		string "Target platform"
+		default "qemu_virt"
+		help
+		  Target platform name (e.g., qemu_virt, real_board).
+endmenu

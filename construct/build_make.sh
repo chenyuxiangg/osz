@@ -1,5 +1,12 @@
-current_path=`pwd`
-source ${current_path}/script/env.sh
+#!/bin/bash
+
+# Determine paths relative to this script
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CONSTRUCT_DIR="$SCRIPT_DIR"
+PROJECT_ROOT="$(dirname "$CONSTRUCT_DIR")"
+
+# Source environment configuration
+source "$CONSTRUCT_DIR/script/env.sh"
 
 params=$@
 
@@ -10,5 +17,5 @@ pre_compiler() {
 pre_compiler
 for param in ${params[@]}
 do
-    make ${param}
+    make -C "$CONSTRUCT_DIR" ${param}
 done

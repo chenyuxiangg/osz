@@ -1,0 +1,22 @@
+# Shell Configuration
+#
+# Copyright (c) 2025 zyzs
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+menu "Shell Configuration"
+	config OSZ_CFG_SHELL
+		bool "Enable shell"
+		default y
+		help
+		  Enable command shell interface.
+
+	if OSZ_CFG_SHELL
+		config OSZ_CFG_SHELL_HISTORY_CMD_NUM
+			int "Shell history command count"
+			default 10
+			help
+			  Number of commands to keep in shell history.
+	endif
+endmenu

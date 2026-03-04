@@ -22,12 +22,16 @@ Usage: $0 [OPTIONS] [TARGETS...]
 Build targets using CMake. If no targets are specified, builds the default target (all).
 
 Options:
-  --help          Show this help message and list available targets
+  menuconfig        Run interactive configuration interface (Kconfig)
+  genconfig         Generate default configuration
+  --help            Show this help message and list available targets
 
 Examples:
-  $0                 # Build all targets
-  $0 target1         # Build target1 only
-  $0 target1 target2 # Build target1 and target2
+  $0                       # Build all targets
+  $0 target1               # Build target1 only
+  $0 target1 target2       # Build target1 and target2
+  $0 menuconfig            # Run configuration interface
+  $0 genconfig             # Generate default configuration
 
 EOF
     # Ensure we are in the build directory and CMake is configured
@@ -207,11 +211,115 @@ EOF
     echo "For more details on a specific target, run: cmake --build . --target help"
 }
 
+# Function to run menuconfig
+run_menuconfig() {
+    echo "Running menuconfig..."
+    current_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+    project_root=$(cd "${current_dir}/.." && pwd)
+    cd "${project_root}"
+    
+    # Check if we're in a terminal that supports interactive mode
+    if [ ! -t 0 ] || [ ! -t 1 ]; then
+        echo "Warning: Not in an interactive terminal. Trying to run menuconfig anyway..."
+    fi
+    
+    # Set terminal type if not set
+    if [ -z "$TERM" ]; then
+        export TERM=xterm-256color
+    fi
+    
+    # Config file path
+    menuconfig_config="tools/util/menuconfig/.config"
+    
+    # First, try to use system 'menuconfig' command if available
+    if command -v menuconfig >/dev/null 2>&1; then
+        echo "Using system menuconfig command..."
+        KCONFIG_CONFIG="${menuconfig_config}" srctree="." menuconfig enter.kconfig 2>&1
+    else
+        # Otherwise, use python kconfiglib module
+        echo "Using python kconfiglib module..."
+        # Check if kconfiglib is available
+        python3 -c "import kconfiglib" 2>/dev/null
+        if [ $? -ne 0 ]; then
+            echo "Installing kconfiglib..."
+            pip3 install kconfiglib
+        fi
+        
+        # Run menuconfig using the existing Kconfig entry point
+        python3 -m kconfiglib menuconfig enter.kconfig --config "${menuconfig_config}" 2>&1
+    fi
+    
+    # Check if configuration was updated
+    if [ -f "${menuconfig_config}" ]; then
+        echo "Configuration saved to ${menuconfig_config}"
+        echo "Regenerating cfg.cmake..."
+        python3 tools/util/menuconfig/parser_cfg.py
+    else
+        echo "No configuration changes made."
+    fi
+}
+
+# Function to generate default configuration
+gen_defconfig() {
+    echo "Generating default configuration..."
+    current_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+    project_root=$(cd "${current_dir}/.." && pwd)
+    cd "${project_root}"
+    
+    # Check if kconfiglib is available
+    python3 -c "import kconfiglib" 2>/dev/null
+    if [ $? -ne 0 ]; then
+        echo "Installing kconfiglib..."
+        pip3 install kconfiglib
+    fi
+    
+    # Generate default config using the existing script, output to tools/util/menuconfig/.config
+    config_file="tools/util/menuconfig/.config"
+    python3 tools/util/menuconfig/gen_defconfig.py enter.kconfig "${config_file}"
+    # Then parse it to generate cfg.cmake and others
+    python3 tools/util/menuconfig/parser_cfg.py
+}
+
+# Function to load configuration
+load_config() {
+    current_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+    project_root=$(cd "${current_dir}/.." && pwd)
+    config_file="${project_root}/tools/util/menuconfig/.config"
+    
+    # If .config doesn't exist, generate default config
+    if [ ! -f "${config_file}" ]; then
+        echo "No configuration found. Generating default configuration..."
+        gen_defconfig
+    fi
+    
+    # Check if cfg.cmake is up to date, if not, parse .config
+    cfg_cmake="${project_root}/construct/cmake/cfg.cmake"
+    if [ ! -f "${cfg_cmake}" ] || [ "${config_file}" -nt "${cfg_cmake}" ]; then
+        echo "Configuration changed. Regenerating cfg.cmake..."
+        python3 tools/util/menuconfig/parser_cfg.py
+    fi
+}
+
+# Check for menuconfig option
+if [[ "$1" == "menuconfig" ]]; then
+    run_menuconfig
+    exit 0
+fi
+
+# Check for genconfig option
+if [[ "$1" == "genconfig" ]]; then
+    gen_defconfig
+    exit 0
+fi
+
 # Check for help option
 if [[ "$1" == "--help" ]]; then
     show_help
     exit 0
 fi
+
+# Load configuration before building
+load_config
 
 current_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 project_root=$(cd "${current_dir}/.." && pwd)
