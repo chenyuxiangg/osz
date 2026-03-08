@@ -1,97 +1,237 @@
 # OSZ
 
-取名为**Z**的操作系统，没有什么特殊的含义。
+[![GitHub](https://img.shields.io/github/license/chenyuxiangg/osz)](https://github.com/chenyuxiangg/osz/blob/main/LICENSE)
+[![GitHub stars](https://img.shields.io/github/stars/chenyuxiangg/osz)](https://github.com/chenyuxiangg/osz/stargazers)
+[![GitHub issues](https://img.shields.io/github/issues/chenyuxiangg/osz)](https://github.com/chenyuxiangg/osz/issues)
+[![GitHub last commit](https://img.shields.io/github/last-commit/chenyuxiangg/osz)](https://github.com/chenyuxiangg/osz/commits/main)
 
-## 当前支持特性
+**OSZ** 是一个轻量级实时操作系统（RTOS），专为资源受限的嵌入式系统设计，特别支持RISC-V架构。取名为"Z"的操作系统，旨在提供简洁、高效、可扩展的实时操作系统解决方案。
 
-* 中断框架支持
-* mtime支持
-* ns16550 uart驱动支持
-* 多任务支持
-* 内存管理支持
-* 有且仅有一个外部依赖`printf`（已源码集成）
-* qemu-riscv Virt单板支持
-* ipc支持（当前仅支持event）
-* 抢占调度支持
-* shell命令行支持（支持自定义命令）
-* - shell 支持上、下、左、右键
-* - shell 支持tab补全/联想命令
-* - shell 支持任意位置del字符
+## ✨ 特性
 
-## 交叉编译工具链信息
+### 内核特性
+- **实时多任务支持**：基于优先级的抢占式调度
+- **中断框架支持**：灵活的中断管理和处理机制
+- **内存管理支持**：高效的内存分配和管理
+- **IPC支持**：进程间通信机制（当前支持event）
+- **抢占调度支持**：确保高优先级任务及时响应
 
-代码仓目录下的 `tools/riscv-unknown-elf.tar.gz` 存放了可以直接用于 **riscv32** 编译的交叉编译工具链，工具链源码地址见[这里](https://github.com/riscv-collab/riscv-gnu-toolchain),commit id为`935b263c8ef7f250819c74aeb7736c87ad87ef2b`,编译参数如下：
+### 硬件支持
+- **RISC-V架构**：全面支持RISC-V指令集
+- **QEMU RISC-V Virt单板支持**：便于仿真和测试
+- **ns16550 UART驱动支持**：串口通信
+- **mtime支持**：硬件定时器
 
-```shell
-./configure --prefix=/home/zyzs/code/riscv_tool_chain/install --with-arch=rv32gc --with-abi=ilp32d --enable-default-pie --with-languages=c,c++ --with-cmodel=medany
-```
+### 开发工具
+- **Shell命令行支持**：丰富的命令行界面
+  - 支持上、下、左、右键导航
+  - 支持tab补全/联想命令
+  - 支持任意位置del字符
+- **双构建系统支持**：CMake和Makefile双构建系统
+- **交叉编译工具链集成**：开箱即用的RISC-V工具链
+- **模块化编译框架**：灵活的组件配置和构建系统
 
-## 编译及运行
+### 第三方库集成
+- **[printf](https://github.com/mpaland/printf)**：嵌入式中最好的printf实现，已源码集成
+- 有且仅有一个外部依赖，保持系统精简
 
-clone该仓库，将`riscv-unknown-elf.tar.gz`压缩包解压到tools目录，然后执行下述命令即可编译运行：
+## 🚀 快速开始
 
-```shell
+### 环境准备
+
+1. **克隆仓库**
+   ```bash
+   git clone https://github.com/chenyuxiangg/osz.git
+   cd osz
+   ```
+
+2. **解压工具链**
+   ```bash
+   tar -xzf tools/riscv-unknown-elf.tar.gz -C tools/
+   ```
+
+### 使用CMake构建（推荐）
+
+OSZ现在支持现代化的CMake构建系统：
+
+```bash
+# 进入构建目录
 cd construct
-./build.sh run
 
-# 调试命令
-./build.sh debug
+# 查看可用的构建目标
+./build_cmake.sh --help
+
+# 构建所有目标
+./build_cmake.sh
+
+# 构建并运行QEMU仿真
+./build_cmake.sh target_qemu_run
+
+# 构建调试版本
+./build_cmake.sh target_qemu_debug
+
+# 清理构建产物
+./build_cmake.sh clean
 ```
 
-## 已集成的第三方库
+### 使用Makefile构建（传统方式）
 
-1. 集成了[嵌入式中最好的printf](https://github.com/mpaland/printf)，实现文件直接拷贝到`kernel/debug`目录下（只有`printf.c`和`printf.h`）;
+传统的Makefile构建系统仍然可用：
 
-## 编译框架
-
-### 介绍
-
-编译框架当前为分为三个组件，入口、公共部分及模块私有。
-编译入口为`construct/Makefile`，通过该文件中的`$(TARGET)`标签遍历`$(MODULES)`进行各模块的编译；公共部分为`construct/make/comm.mk`以及`construct/make/module.mk`，前者提供全局的路径变量的定义以及公用的一些Makefile宏，后者提供各模块编译依赖的公共部分；模块私有的部分需要在模块的顶层目录下新建Makefile文件，增加并按需修改如下模版即可：
-```Makefile
-include $(COMM_MK)
-
-MODULE_NAME := 
-MODULE := 
-
-C_SRCS = $(wildcard *.c)
-OBJS := $(patsubst %.c, %.o, $(C_SRCS))
-
-LOCAL_FLAGS := 
-
-include $(MODULE_MK)
+```bash
+cd construct
+make            # 构建所有目标
+make run        # 构建并运行QEMU
+make debug      # 构建调试版本
+make clean      # 清理构建产物
 ```
 
-### 增加一个源码组件
+### 使用QEMU仿真
 
-当增加的模块提供了源码，且需要编译源码时，定义为新增加一个源码组件，需要按照如下规则执行:
+OSZ支持在QEMU中运行，无需物理硬件：
 
-1. 确认`MODULE_NAME`,可以用户自定义，但需要确保与`construct/config/osz.config`中的配置`OSZ_CFG_XXX`中的XXX一致;
-2. 配置`MODULE`变量为**lib$(MODULE_NAME).a**;
-3. 确保待编译的文件已放置在`C_SRCS`变量中;
-4. 配置`LOCAL_FLAGS`,新增源文件编译依赖的头文件目录、宏定义、编译选项;
-5. 在入口Makefile文件中的`MODULES`变量中增加模块（模块顶层目录的相对路径）;
-6. 在`construct/config/osz.confg`文件中添加模块配置，即`OSZ_CFG_XXX=y`。
+```bash
+cd construct
+./build_cmake.sh target_qemu_run    # 使用CMake构建并运行
+# 或
+make run                           # 使用Makefile构建并运行
+```
 
-### 增加一个库组件
+## 🛠️ 构建系统
 
-当新增加的模块是一组不需要编译源文件（已经提供了.a）的静态库时，定义为新增加一个库组件，需要按照如下规则执行:
+### CMake构建系统（推荐）
 
-1. `C_SRCS`、`LOCAL_FLAGS`留空，且`MODULE`变量应该与`MODULE_NAME`变量相等。
-2. 组件的目录结构应该为: 
-    * `G_OPENSOURCE_PATH`(由construct/comm.mk定义)/<组件名> 定义组件顶层目录；
-    * `G_OPENSOURCE_PATH`(由construct/comm.mk定义)/<组件名> 下应该包含`include`、`lib`、`src`三个目录，如果没有源码，则不需要`src`；
-3. 参考 **增加一个源码组件** 一节中的5、6两步将组件添加到编译框架。
+OSZ采用现代化的CMake构建系统，提供以下优势：
+- **跨平台支持**：可在Linux、macOS和Windows（WSL）上构建
+- **模块化配置**：每个内核模块都是独立的CMake目标
+- **灵活的目标选择**：可以单独构建特定模块
+- **集成开发环境支持**：支持VSCode、CLion等现代IDE
 
-## FAQ
+#### 主要CMake目标
+- `target_qemu_all` - 构建完整的QEMU虚拟平台可执行文件
+- `target_qemu_run` - 构建并运行QEMU虚拟平台
+- `target_qemu_debug` - 构建调试版本（支持GDB）
+- `target_qemu_disasm` - 生成反汇编文件
+- `k_base_*` - 内核基础模块（任务、内存、调度等）
+- `k_*` - 其他内核模块（shell、debug、dfx等）
 
-1. 当使用`-g`选项生成带调试信息的可执行文件时，链接脚本中不能对`.debug_*`这类段进行指定，应该保持默认；
+### Makefile构建系统（传统）
 
-## 参考信息
+传统的Makefile构建系统提供向后兼容性：
+- **简单直接**：熟悉的Makefile工作流程
+- **快速构建**：适用于快速原型开发
+- **向后兼容**：确保现有工作流程不受影响
 
-* [Makefile 常用函数列表](https://github.com/marmotedu/geekbang-go/blob/master/makefile/Makefile%E5%B8%B8%E7%94%A8%E5%87%BD%E6%95%B0%E5%88%97%E8%A1%A8.md)
-* [从头写一个RISCV OS](https://github.com/plctlab/riscv-operating-system-mooc)
+## 📁 项目结构
 
-## 内核特性
+```
+osz/
+├── arch/              # 体系结构相关代码（RISC-V）
+├── build/             # CMake构建输出目录
+├── construct/         # 构建系统配置
+│   ├── cmake/        # CMake模块配置
+│   ├── config/       # 项目配置
+│   ├── make/         # Makefile构建配置
+│   └── script/       # 构建脚本
+├── doc/              # 文档
+├── kernel/           # 内核核心
+│   ├── base/         # 基础组件（任务、内存、调度等）
+│   ├── comm/         # 通用定义和工具
+│   ├── debug/        # 调试支持（printf等）
+│   ├── dfx/          # 诊断和故障扩展
+│   ├── drivers/      # 设备驱动
+│   ├── shell/        # Shell实现
+│   ├── startup/      # 内核启动代码
+│   └── struct/       # 数据结构实现
+├── output/           # 构建输出文件
+├── platform/         # 平台支持
+├── targets/          # 目标板配置
+└── tools/            # 工具链和实用工具
+```
 
-* [启动流程](https://github.com/chenyuxiangg/osz/blob/main/doc/kernel_doc/startup.md)
+## 🔧 交叉编译工具链
+
+项目提供了预编译的RISC-V工具链：`tools/riscv-unknown-elf.tar.gz`
+
+工具链源码：[riscv-gnu-toolchain](https://github.com/riscv-collab/riscv-gnu-toolchain)
+Commit ID: `935b263c8ef7f250819c74aeb7736c87ad87ef2b`
+
+编译配置：
+```shell
+./configure --prefix=/home/zyzs/code/riscv_tool_chain/install \
+            --with-arch=rv32gc \
+            --with-abi=ilp32d \
+            --enable-default-pie \
+            --with-languages=c,c++ \
+            --with-cmodel=medany
+```
+
+## 📚 文档
+
+### 内核文档
+- [启动流程](https://github.com/chenyuxiangg/osz/blob/main/doc/kernel_doc/startup.md) - 详细的内核启动过程分析
+- [Shell使用指南](https://github.com/chenyuxiangg/osz/blob/main/doc/kernel_doc/shell.md) - Shell命令和功能说明
+- [已知问题](https://github.com/chenyuxiangg/osz/blob/main/doc/kernel_doc/bugs.md) - 当前版本已知问题和解决方案
+
+### 编译文档
+- [编译工具配置](https://github.com/chenyuxiangg/osz/blob/main/doc/compile_doc/compile_tool_config.md) - 构建系统配置指南
+
+### 库函数文档
+- [strlen实现](https://github.com/chenyuxiangg/osz/blob/main/doc/libc_doc/strlen实现.md)
+- [strncmp实现](https://github.com/chenyuxiangg/osz/blob/main/doc/libc_doc/strncmp实现.md)
+- [strncpy实现](https://github.com/chenyuxiangg/osz/blob/main/doc/libc_doc/strncpy实现.md)
+
+## ❓ 常见问题
+
+### 构建问题
+**CMake构建失败**
+- 确保已安装CMake（版本3.10或更高）
+- 清理build目录后重试：`rm -rf build && cd construct && ./build_cmake.sh`
+
+**Makefile构建失败**
+- 确保已正确解压工具链到tools/目录
+- 检查construct/build.sh执行权限：`chmod +x construct/build.sh`
+
+### 调试信息问题
+当使用调试选项（-g）时，链接脚本中不应指定 `.debug_*` 这类段，应保持默认配置。
+
+## 🤝 参与贡献
+
+我们欢迎任何形式的贡献！以下是参与项目的方式：
+
+1. **报告问题**：使用 [GitHub Issues](https://github.com/chenyuxiangg/osz/issues) 报告bug或提出功能请求
+2. **提交代码**：通过Pull Request提交改进和修复
+3. **完善文档**：帮助改进文档和示例代码
+4. **分享经验**：在讨论区分享使用经验和最佳实践
+
+### 贡献流程
+1. Fork本仓库
+2. 创建功能分支 (`git checkout -b feature/AmazingFeature`)
+3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
+4. 推送到分支 (`git push origin feature/AmazingFeature`)
+5. 开启Pull Request
+
+### 开发规范
+- 代码风格遵循项目现有的编码规范
+- 提交信息清晰描述变更内容
+- 新功能需包含相应的测试用例
+- 文档更新需与代码变更同步
+
+## 📄 许可证
+
+本项目采用开源许可证，具体请查看 [LICENSE](LICENSE) 文件。
+
+## 🔗 参考资源
+
+- [Makefile常用函数列表](https://github.com/marmotedu/geekbang-go/blob/master/makefile/Makefile常用函数列表.md)
+- [从头写一个RISCV OS](https://github.com/plctlab/riscv-operating-system-mooc) - 优秀的RISC-V操作系统学习资源
+- [RT-Thread](https://github.com/RT-Thread/rt-thread) - 优秀的开源RTOS，本项目的设计参考之一
+
+## 📞 联系与支持
+
+- **GitHub仓库**: [https://github.com/chenyuxiangg/osz](https://github.com/chenyuxiangg/osz)
+- **问题反馈**: [GitHub Issues](https://github.com/chenyuxiangg/osz/issues)
+
+---
+
+**OSZ** - 简洁高效的RISC-V实时操作系统 | 为嵌入式系统而生
