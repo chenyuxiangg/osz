@@ -1,3 +1,4 @@
+#include "uart.h"
 #include "task.h"
 #include "mem.h"
 #include "string.h"
@@ -433,7 +434,9 @@ STATIC VOID inner_shell_deal_exc_phase()
     if (cmd != NULL) {
         cmd->cmd_func(cmd->cur_argc, cmd->args);
     } else {
-        SHELL_PRINT("%s: No such command.\n", g_shell_cb.buf);
+        if (g_shell_cb.buf_cur_size != 0) {
+            SHELL_PRINT("%d: No such command.\n", g_shell_cb.buf_cur_size);
+        }
     }
     
     memset(g_shell_cb.buf, 0, g_shell_cb.shell_capcity);
@@ -494,6 +497,7 @@ VOID shell_loop(VOID)
                 break;
             case SHELL_STATE_GET:
                 inner_shell_deal_get_phase();
+                drv_uart_putc(g_shell_cb.shell_cur_char);
                 break;
             case SHELL_STATE_SWITCH:
                 inner_shell_deal_switch_phase();

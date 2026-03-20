@@ -62,11 +62,6 @@ void_t test_create_task(int8_t *task_name, task_callback_t fn, uint32_t pri)
 
 void_t test_uart_recv_handler(void_t *args)
 {
-    if (*(int8_t *)args == 0xd) {
-        printf("\n");
-    } else {
-        printf("%c", *(int8_t *)args);
-    }
     shell_write_fifo(*(int8_t *)args);
 }
 
@@ -83,7 +78,6 @@ void_t test_cmd_func(uint32_t argc, int8_t *argv[])
 
 void_t app_main(void_t *) {
     while(1) {
-        printf("%s, %d\n", __FUNCTION__, __LINE__);
         osz_msleep(5000);   
     }
 }
