@@ -10,8 +10,8 @@ extern UINT32 __cmd_end;
 UINT32 g_cmd_start = (UINT32)&__cmd_start;
 UINT32 g_cmd_end = (UINT32)&__cmd_end;
 
-#define SHELL_NAME                  "OSZ"
-#define SHELL_NAME_SIZE             (sizeof(SHELL_NAME)+2)
+#define SHELL_NAME                  "OSZ$ "
+#define SHELL_NAME_SIZE             (sizeof(SHELL_NAME))
 #define SHELL_CMD_KEY_LEN_MAX       (0x16)
 #define SHELL_FIFO_MAX_SIZE         (0x40)
 #define SHELL_FIFO_READ_VALID       (0x1)
@@ -27,6 +27,9 @@ UINT32 g_cmd_end = (UINT32)&__cmd_end;
 #define SHELL_SPECIAL_CHAR_C        (0x43)          // C, ESC + LSB + C is left arrow
 #define SHELL_SPECIAL_CHAR_D        (0x44)          // D, ESC + LSB + D is right arrow
 #define SHELL_SPECIAL_CHAR_SPACE    (0x20)          // Space
+#define SHELL_CLEAN_LINE            "\033[2K\r"
+#define SHELL_MV_CURSOR_LEFT        "\033[1D"
+#define SHELL_MV_CURSOR_RIGHT       "\033[1C"
 
 #define SHELL_PRINT                 printf
 
@@ -37,6 +40,11 @@ STATIC CMD_HISTORY g_shell_history;
 STATIC VOID inner_shell_task_create(VOID)
 {
     UCHAR *task_stack = osz_malloc(0x800);
+    if (task_stack == NULL) {
+        printf("Failed to allocate task stack\n");
+        return;
+    }
+    
     osz_task_params_t params = {
         .name = "shell_task",
         .stack_attr = STACK_MEM_DYNAMIC,
@@ -50,6 +58,7 @@ STATIC VOID inner_shell_task_create(VOID)
     UINT32 ret = osz_create_task(&task_id, &params);
     if (ret != OS_OK) {
         printf("ret: %#x\n", ret);
+        osz_free(task_stack);
         return;
     }
     osz_task_resume(task_id);
@@ -68,11 +77,13 @@ STATIC VOID inner_shell_init(VOID)
     dlink_init(&(g_cmd_head.list));
     memset((VOID *)(g_shell_history.history_cmds), 0, sizeof(g_shell_history.history_cmds));
     memset((VOID *)(g_shell_cb.buf), 0, sizeof(g_shell_cb.buf));
+    g_shell_cb.shell_pre_input_char = '\0';
+    g_shell_cb.shell_cur_char = '\0';
     g_shell_cb.fifo = fifo_create(SHELL_FIFO_MAX_SIZE);
     g_shell_cb.shell_capcity = SHELL_BUFFER_MAX_NUM - 1;    // SHELL_BUFFER_MAX_NUM reserve for '\0'
     g_shell_cb.shell_state = SHELL_STATE_NONE;
     g_shell_cb.shell_buf_cursor = g_shell_cb.buf;
-    g_shell_history.history_cmd_num = 0;
+    g_shell_history.history_next_cmd_idx = 0;
     g_shell_history.history_cursor = SHELL_CMD_CURSOR_INVALID;
     g_shell_history.history_has_cmd = 0;
     g_shell_history.history_max_cmd_len = 0;
@@ -95,11 +106,14 @@ STATIC BOOL inner_shell_char_is_special(CHAR c)
             (c == SHELL_SPECIAL_CHAR_LSB));
 }
 
+
+// What???
 STATIC BOOL inner_shell_buf_cursor_has_shifted(VOID)
 {
     return (g_shell_cb.shell_buf_cursor != (g_shell_cb.buf + g_shell_cb.buf_cur_size));
 }
 
+// What???
 STATIC VOID inner_shell_reprint_with_cursor_shift(UINT32 gap_size)
 {
     SHELL_PRINT("%s", g_shell_cb.shell_buf_cursor);
@@ -111,7 +125,9 @@ STATIC VOID inner_shell_reprint_with_cursor_shift(UINT32 gap_size)
 STATIC VOID inner_shell_change_space_to_zero(VOID)
 {
     CHAR *ptr = g_shell_cb.buf;
-    while (*ptr != '\0') {
+    CHAR *buf_end = g_shell_cb.buf + g_shell_cb.buf_cur_size;
+    
+    while (ptr < buf_end && *ptr != '\0') {
         if (*ptr == SHELL_SPECIAL_CHAR_SPACE) {
             *ptr = '\0';
         }
@@ -124,32 +140,43 @@ STATIC VOID inner_shell_record_history_cmd(VOID)
     if (strlen(g_shell_cb.buf) == 0) {
         return;
     }
+    // 存在历史命令时，判断上一个命令与即将存入的命令是否相同，相同则不需要记录
     if (g_shell_history.history_has_cmd != 0) {
-        UINT32 pre_history_num = g_shell_history.history_cmd_num == 0 ? OSZ_CFG_SHELL_HISTORY_CMD_NUM : g_shell_history.history_cmd_num - 1;
+        UINT32 pre_history_num = (g_shell_history.history_next_cmd_idx == 0) ? 
+                                 (OSZ_CFG_SHELL_HISTORY_CMD_NUM - 1) : 
+                                 (g_shell_history.history_next_cmd_idx - 1);
         CHAR *history_cmd = g_shell_history.history_cmds[pre_history_num];
-        if ((strlen(g_shell_cb.buf) == strlen(history_cmd)) && 
+        if (history_cmd != NULL && 
+            (strlen(g_shell_cb.buf) == strlen(history_cmd)) && 
             (strncmp((VOID *)g_shell_cb.buf, (VOID *)history_cmd, strlen(history_cmd)) == 0)) {
             return;
         }
     }
 
-    if (g_shell_history.history_cmd_num >= OSZ_CFG_SHELL_HISTORY_CMD_NUM) {
-        g_shell_history.history_cmd_num %= OSZ_CFG_SHELL_HISTORY_CMD_NUM;
-        osz_free(g_shell_history.history_cmds[g_shell_history.history_cmd_num]);
-        g_shell_history.history_cmds[g_shell_history.history_cmd_num] = NULL;
+    // 释放已存在的命令，当前释放的命令是循环队列中最早记录的一个
+    if (g_shell_history.history_cmds[g_shell_history.history_next_cmd_idx] != NULL) {
+        osz_free(g_shell_history.history_cmds[g_shell_history.history_next_cmd_idx]);
+        g_shell_history.history_cmds[g_shell_history.history_next_cmd_idx] = NULL;
     }
+    
+    // 更新历史命令中最长命令的长度
     UINT32 cur_cmd_len = strlen(g_shell_cb.buf);
     g_shell_history.history_max_cmd_len = (g_shell_history.history_max_cmd_len < cur_cmd_len) ? cur_cmd_len : g_shell_history.history_max_cmd_len;
+    
     CHAR *history = (CHAR *)osz_zalloc(cur_cmd_len + 1);
-    memcpy((VOID *)history, (VOID *)g_shell_cb.buf, cur_cmd_len);
-    g_shell_history.history_cmds[g_shell_history.history_cmd_num++] = history;
-    g_shell_history.history_has_cmd = 1;
+    if (history != NULL) {
+        memcpy((VOID *)history, (VOID *)g_shell_cb.buf, cur_cmd_len);
+        g_shell_history.history_cmds[g_shell_history.history_next_cmd_idx] = history;
+        g_shell_history.history_next_cmd_idx = (g_shell_history.history_next_cmd_idx+1)%OSZ_CFG_SHELL_HISTORY_CMD_NUM;
+        g_shell_history.history_has_cmd = 1;
+    }
+    g_shell_history.history_cursor = SHELL_CMD_CURSOR_INVALID;
 }
 
-STATIC VOID inner_shell_clean_line(VOID) {
-    for (UINT32 i = 0; i < g_shell_history.history_max_cmd_len + SHELL_NAME_SIZE; ++i) {
-        SHELL_PRINT(" ");
-    }
+STATIC VOID inner_shell_reset_line(VOID) 
+{
+    SHELL_PRINT(SHELL_CLEAN_LINE);
+    SHELL_PRINT(SHELL_NAME);
 }
 
 STATIC UINT32 inner_shell_get_cmd_key_count_by_tab()
@@ -177,53 +204,76 @@ STATIC UINT32 inner_shell_get_cmd_key_by_tab(UINT32 *keys, CHAR *input)
     return key_index;
 }
 
-STATIC VOID inner_shell_uarrow_key_do()
+STATIC VOID inner_shell_get_history_cmd(VOID)
 {
-    SHELL_PRINT("\r\n");
-    inner_shell_clean_line();
-    g_shell_history.history_cursor++;
-    if (g_shell_history.history_cursor >= OSZ_CFG_SHELL_HISTORY_CMD_NUM) {
-        g_shell_history.history_cursor = OSZ_CFG_SHELL_HISTORY_CMD_NUM;
-    }
-    if (g_shell_history.history_cmds[g_shell_history.history_cursor] == NULL) {
-        g_shell_history.history_cursor -= 1; 
-        SHELL_PRINT("\r%s$ %s", SHELL_NAME, g_shell_cb.buf);
-        return;
-    }
-    if (g_shell_history.history_cursor >= OSZ_CFG_SHELL_HISTORY_CMD_NUM) {
-        SHELL_PRINT("\r%s$ %s", SHELL_NAME, g_shell_cb.buf);
-        return;
-    }
     memset(g_shell_cb.buf, 0, sizeof(g_shell_cb.buf));
     UINT32 cmd_len = strlen(g_shell_history.history_cmds[g_shell_history.history_cursor]);
     memcpy((VOID *)g_shell_cb.buf, g_shell_history.history_cmds[g_shell_history.history_cursor], cmd_len);
     g_shell_cb.shell_buf_cursor = g_shell_cb.buf + cmd_len;
     g_shell_cb.buf_cur_size = cmd_len;
-    SHELL_PRINT("\r%s$ %s", SHELL_NAME, g_shell_cb.buf);
 }
 
+STATIC VOID inner_shell_reset_shellcb_buf(VOID)
+{
+    memset(g_shell_cb.buf, 0, g_shell_cb.buf_cur_size);
+    g_shell_cb.shell_buf_cursor = g_shell_cb.buf;
+    g_shell_cb.buf_cur_size = 0;
+}
+
+STATIC BOOL inner_shell_check_equal_in_last_two_char(VOID)
+{
+    return (g_shell_cb.shell_cur_char == g_shell_cb.shell_pre_input_char);
+}
+
+// 当有新命令加入到历史命令缓冲中时，必定会重置history_cursor为SHELL_CMD_CURSOR_INVALID
+STATIC VOID inner_shell_uarrow_key_do()
+{   
+    if (g_shell_history.history_has_cmd != TRUE) {
+        return;
+    }
+
+    if (g_shell_history.history_cursor == SHELL_CMD_CURSOR_INVALID) {
+        g_shell_history.history_cursor = (g_shell_history.history_next_cmd_idx == 0) ?  OSZ_CFG_SHELL_HISTORY_CMD_NUM - 1 : g_shell_history.history_next_cmd_idx - 1;
+    } else {
+        g_shell_history.history_cursor = (g_shell_history.history_cursor - 1 == SHELL_CMD_CURSOR_INVALID) ? OSZ_CFG_SHELL_HISTORY_CMD_NUM - 1 : g_shell_history.history_cursor - 1;
+        
+        // 当命令回溯完后，不支持循环回溯
+        if (((inner_shell_check_equal_in_last_two_char()) && (g_shell_history.history_cursor == g_shell_history.history_next_cmd_idx - 1)) || (g_shell_history.history_cmds[g_shell_history.history_cursor] == NULL)) {
+            inner_shell_reset_line();
+            inner_shell_reset_shellcb_buf();
+            return;
+        }
+    }
+    
+    // 复制历史命令到缓冲区
+    inner_shell_get_history_cmd();
+    inner_shell_reset_line();
+    SHELL_PRINT("%s", g_shell_cb.buf);
+}
+
+// 当有新命令加入到历史命令缓冲中时，必定会重置history_cursor为SHELL_CMD_CURSOR_INVALID
 STATIC VOID inner_shell_darrow_key_do()
 {
-    SHELL_PRINT("\r");
-    inner_shell_clean_line();
-    if ((g_shell_history.history_cursor == SHELL_CMD_CURSOR_INVALID)) {
-        SHELL_PRINT("\r%s$ ", SHELL_NAME);
+    if (g_shell_history.history_has_cmd != TRUE) {
         return;
     }
-    g_shell_history.history_cursor--;
-    if ((g_shell_history.history_cursor == SHELL_CMD_CURSOR_INVALID)) {
-        memset(g_shell_cb.buf, 0, sizeof(g_shell_cb.buf));
-        g_shell_cb.shell_buf_cursor = g_shell_cb.buf;
-        g_shell_cb.buf_cur_size = 0;
-        SHELL_PRINT("\r%s$ ", SHELL_NAME);
-        return;
+
+    if (g_shell_history.history_cursor == SHELL_CMD_CURSOR_INVALID) {
+        g_shell_history.history_cursor = (g_shell_history.history_cmds[g_shell_history.history_next_cmd_idx] != NULL) ? g_shell_history.history_next_cmd_idx : 0;
+    } else {
+        g_shell_history.history_cursor = (g_shell_history.history_cursor + 1)%OSZ_CFG_SHELL_HISTORY_CMD_NUM;
+        // 当命令反向回溯完后，不支持循环回溯
+        if (((inner_shell_check_equal_in_last_two_char()) && (g_shell_history.history_cursor == g_shell_history.history_next_cmd_idx)) || (g_shell_history.history_cmds[g_shell_history.history_cursor] == NULL)) {
+            inner_shell_reset_line();
+            inner_shell_reset_shellcb_buf();
+            return;
+        }
     }
-    memset(g_shell_cb.buf, 0, sizeof(g_shell_cb.buf));
-    UINT32 cmd_len = strlen(g_shell_history.history_cmds[g_shell_history.history_cursor]);
-    memcpy((VOID *)g_shell_cb.buf, g_shell_history.history_cmds[g_shell_history.history_cursor], cmd_len);
-    g_shell_cb.shell_buf_cursor = g_shell_cb.buf + cmd_len;
-    g_shell_cb.buf_cur_size = cmd_len;
-    SHELL_PRINT("\r%s$ %s", SHELL_NAME, g_shell_cb.buf);
+
+    // 复制历史命令到缓冲区
+    inner_shell_get_history_cmd();
+    inner_shell_reset_line();
+    SHELL_PRINT("%s", g_shell_cb.buf);
 }
 
 STATIC VOID inner_shell_larrow_key_do()
@@ -247,15 +297,12 @@ STATIC VOID inner_shell_rarrow_key_do()
 
 STATIC VOID inner_shell_del_key_do(VOID)
 {
-    SHELL_PRINT("\r");
-    inner_shell_clean_line();
-    SHELL_PRINT("\r%s$ ", SHELL_NAME);
+    inner_shell_reset_line();
     if (g_shell_cb.buf_cur_size == 0) {
         return;
     }
     if (g_shell_cb.shell_buf_cursor == g_shell_cb.buf) {
         SHELL_PRINT("%s", g_shell_cb.buf);
-        SHELL_PRINT("\r%s$ ", SHELL_NAME);
         return;
     }
     CHAR *tmp = (CHAR *)osz_zalloc(g_shell_cb.buf_cur_size + 1);
@@ -283,23 +330,28 @@ STATIC VOID inner_shell_tab_key_do(VOID)
         return;
     }
     UINT32 *keys = (UINT32 *)osz_zalloc(sizeof(UINT32) * count);
+    if (keys == NULL) {
+        return;
+    }
+    
     count = inner_shell_get_cmd_key_by_tab(keys, g_shell_cb.buf);
     if (count == 1) {
         g_shell_cb.buf_cur_size = strlen((CHAR *)(keys[0]));
         memcpy((VOID *)g_shell_cb.buf, (VOID *)(CHAR *)(keys[0]), (size_t)g_shell_cb.buf_cur_size);
         g_shell_cb.shell_buf_cursor = g_shell_cb.buf + g_shell_cb.buf_cur_size;
-        SHELL_PRINT("\r");
-        inner_shell_clean_line();
-        SHELL_PRINT("\r%s$ %s", SHELL_NAME, g_shell_cb.buf);
-        return osz_free((VOID *)keys);
+        inner_shell_reset_line();
+        SHELL_PRINT("%s", g_shell_cb.buf);
+        osz_free((VOID *)keys);
+        return;
     }
     SHELL_PRINT("\n");
     for (UINT32 i = 0; i < count; ++i) {
         SHELL_PRINT("%s ", (CHAR *)(keys[i]));
     }
     SHELL_PRINT("\n");
-    SHELL_PRINT("%s$ %s", SHELL_NAME, g_shell_cb.buf);
-    return osz_free((VOID *)keys);
+    inner_shell_reset_line();
+    SHELL_PRINT("%s", g_shell_cb.buf);
+    osz_free((VOID *)keys);
 }
 
 STATIC VOID inner_shell_deal_get_phase()
@@ -309,6 +361,7 @@ STATIC VOID inner_shell_deal_get_phase()
         g_shell_cb.shell_err_code = SHELL_BUFFER_FULL_ERR;
         return;
     }
+    g_shell_cb.shell_pre_input_char = g_shell_cb.shell_cur_char;
     UINT32 ret = shell_read_fifo();
     if (ret != SHELL_FIFO_READ_VALID) {
         g_shell_cb.shell_state = SHELL_STATE_ERR;
@@ -385,7 +438,7 @@ STATIC VOID inner_shell_deal_switch_phase()
 
 STATIC VOID inner_shell_deal_parse_phase()
 {
-    CHAR *name[SHELL_CMD_KEY_LEN_MAX] = { 0 };
+    CHAR name[SHELL_CMD_KEY_LEN_MAX] = { 0 };
     CHAR **args = NULL;
     CHAR *buf_ptr = g_shell_cb.buf;
     CHAR *buf_end = g_shell_cb.buf + g_shell_cb.buf_cur_size;
@@ -398,8 +451,9 @@ STATIC VOID inner_shell_deal_parse_phase()
         return;
     }
 
-    memcpy((VOID *)name, (VOID *)buf_ptr, (size_t)strlen(g_shell_cb.buf));
-    buf_ptr += strlen(g_shell_cb.buf) + 1;
+    UINT32 cmd_name_len = strlen(g_shell_cb.buf);
+    memcpy((VOID *)name, (VOID *)buf_ptr, cmd_name_len);
+    buf_ptr += cmd_name_len + 1;
 
     DLINK_NODE *iter = NULL;
     CMD_NODE *cmd = NULL;
@@ -413,7 +467,7 @@ STATIC VOID inner_shell_deal_parse_phase()
         if (cmd->max_argc != 0) {
             args = osz_zalloc(sizeof(CHAR *) * cmd->max_argc);
             for (;(buf_ptr < buf_end); buf_ptr += (strlen(buf_ptr) + 1)) {
-                if (cmd->cur_argc <= cmd->max_argc) {
+                if (cmd->cur_argc < cmd->max_argc) {
                     args[cmd->cur_argc] = buf_ptr;
                 }
                 cmd->cur_argc++;
@@ -435,7 +489,17 @@ STATIC VOID inner_shell_deal_exc_phase()
         cmd->cmd_func(cmd->cur_argc, cmd->args);
     } else {
         if (g_shell_cb.buf_cur_size != 0) {
-            SHELL_PRINT("%d: No such command.\n", g_shell_cb.buf_cur_size);
+            // 提取命令名（第一个空格前的部分）
+            CHAR cmd_name[SHELL_CMD_KEY_LEN_MAX] = {0};
+            UINT32 i = 0;
+            for (; i < g_shell_cb.buf_cur_size && i < SHELL_CMD_KEY_LEN_MAX - 1; i++) {
+                if (g_shell_cb.buf[i] == ' ' || g_shell_cb.buf[i] == '\0') {
+                    break;
+                }
+                cmd_name[i] = g_shell_cb.buf[i];
+            }
+            cmd_name[i] = '\0';
+            SHELL_PRINT("%s: No such command.\n", cmd_name);
         }
     }
     
@@ -485,7 +549,7 @@ VOID shell_register_cmd(CMD_PARAMS *params)
 
 VOID shell_loop(VOID)
 {
-    SHELL_PRINT("%s$ ", SHELL_NAME);
+    inner_shell_reset_line();
     while (TRUE) {
         switch (g_shell_cb.shell_state) {
             case SHELL_STATE_NONE:
@@ -507,12 +571,14 @@ VOID shell_loop(VOID)
                 break;
             case SHELL_STATE_EXC:
                 inner_shell_deal_exc_phase();
-                SHELL_PRINT("%s$ ", SHELL_NAME);
+                SHELL_PRINT("\n");
+                inner_shell_reset_line();
                 break;
             case SHELL_STATE_ERR:
                 inner_shell_deal_err_phase();
                 SHELL_PRINT("err-code: %#x\n", g_shell_cb.shell_err_code);
-                SHELL_PRINT("%s$ ", SHELL_NAME);
+                SHELL_PRINT("\n");
+                inner_shell_reset_line();
                 break;
             default:
                 break;

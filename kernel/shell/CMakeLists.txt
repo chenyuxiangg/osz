@@ -15,6 +15,7 @@ define_module(
         k_struct_fifo
     PRIVATE_DEPENDENCIES
         arch_riscv
+        k_drv_uart
         k_base_task
         k_base_mem
 )

@@ -28,7 +28,7 @@ typedef enum {
 
 typedef struct {
     CHAR *history_cmds[OSZ_CFG_SHELL_HISTORY_CMD_NUM];
-    UINT32 history_cmd_num : 8;
+    UINT32 history_next_cmd_idx : 8;
     UINT32 history_cursor : 8;
     UINT32 history_has_cmd : 1;
     UINT32 history_max_cmd_len : 7;
@@ -62,6 +62,8 @@ typedef struct {
     UINT32 shell_state : 3;
     CHAR *shell_buf_cursor;
     CMD_NODE *cur_cmd;
+    UINT32 shell_pre_input_char : 8;
+    UINT32 rev : 24;
 } SHELL_CB;
 
 VOID shell_register_cmd(CMD_PARAMS *params);
