@@ -225,33 +225,38 @@ STATIC BOOL inner_shell_check_equal_in_last_two_char(VOID)
     return (g_shell_cb.shell_cur_char == g_shell_cb.shell_pre_input_char);
 }
 
-// 当有新命令加入到历史命令缓冲中时，必定会重置history_cursor为SHELL_CMD_CURSOR_INVALID
-STATIC VOID inner_shell_uarrow_key_do()
-{   
-    if (g_shell_history.history_has_cmd != TRUE) {
+STATIC VOID inner_shell_uarrow_key_do() {
+    if (g_shell_history.history_has_cmd == 0) {
         return;
     }
 
     if (g_shell_history.history_cursor == SHELL_CMD_CURSOR_INVALID) {
-        g_shell_history.history_cursor = (g_shell_history.history_next_cmd_idx == 0) ?  OSZ_CFG_SHELL_HISTORY_CMD_NUM - 1 : g_shell_history.history_next_cmd_idx - 1;
+        UINT32 idx = (g_shell_history.history_next_cmd_idx == 0) ? (OSZ_CFG_SHELL_HISTORY_CMD_NUM - 1) : (g_shell_history.history_next_cmd_idx - 1);
+        g_shell_history.history_cursor = idx;
     } else {
-        g_shell_history.history_cursor = (g_shell_history.history_cursor - 1 == SHELL_CMD_CURSOR_INVALID) ? OSZ_CFG_SHELL_HISTORY_CMD_NUM - 1 : g_shell_history.history_cursor - 1;
-        
-        // 当命令回溯完后，不支持循环回溯
-        if (((inner_shell_check_equal_in_last_two_char()) && (g_shell_history.history_cursor == g_shell_history.history_next_cmd_idx - 1)) || (g_shell_history.history_cmds[g_shell_history.history_cursor] == NULL)) {
-            inner_shell_reset_line();
-            inner_shell_reset_shellcb_buf();
-            return;
+        g_shell_history.history_cursor = (g_shell_history.history_cursor == 0) ? (OSZ_CFG_SHELL_HISTORY_CMD_NUM - 1) : (g_shell_history.history_cursor - 1);
+    }
+
+    BOOL condition = FALSE;
+    if (g_shell_history.history_cmds[g_shell_history.history_cursor] == NULL) {
+        condition = TRUE;
+    } else {
+        UINT32 prev_idx = (g_shell_history.history_next_cmd_idx == 0) ? (OSZ_CFG_SHELL_HISTORY_CMD_NUM - 1) : (g_shell_history.history_next_cmd_idx - 1);
+        if (g_shell_history.history_cursor == prev_idx && inner_shell_check_equal_in_last_two_char()) {
+            condition = TRUE;
         }
     }
-    
-    // 复制历史命令到缓冲区
-    inner_shell_get_history_cmd();
-    inner_shell_reset_line();
-    SHELL_PRINT("%s", g_shell_cb.buf);
+
+    if (condition) {
+        inner_shell_reset_line();
+        inner_shell_reset_shellcb_buf();
+    } else {
+        inner_shell_get_history_cmd();
+        inner_shell_reset_line();
+        SHELL_PRINT("%s", g_shell_cb.buf);
+    }
 }
 
-// 当有新命令加入到历史命令缓冲中时，必定会重置history_cursor为SHELL_CMD_CURSOR_INVALID
 STATIC VOID inner_shell_darrow_key_do()
 {
     if (g_shell_history.history_has_cmd != TRUE) {
