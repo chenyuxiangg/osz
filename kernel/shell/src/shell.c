@@ -113,15 +113,21 @@ STATIC BOOL inner_shell_buf_cursor_has_shifted(VOID)
     return (g_shell_cb.shell_buf_cursor != (g_shell_cb.buf + g_shell_cb.buf_cur_size));
 }
 
+STATIC VOID inner_shell_reset_line(VOID) 
+{
+    SHELL_PRINT(SHELL_CLEAN_LINE);
+    SHELL_PRINT(SHELL_NAME);
+}
+
 // 修复插入字符时的显示问题：打印从插入点开始的字符串（包括插入字符和后续字符）
 STATIC VOID inner_shell_reprint_with_cursor_shift(UINT32 gap_size)
 {
-    // 使用数组索引避免指针算术运算（符合MISRA-C规则17.1）
+    inner_shell_reset_line();
+    SHELL_PRINT("%s", g_shell_cb.buf);
+    // 移动光标到插入字符之后的位置
     UINT32 cursor_index = g_shell_cb.shell_buf_cursor - g_shell_cb.buf;
-    UINT32 insert_index = cursor_index - 1;
-    SHELL_PRINT("%s", &g_shell_cb.buf[insert_index]);
-    // 退格gap_size个位置，将光标移回插入字符之后的位置
-    for (UINT32 i = 0; i < gap_size; ++i) {
+    UINT32 move_back = g_shell_cb.buf_cur_size - cursor_index;
+    for (UINT32 i = 0; i < move_back; ++i) {
         SHELL_PRINT("\b");
     }
 }
@@ -177,11 +183,6 @@ STATIC VOID inner_shell_record_history_cmd(VOID)
     g_shell_history.history_cursor = SHELL_CMD_CURSOR_INVALID;
 }
 
-STATIC VOID inner_shell_reset_line(VOID) 
-{
-    SHELL_PRINT(SHELL_CLEAN_LINE);
-    SHELL_PRINT(SHELL_NAME);
-}
 
 STATIC UINT32 inner_shell_get_cmd_key_count_by_tab()
 {
@@ -280,7 +281,6 @@ STATIC VOID inner_shell_deal_get_phase()
 
 STATIC VOID inner_shell_back_key_do(VOID)
 {
-    inner_shell_reset_line();
     if (g_shell_cb.buf_cur_size == 0) {
         return;
     }
@@ -288,6 +288,8 @@ STATIC VOID inner_shell_back_key_do(VOID)
     if (g_shell_cb.shell_buf_cursor - g_shell_cb.buf == 0) {
         return;
     }
+    
+    inner_shell_reset_line();
     
     CHAR *tmp_buf = NULL;
     UINT32 gap_size = g_shell_cb.buf_cur_size - (g_shell_cb.shell_buf_cursor - g_shell_cb.buf);
@@ -308,6 +310,10 @@ STATIC VOID inner_shell_back_key_do(VOID)
     
     g_shell_cb.buf[g_shell_cb.buf_cur_size] = '\0';
     SHELL_PRINT("%s", g_shell_cb.buf);
+    // 移动光标到正确位置（删除字符后光标应位于原位置的前一个字符处）
+    for (UINT32 i = 0; i < gap_size; ++i) {
+        SHELL_PRINT(SHELL_MV_CURSOR_LEFT);
+    }
 }
 
 STATIC VOID inner_shell_tab_key_do(VOID)
@@ -647,7 +653,9 @@ VOID shell_loop(VOID)
                 break;
             case SHELL_STATE_GET:
                 inner_shell_deal_get_phase();
-                drv_uart_putc(g_shell_cb.shell_cur_char);
+                if (g_shell_cb.shell_cur_char != SHELL_SPECIAL_CHAR_HT) {
+                    drv_uart_putc(g_shell_cb.shell_cur_char);
+                }
                 break;
             case SHELL_STATE_SWITCH:
                 inner_shell_deal_switch_phase();
