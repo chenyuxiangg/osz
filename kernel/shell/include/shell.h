@@ -32,7 +32,9 @@ typedef struct {
     UINT32 history_cursor : 8;
     UINT32 history_has_cmd : 1;
     UINT32 history_max_cmd_len : 7;
-    UINT32 reserv : 8;
+    UINT32 history_cursor_up_stop : 1;
+    UINT32 history_cursor_down_stop : 1;
+    UINT32 reserv : 6;
 } CMD_HISTORY;
 
 typedef struct {

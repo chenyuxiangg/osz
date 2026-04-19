@@ -85,6 +85,8 @@ STATIC VOID inner_shell_init(VOID)
     g_shell_cb.shell_buf_cursor = g_shell_cb.buf;
     g_shell_history.history_next_cmd_idx = 0;
     g_shell_history.history_cursor = SHELL_CMD_CURSOR_INVALID;
+    g_shell_history.history_cursor_up_stop = false;
+    g_shell_history.history_cursor_down_stop = false;
     g_shell_history.history_has_cmd = 0;
     g_shell_history.history_max_cmd_len = 0;
     inner_shell_task_create();
@@ -181,6 +183,8 @@ STATIC VOID inner_shell_record_history_cmd(VOID)
         g_shell_history.history_has_cmd = 1;
     }
     g_shell_history.history_cursor = SHELL_CMD_CURSOR_INVALID;
+    g_shell_history.history_cursor_up_stop = false;
+    g_shell_history.history_cursor_down_stop = false;
 }
 
 
@@ -404,23 +408,22 @@ STATIC VOID inner_shell_uarrow_key_do(VOID)
     if (g_shell_history.history_has_cmd == 0) {
         return;
     }
-    
-    if (g_shell_history.history_cursor == SHELL_CMD_CURSOR_INVALID) {
-        UINT32 idx = (g_shell_history.history_next_cmd_idx == 0) ? 
-                     (OSZ_CFG_SHELL_HISTORY_CMD_NUM - 1) : 
-                     (g_shell_history.history_next_cmd_idx - 1);
-        g_shell_history.history_cursor = idx;
-    } else {
-        g_shell_history.history_cursor = (g_shell_history.history_cursor == 0) ? 
-                                         (OSZ_CFG_SHELL_HISTORY_CMD_NUM - 1) : 
-                                         (g_shell_history.history_cursor - 1);
+    g_shell_history.history_cursor_down_stop = false;
+    if (g_shell_history.history_cursor_up_stop) {
+        return;
     }
     
+    UINT32 current_his_cursor = SHELL_CMD_CURSOR_INVALID;
+    if (g_shell_history.history_cursor == SHELL_CMD_CURSOR_INVALID) {
+        g_shell_history.history_cursor = (g_shell_history.history_next_cmd_idx == 0) ? (OSZ_CFG_SHELL_HISTORY_CMD_NUM - 1) : (g_shell_history.history_next_cmd_idx - 1);
+    } else {
+        current_his_cursor = g_shell_history.history_cursor;
+        g_shell_history.history_cursor = (g_shell_history.history_cursor == 0) ? (OSZ_CFG_SHELL_HISTORY_CMD_NUM - 1) : (g_shell_history.history_cursor - 1);
+    }
     if (g_shell_history.history_cmds[g_shell_history.history_cursor] == NULL || 
-        (g_shell_history.history_cursor == g_shell_history.history_next_cmd_idx - 1 && 
-         inner_shell_check_equal_in_last_two_char())) {
-        inner_shell_reset_shellcb_buf();
-        inner_shell_reset_line();
+        (g_shell_history.history_cursor == g_shell_history.history_next_cmd_idx - 1 && inner_shell_check_equal_in_last_two_char())) {
+        g_shell_history.history_cursor_up_stop = true;
+        g_shell_history.history_cursor = current_his_cursor;
         return;
     }
     
@@ -434,21 +437,25 @@ STATIC VOID inner_shell_darrow_key_do(VOID)
     if (g_shell_history.history_has_cmd == 0) {
         return;
     }
-    
+    g_shell_history.history_cursor_up_stop = false;
+    if (g_shell_history.history_cursor_down_stop) {
+        return;
+    }
+    UINT32 current_his_cursor = SHELL_CMD_CURSOR_INVALID;
     if (g_shell_history.history_cursor == SHELL_CMD_CURSOR_INVALID) {
-        UINT32 idx = (g_shell_history.history_next_cmd_idx == 0) ? 
-                     (OSZ_CFG_SHELL_HISTORY_CMD_NUM - 1) : 
-                     (g_shell_history.history_next_cmd_idx);
-        g_shell_history.history_cursor = idx;
+        g_shell_history.history_cursor = (g_shell_history.history_next_cmd_idx == 0) ? (OSZ_CFG_SHELL_HISTORY_CMD_NUM - 1) : (g_shell_history.history_next_cmd_idx);
+        if (g_shell_history.history_cmds[g_shell_history.history_cursor] == NULL) {
+            g_shell_history.history_cursor = 0;
+        }
     } else {
+        current_his_cursor = g_shell_history.history_cursor;
         g_shell_history.history_cursor = (g_shell_history.history_cursor + 1) % OSZ_CFG_SHELL_HISTORY_CMD_NUM;
     }
     
     if (g_shell_history.history_cmds[g_shell_history.history_cursor] == NULL || 
-        (g_shell_history.history_cursor == g_shell_history.history_next_cmd_idx && 
-         inner_shell_check_equal_in_last_two_char())) {
-        inner_shell_reset_shellcb_buf();
-        inner_shell_reset_line();
+        (g_shell_history.history_cursor == g_shell_history.history_next_cmd_idx && inner_shell_check_equal_in_last_two_char())) {
+        g_shell_history.history_cursor_down_stop = true;
+        g_shell_history.history_cursor = current_his_cursor;
         return;
     }
     
@@ -591,7 +598,7 @@ STATIC VOID inner_shell_deal_exc_phase()
                 cmd_name[i] = g_shell_cb.buf[i];
             }
             cmd_name[i] = '\0';
-            SHELL_PRINT("%s: No such command.\n", cmd_name);
+            SHELL_PRINT("\n%s: No such command.",cmd_name);
         }
     }
     
@@ -599,6 +606,8 @@ STATIC VOID inner_shell_deal_exc_phase()
     g_shell_cb.buf_cur_size = 0;
     g_shell_cb.shell_buf_cursor = g_shell_cb.buf;
     g_shell_history.history_cursor = SHELL_CMD_CURSOR_INVALID;
+    g_shell_history.history_cursor_up_stop = false;
+    g_shell_history.history_cursor_down_stop = false;
     if (cmd != NULL && cmd->args != NULL) {
         osz_free(cmd->args);
         cmd->args = NULL;
@@ -653,9 +662,6 @@ VOID shell_loop(VOID)
                 break;
             case SHELL_STATE_GET:
                 inner_shell_deal_get_phase();
-                if (g_shell_cb.shell_cur_char != SHELL_SPECIAL_CHAR_HT) {
-                    drv_uart_putc(g_shell_cb.shell_cur_char);
-                }
                 break;
             case SHELL_STATE_SWITCH:
                 inner_shell_deal_switch_phase();
