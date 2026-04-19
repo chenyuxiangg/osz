@@ -186,8 +186,8 @@ Shell模块的内部接口（以`STATIC`关键字定义的函数）实现了Shel
   3. 如果在末尾位置，执行退格操作（特殊处理）
   4. 更新光标位置
 
-#### `inner_shell_del_key_do(VOID)`
-- **作用**：处理删除键（DEL）按下事件。删除光标前的一个字符。
+#### `inner_shell_back_key_do(VOID)`
+- **作用**：处理删除键（back）按下事件。删除光标前的一个字符。
 - **限制**：
   - 缓冲区为空时无操作
   - 光标在开始位置时有特殊处理
@@ -268,7 +268,7 @@ Shell模块的内部接口（以`STATIC`关键字定义的函数）实现了Shel
   - 依赖前一个状态正确设置
 - **使用流程**：
   1. 根据当前字符识别特殊键类型
-  2. 删除键：调用`inner_shell_del_key_do()`
+  2. 删除键：调用`inner_shell_back_key_do()`
   3. Tab键：调用`inner_shell_tab_key_do()`
   4. 回车键：切换到PARSE状态
   5. ESC键：继续读取下一个字符（ESC序列开始）

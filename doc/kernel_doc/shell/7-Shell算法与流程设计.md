@@ -150,34 +150,41 @@ Shell采用**集中式错误处理**与**状态恢复**策略：
 ## 特殊按键处理流程
 
 ### Tab键处理
-Tab键用于命令补全，基于**前缀匹配算法**。当存在多个命令前缀相同时，Tab键可显示当前前缀下的所有命令。具体处理逻辑如下：
 
-1. 用户输入的前缀保存在`g_shell_cb.buf`，由于匹配当前前缀的命令个数未知，因此对`g_cmd_head.list`进行一次全遍历，统计出命令列表中当前命令总个数，记为`cmd_total_cnt`；
-2. 申请`cmd_total_cnt`个指针空间，用于存放即将匹配到的命令名称字符串地址，空间大小为`cmd_total_cnt \* sizeof(void *)`，这段内存空间记为`cmd_name_ptr_array`;
-3. 再次遍历`g_cmd_head.list`，取出`CMD_NODE`对象并对其`cmd_name`进行字符串匹配，匹配长度为`g_shell_cb.buf`的size，匹配成功后将`cmd_name`地址依次存储到`cmd_name_ptr_array`中。list上挂载的是`CMD_NODE`结构体的list字段，因此需要通过`STRUCT_ENTRY`取出`CMD_NODE`的起始地址。将本次统计到的命令数量记为`cmd_matched_cnt`；
-4. 如果`cmd_matched_cnt`为0，则保留`g_shell_cb.buf`内容，并将其内容在当前行显示，结束流程。否则进行下一步；
-5. 如果`cmd_matched_cnt`为1，则将`cmd_name_ptr_array[0]`处的字符串拷贝到`g_shell_cb.buf`中，并将其内存在当前行显示，结束流程。否则进行下一步；
-6. 如果`cmd_matched_cnt`大于1，则保留`g_shell_cb.buf`内容，然后遍历`cmd_name_ptr_array`数组，依次打印数组中字符串指针对应的字符串，打印时须换行打印，即所有字符串与`g_shell_cb.buf`内存不在同一行，且每个字符串间使用一个空格分隔，举例如下，其中`g_shell_cb.buf`内容为**te**，`cmd_name_ptr_array`数组中依次存储着**tea**和**test**的地址：
-```shell
-OSZ$ te
-tea test
+Tab键用于命令补全，基于**前缀匹配算法**。当存在多个命令前缀相同时，Tab键可显示当前前缀下的所有命令。具体处理逻辑如下：
+```mermaid
+graph TD
+
+A((start)) --> B{g_shell_cb.buf_cur_size == 0?}
+B -->|Y| C[在终端新一行上显示所有支持的命令，命令之间使用空格分隔]
+B -->|N| D[取出g_shell_cb.buf中的字符，与所有命令名进行前缀匹配]
+C --> E[另起一行，在新行重置显示]
+E --> F((end))
+D --> G{匹配成功?}
+G -->|Y| H[重置当前行显示，并显示出匹配到的命令]
+G -->|N| I{所有命令遍历完成?}
+H --> J[更新g_shell_cb.buf、g_shell_cb.buf_cur_size、g_shell_cb.shell_buf_cursor]
+J --> K[更新g_shell_cb.cur_cmd]
+K --> F
+I -->|Y| L[保持g_shell_cb.buf显示，丢弃输入的tab]
+I -->|N| M[进行下一个命令匹配]
+L --> F
+M --> G
 ```
 
 ### Back键处理
 
+Back键用于删除当前光标处的字符。具体处理逻辑如下：
 ```mermaid
 graph TD
 A((start)) --> B{g_shell_cb.shell_buf_cursor - g_shell_cb.buf == 0?}
 B -->|Y| C((end))
-B -->|N| D
+B -->|N| D[删除buf中shell_buf_cursor前的字符，并将buf重写渲染显示出来]
 ```
-Back键用于删除当前光标处的字符。具体处理逻辑如下：
-
-1. 如果当前光标位置小于等于`SHELL_NAME`的长度时，使光标位置强制等于`SHELL_NAME`的长度，同时Back键的处理直接返回。否则进行下一步；
-2. 在当前光标位置打印一个`\b`字符，同时将`g_shell_cb.buf`中`[g_shell_cb.shell_buf_cursor, g_shell_cb.buf + sizeof(g_shell_cb.buf)]`之间的字符拷贝到`shell_buf_cursor-1`处，更新`g_shell_cb.shell_buf_cursor`;
 
 ### 方向上键处理
 
+方向上键用于回溯最近最新使用过的历史命令，具体处理逻辑如下：
 ```mermaid
 graph TD
 A((start)) --> B{g_shell_history.history_has_cmd == 0?}
@@ -199,6 +206,7 @@ J --> C
 
 ### 方向下键处理
 
+方向下键用于回溯最近最老使用过的历史命令，具体处理逻辑如下：
 ```mermaid
 graph TD
 A((start)) --> B{g_shell_history.history_has_cmd == 0?}
@@ -218,10 +226,11 @@ H --> C
 ```
 
 > 其中：
-> 1. 最早放入历史命令循环队列的命令：若循环队列未回绕过（即g_shell_history.history_next_cmd_idx索引处的命令为NULL），则索引0为最早的历史命令；否则索引history_next_cmd_idx处的命令为最早的历史命令；
+> 1. 最早放入历史命令循环队列的命令：若循环队列未回绕过（即g_shell_history.history_next_cmd_idx索引处的命令为NULL），则索引0为最近最老的历史命令；否则索引history_next_cmd_idx处的命令为最近最老的历史命令；
 
 ### 方向左键处理
 
+方向左键用于向左移动显示光标，具体处理逻辑如下：
 ```mermaid
 graph TD
 A((start)) --> B{buf_cur_size > 0?}
@@ -235,6 +244,7 @@ F --> D
 
 ### 方向右键处理
 
+方向邮件用于向右移动显示光标，具体处理逻辑如下：
 ```mermaid
 graph TD
 A((start)) --> B{buf_cur_size > 0?}
@@ -248,6 +258,7 @@ F --> D
 
 ### 插入数据处理
 
+在光标所在位置插入一个字符，具体处理如下：
 ```mermaid
 graph TD
 A((start)) --> B[将shell_buf_cursor到buf+buf_cur_size处的字符暂存到临时内存，临时内存需要动态申请]

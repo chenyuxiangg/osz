@@ -113,10 +113,14 @@ STATIC BOOL inner_shell_buf_cursor_has_shifted(VOID)
     return (g_shell_cb.shell_buf_cursor != (g_shell_cb.buf + g_shell_cb.buf_cur_size));
 }
 
-// What???
+// 修复插入字符时的显示问题：打印从插入点开始的字符串（包括插入字符和后续字符）
 STATIC VOID inner_shell_reprint_with_cursor_shift(UINT32 gap_size)
 {
-    SHELL_PRINT("%s", g_shell_cb.shell_buf_cursor);
+    // 使用数组索引避免指针算术运算（符合MISRA-C规则17.1）
+    UINT32 cursor_index = g_shell_cb.shell_buf_cursor - g_shell_cb.buf;
+    UINT32 insert_index = cursor_index - 1;
+    SHELL_PRINT("%s", &g_shell_cb.buf[insert_index]);
+    // 退格gap_size个位置，将光标移回插入字符之后的位置
     for (UINT32 i = 0; i < gap_size; ++i) {
         SHELL_PRINT("\b");
     }
@@ -225,140 +229,6 @@ STATIC BOOL inner_shell_check_equal_in_last_two_char(VOID)
     return (g_shell_cb.shell_cur_char == g_shell_cb.shell_pre_input_char);
 }
 
-STATIC VOID inner_shell_uarrow_key_do() {
-    if (g_shell_history.history_has_cmd == 0) {
-        return;
-    }
-
-    if (g_shell_history.history_cursor == SHELL_CMD_CURSOR_INVALID) {
-        UINT32 idx = (g_shell_history.history_next_cmd_idx == 0) ? (OSZ_CFG_SHELL_HISTORY_CMD_NUM - 1) : (g_shell_history.history_next_cmd_idx - 1);
-        g_shell_history.history_cursor = idx;
-    } else {
-        g_shell_history.history_cursor = (g_shell_history.history_cursor == 0) ? (OSZ_CFG_SHELL_HISTORY_CMD_NUM - 1) : (g_shell_history.history_cursor - 1);
-    }
-
-    BOOL condition = FALSE;
-    if (g_shell_history.history_cmds[g_shell_history.history_cursor] == NULL) {
-        condition = TRUE;
-    } else {
-        UINT32 prev_idx = (g_shell_history.history_next_cmd_idx == 0) ? (OSZ_CFG_SHELL_HISTORY_CMD_NUM - 1) : (g_shell_history.history_next_cmd_idx - 1);
-        if (g_shell_history.history_cursor == prev_idx && inner_shell_check_equal_in_last_two_char()) {
-            condition = TRUE;
-        }
-    }
-
-    if (condition) {
-        inner_shell_reset_line();
-        inner_shell_reset_shellcb_buf();
-    } else {
-        inner_shell_get_history_cmd();
-        inner_shell_reset_line();
-        SHELL_PRINT("%s", g_shell_cb.buf);
-    }
-}
-
-STATIC VOID inner_shell_darrow_key_do()
-{
-    if (g_shell_history.history_has_cmd != TRUE) {
-        return;
-    }
-
-    if (g_shell_history.history_cursor == SHELL_CMD_CURSOR_INVALID) {
-        g_shell_history.history_cursor = (g_shell_history.history_cmds[g_shell_history.history_next_cmd_idx] != NULL) ? g_shell_history.history_next_cmd_idx : 0;
-    } else {
-        g_shell_history.history_cursor = (g_shell_history.history_cursor + 1)%OSZ_CFG_SHELL_HISTORY_CMD_NUM;
-        // 当命令反向回溯完后，不支持循环回溯
-        if (((inner_shell_check_equal_in_last_two_char()) && (g_shell_history.history_cursor == g_shell_history.history_next_cmd_idx)) || (g_shell_history.history_cmds[g_shell_history.history_cursor] == NULL)) {
-            inner_shell_reset_line();
-            inner_shell_reset_shellcb_buf();
-            return;
-        }
-    }
-
-    // 复制历史命令到缓冲区
-    inner_shell_get_history_cmd();
-    inner_shell_reset_line();
-    SHELL_PRINT("%s", g_shell_cb.buf);
-}
-
-STATIC VOID inner_shell_larrow_key_do()
-{
-    if (g_shell_cb.shell_buf_cursor != g_shell_cb.buf) {
-        g_shell_cb.shell_buf_cursor--;
-    } else {
-        CHAR c = (g_shell_cb.buf[0] == '\0') ? SHELL_SPECIAL_CHAR_SPACE : g_shell_cb.buf[0];
-        SHELL_PRINT(" %c\b", c);
-    }
-}
-
-STATIC VOID inner_shell_rarrow_key_do()
-{
-    if (g_shell_cb.shell_buf_cursor != (g_shell_cb.buf + g_shell_cb.buf_cur_size)) {
-        g_shell_cb.shell_buf_cursor++;
-    } else {
-        SHELL_PRINT("\b");
-    }
-}
-
-STATIC VOID inner_shell_del_key_do(VOID)
-{
-    inner_shell_reset_line();
-    if (g_shell_cb.buf_cur_size == 0) {
-        return;
-    }
-    if (g_shell_cb.shell_buf_cursor == g_shell_cb.buf) {
-        SHELL_PRINT("%s", g_shell_cb.buf);
-        return;
-    }
-    CHAR *tmp = (CHAR *)osz_zalloc(g_shell_cb.buf_cur_size + 1);
-    strncpy((VOID *)tmp, (VOID *)g_shell_cb.buf, g_shell_cb.buf_cur_size);
-    UINT32 tmp_len = strlen(tmp);
-    memset((VOID *)g_shell_cb.buf, 0, g_shell_cb.buf_cur_size);
-    g_shell_cb.buf_cur_size = g_shell_cb.shell_buf_cursor - g_shell_cb.buf - 1;
-    strncpy((VOID *)g_shell_cb.buf, (VOID *)tmp, g_shell_cb.buf_cur_size);
-    g_shell_cb.shell_buf_cursor = g_shell_cb.buf + g_shell_cb.buf_cur_size;
-    if (g_shell_cb.buf_cur_size < (tmp_len - 1)) {
-        strncpy((VOID *)g_shell_cb.shell_buf_cursor, (VOID *)(tmp + g_shell_cb.buf_cur_size + 1), tmp_len - g_shell_cb.buf_cur_size - 1);
-        g_shell_cb.buf_cur_size = tmp_len - 1;
-    }
-    osz_free((VOID *)tmp);
-    SHELL_PRINT("%s", g_shell_cb.buf);
-    for (UINT32 i = 0; i < (g_shell_cb.buf_cur_size - (g_shell_cb.shell_buf_cursor - g_shell_cb.buf)); ++i) {
-        SHELL_PRINT("\b");
-    }
-}
-
-STATIC VOID inner_shell_tab_key_do(VOID)
-{
-    UINT32 count = inner_shell_get_cmd_key_count_by_tab();
-    if (count == 0) {
-        return;
-    }
-    UINT32 *keys = (UINT32 *)osz_zalloc(sizeof(UINT32) * count);
-    if (keys == NULL) {
-        return;
-    }
-    
-    count = inner_shell_get_cmd_key_by_tab(keys, g_shell_cb.buf);
-    if (count == 1) {
-        g_shell_cb.buf_cur_size = strlen((CHAR *)(keys[0]));
-        memcpy((VOID *)g_shell_cb.buf, (VOID *)(CHAR *)(keys[0]), (size_t)g_shell_cb.buf_cur_size);
-        g_shell_cb.shell_buf_cursor = g_shell_cb.buf + g_shell_cb.buf_cur_size;
-        inner_shell_reset_line();
-        SHELL_PRINT("%s", g_shell_cb.buf);
-        osz_free((VOID *)keys);
-        return;
-    }
-    SHELL_PRINT("\n");
-    for (UINT32 i = 0; i < count; ++i) {
-        SHELL_PRINT("%s ", (CHAR *)(keys[i]));
-    }
-    SHELL_PRINT("\n");
-    inner_shell_reset_line();
-    SHELL_PRINT("%s", g_shell_cb.buf);
-    osz_free((VOID *)keys);
-}
-
 STATIC VOID inner_shell_deal_get_phase()
 {
     if (inner_shell_buf_is_full()) {
@@ -392,17 +262,228 @@ STATIC VOID inner_shell_deal_get_phase()
         memcpy((VOID *)g_shell_cb.shell_buf_cursor, (VOID *)tmp_buf, gap_size);
         osz_free(tmp_buf);
         tmp_buf = NULL;
+        // 刷新显示：清除当前行并显示提示符，然后打印缓冲区内容
+        inner_shell_reset_line();
         inner_shell_reprint_with_cursor_shift(gap_size);
+        // 清除shell_cur_char，避免drv_uart_putc重复输出插入字符
+        g_shell_cb.shell_cur_char = 0;
+    } else {
+        // 光标在末尾时也需要刷新显示，确保字符正确显示
+        inner_shell_reset_line();
+        SHELL_PRINT("%s", g_shell_cb.buf);
+        // 清除shell_cur_char，避免drv_uart_putc重复输出插入字符
+        g_shell_cb.shell_cur_char = 0;
     }
     g_shell_history.history_max_cmd_len = (g_shell_history.history_max_cmd_len >= g_shell_cb.buf_cur_size) ? g_shell_history.history_max_cmd_len : g_shell_cb.buf_cur_size;
     g_shell_cb.shell_state = SHELL_STATE_NONE;
+}
+
+STATIC VOID inner_shell_back_key_do(VOID)
+{
+    inner_shell_reset_line();
+    if (g_shell_cb.buf_cur_size == 0) {
+        return;
+    }
+    
+    if (g_shell_cb.shell_buf_cursor - g_shell_cb.buf == 0) {
+        return;
+    }
+    
+    CHAR *tmp_buf = NULL;
+    UINT32 gap_size = g_shell_cb.buf_cur_size - (g_shell_cb.shell_buf_cursor - g_shell_cb.buf);
+    if (gap_size > 0) {
+        tmp_buf = (CHAR *)osz_zalloc(gap_size + 1);
+        if (tmp_buf != NULL) {
+            memcpy((VOID *)tmp_buf, (VOID *)g_shell_cb.shell_buf_cursor, gap_size);
+        }
+    }
+    
+    g_shell_cb.shell_buf_cursor--;
+    g_shell_cb.buf_cur_size--;
+    
+    if (tmp_buf != NULL) {
+        memcpy((VOID *)g_shell_cb.shell_buf_cursor, (VOID *)tmp_buf, gap_size);
+        osz_free(tmp_buf);
+    }
+    
+    g_shell_cb.buf[g_shell_cb.buf_cur_size] = '\0';
+    SHELL_PRINT("%s", g_shell_cb.buf);
+}
+
+STATIC VOID inner_shell_tab_key_do(VOID)
+{
+    if (g_shell_cb.buf_cur_size == 0) {
+        UINT32 cmd_cnt = inner_shell_get_cmd_key_count_by_tab();
+        UINT32 *keys = (UINT32 *)osz_zalloc(sizeof(UINT32) * cmd_cnt);
+        if (keys != NULL) {
+            UINT32 matched_cnt = inner_shell_get_cmd_key_by_tab(keys, g_shell_cb.buf);
+            SHELL_PRINT("\n");  // 先换行，在新一行显示命令列表
+            for (UINT32 i = 0; i < matched_cnt; i++) {
+                CHAR *cmd_name = (CHAR *)keys[i];
+                SHELL_PRINT("%s ", cmd_name);
+            }
+            osz_free(keys);
+        }
+        SHELL_PRINT("\n");
+        inner_shell_reset_line();
+        return;
+    }
+
+    UINT32 cmd_cnt = inner_shell_get_cmd_key_count_by_tab();
+    UINT32 *keys = (UINT32 *)osz_zalloc(sizeof(UINT32) * cmd_cnt);
+    if (keys == NULL) {
+        return;
+    }
+
+    UINT32 matched_cnt = inner_shell_get_cmd_key_by_tab(keys, g_shell_cb.buf);
+    if (matched_cnt == 0) {
+        osz_free(keys);
+        return;
+    }
+
+    if (matched_cnt == 1) {
+        CHAR *cmd_name = (CHAR *)keys[0];
+        UINT32 cmd_len = strlen(cmd_name);
+        UINT32 cur_len = g_shell_cb.buf_cur_size;
+
+        // 查找匹配的命令节点以更新cur_cmd
+        DLINK_NODE *iter = NULL;
+        CMD_NODE *matched_cmd = NULL;
+        DLINK_FOREACH(iter, &(g_cmd_head.list)) {
+            CMD_NODE *cmd = STRUCT_ENTRY(CMD_NODE, list, iter);
+            if (strncmp((VOID *)g_shell_cb.buf, cmd->cmd_name, cur_len) == 0 && 
+                strlen(cmd->cmd_name) == cmd_len) {
+                matched_cmd = cmd;
+                break;
+            }
+        }
+
+        if (cur_len < cmd_len) {
+            UINT32 copy_len = cmd_len - cur_len;
+            if (copy_len + g_shell_cb.buf_cur_size <= g_shell_cb.shell_capcity) {
+                // 使用数组索引避免指针算术（符合MISRA-C规则17.1）
+                memcpy((VOID *)&g_shell_cb.buf[cur_len], (VOID *)&cmd_name[cur_len], copy_len);
+                g_shell_cb.buf_cur_size += copy_len;
+                g_shell_cb.shell_buf_cursor = &g_shell_cb.buf[g_shell_cb.buf_cur_size];
+                g_shell_cb.buf[g_shell_cb.buf_cur_size] = '\0';
+                inner_shell_reset_line();
+                SHELL_PRINT("%s", g_shell_cb.buf);
+            }
+        } else {
+            // 输入已经完整或超过命令名，至少重置显示
+            inner_shell_reset_line();
+            SHELL_PRINT("%s", g_shell_cb.buf);
+        }
+
+        // 更新cur_cmd（符合文档要求）
+        if (matched_cmd != NULL) {
+            g_shell_cb.cur_cmd = matched_cmd;
+        }
+    } else {
+        SHELL_PRINT("\n");
+        for (UINT32 i = 0; i < matched_cnt; i++) {
+            CHAR *cmd_name = (CHAR *)keys[i];
+            SHELL_PRINT("%s ", cmd_name);
+        }
+        SHELL_PRINT("\n");
+        inner_shell_reset_line();
+        SHELL_PRINT("%s", g_shell_cb.buf);
+    }
+
+    osz_free(keys);
+}
+
+STATIC VOID inner_shell_uarrow_key_do(VOID)
+{
+    if (g_shell_history.history_has_cmd == 0) {
+        return;
+    }
+    
+    if (g_shell_history.history_cursor == SHELL_CMD_CURSOR_INVALID) {
+        UINT32 idx = (g_shell_history.history_next_cmd_idx == 0) ? 
+                     (OSZ_CFG_SHELL_HISTORY_CMD_NUM - 1) : 
+                     (g_shell_history.history_next_cmd_idx - 1);
+        g_shell_history.history_cursor = idx;
+    } else {
+        g_shell_history.history_cursor = (g_shell_history.history_cursor == 0) ? 
+                                         (OSZ_CFG_SHELL_HISTORY_CMD_NUM - 1) : 
+                                         (g_shell_history.history_cursor - 1);
+    }
+    
+    if (g_shell_history.history_cmds[g_shell_history.history_cursor] == NULL || 
+        (g_shell_history.history_cursor == g_shell_history.history_next_cmd_idx - 1 && 
+         inner_shell_check_equal_in_last_two_char())) {
+        inner_shell_reset_shellcb_buf();
+        inner_shell_reset_line();
+        return;
+    }
+    
+    inner_shell_get_history_cmd();
+    inner_shell_reset_line();
+    SHELL_PRINT("%s", g_shell_cb.buf);
+}
+
+STATIC VOID inner_shell_darrow_key_do(VOID)
+{
+    if (g_shell_history.history_has_cmd == 0) {
+        return;
+    }
+    
+    if (g_shell_history.history_cursor == SHELL_CMD_CURSOR_INVALID) {
+        UINT32 idx = (g_shell_history.history_next_cmd_idx == 0) ? 
+                     (OSZ_CFG_SHELL_HISTORY_CMD_NUM - 1) : 
+                     (g_shell_history.history_next_cmd_idx);
+        g_shell_history.history_cursor = idx;
+    } else {
+        g_shell_history.history_cursor = (g_shell_history.history_cursor + 1) % OSZ_CFG_SHELL_HISTORY_CMD_NUM;
+    }
+    
+    if (g_shell_history.history_cmds[g_shell_history.history_cursor] == NULL || 
+        (g_shell_history.history_cursor == g_shell_history.history_next_cmd_idx && 
+         inner_shell_check_equal_in_last_two_char())) {
+        inner_shell_reset_shellcb_buf();
+        inner_shell_reset_line();
+        return;
+    }
+    
+    inner_shell_get_history_cmd();
+    inner_shell_reset_line();
+    SHELL_PRINT("%s", g_shell_cb.buf);
+}
+
+STATIC VOID inner_shell_larrow_key_do(VOID)
+{
+    if (g_shell_cb.buf_cur_size == 0) {
+        return;
+    }
+    
+    if (g_shell_cb.shell_buf_cursor - g_shell_cb.buf == 0) {
+        return;
+    }
+    
+    g_shell_cb.shell_buf_cursor--;
+    SHELL_PRINT(SHELL_MV_CURSOR_LEFT);
+}
+
+STATIC VOID inner_shell_rarrow_key_do(VOID)
+{
+    if (g_shell_cb.buf_cur_size == 0) {
+        return;
+    }
+    
+    if (g_shell_cb.shell_buf_cursor - g_shell_cb.buf == g_shell_cb.buf_cur_size) {
+        return;
+    }
+    
+    g_shell_cb.shell_buf_cursor++;
+    SHELL_PRINT(SHELL_MV_CURSOR_RIGHT);
 }
 
 STATIC VOID inner_shell_deal_switch_phase()
 {
     if (g_shell_cb.shell_cur_char == SHELL_SPECIAL_CHAR_DEL) {
         g_shell_cb.shell_state = SHELL_STATE_NONE;
-        return inner_shell_del_key_do();
+        return inner_shell_back_key_do();
     } else if (g_shell_cb.shell_cur_char == SHELL_SPECIAL_CHAR_HT) {
         g_shell_cb.shell_state = SHELL_STATE_NONE;
         return inner_shell_tab_key_do();
