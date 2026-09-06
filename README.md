@@ -30,6 +30,8 @@
 - **双构建系统支持**：CMake和Makefile双构建系统
 - **交叉编译工具链集成**：开箱即用的RISC-V工具链
 - **模块化编译框架**：灵活的组件配置和构建系统
+- **Host端单元测试框架**：与架构无关的纯 C 模块（数据结构、comm工具）可在
+  host (x86_64 / Linux + gtest) 上原生编译运行，无须启动 QEMU，详见 [test/README.md](test/README.md)
 
 ### 第三方库集成
 - **[printf](https://github.com/mpaland/printf)**：嵌入式中最好的printf实现，已源码集成
@@ -97,6 +99,30 @@ cd construct
 make run                           # 使用Makefile构建并运行
 ```
 
+### 运行 Host 端单元测试
+
+`test/` 是一个**独立**的 CMake 项目，与上面的 RISC-V 交叉构建互不影响，
+使用宿主编译器 + GoogleTest 测试与架构无关的纯 C 模块：
+
+```bash
+# 一键：配置 + 编译 + 跑全部测试
+./test/runtest.sh
+
+# 只跑某个模块（编译产物已存在）
+./test/runtest.sh --run --module dlink
+
+# 细到单个用例
+./test/runtest.sh --run --module dlink --gtest-filter 'DLink.Init*'
+
+# 编译时只挑某些模块
+cmake -S test -B test/build -DOSZ_TEST_MODULES="dlink;strtoul"
+cmake --build test/build -j
+ctest --test-dir test/build --output-on-failure
+```
+
+详细文档（按模块过滤、`-iquote` 兼容 stub、`per-module` 静态库等机制）：
+[test/README.md](test/README.md)。
+
 ## 🛠️ 构建系统
 
 ### CMake构建系统（推荐）
@@ -146,6 +172,7 @@ osz/
 ├── output/           # 构建输出文件
 ├── platform/         # 平台支持
 ├── targets/          # 目标板配置
+├── test/             # Host端单元测试（gtest，独立CMake项目）
 └── tools/            # 工具链和实用工具
 ```
 
@@ -175,6 +202,9 @@ Commit ID: `935b263c8ef7f250819c74aeb7736c87ad87ef2b`
 
 ### 编译文档
 - [编译工具配置](https://github.com/chenyuxiangg/osz/blob/main/doc/compile_doc/compile_tool_config.md) - 构建系统配置指南
+
+### 测试文档
+- [test/README.md](test/README.md) - Host 端 gtest 单元测试框架（用法、覆盖模块、添加新测试的步骤）
 
 ### 库函数文档
 - [strlen实现](https://github.com/chenyuxiangg/osz/blob/main/doc/libc_doc/strlen实现.md)
@@ -215,6 +245,8 @@ Commit ID: `935b263c8ef7f250819c74aeb7736c87ad87ef2b`
 - 代码风格遵循项目现有的编码规范
 - 提交信息清晰描述变更内容
 - 新功能需包含相应的测试用例
+  - 架构相关 / 依赖中断 / 汇编启动的代码 → 在 QEMU 上手动或脚本测试
+  - 与架构无关的纯 C 模块 → 加入 `test/unit/kernel/<分类>/<模块>/` 自动纳入 host gtest，详见 [test/README.md](test/README.md)
 - 文档更新需与代码变更同步
 
 ## 📄 许可证
