@@ -13,4 +13,6 @@ define_module(
         ${OSZ_CFG_MACRO}
     PUBLIC_DEPENDENCIES
         k_struct_dl
+    PRIVATE_DEPENDENCIES
+        arch_riscv
 )
