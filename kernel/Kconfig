@@ -83,6 +83,16 @@ menu "Kernel Base Configuration"
 			default y
 			help
 			  Enable best-fit algorithm for memory allocation.
+
+		config OSZ_CFG_MEM_DEBUG
+			bool "Enable memory allocator self-check (host/gtest oriented)"
+			default n
+			help
+			  Adds block-header magic, prev_size consistency, free-list
+			  order and I7 (no two adjacent free blocks) self-checks after
+			  every alloc/free. It only adds checks: functional path,
+			  error-code set and block layout stay identical to the
+			  DEBUG=n build.
 	endif
 
 	config OSZ_CFG_DEBUG

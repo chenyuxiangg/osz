@@ -82,12 +82,21 @@ while [ "$i" -le "$n" ]; do
 done
 
 # Emit one -iquote per directory, then the rest of the args.
-EXTRA=()
+#
+# Note: bash 3.2 (macOS) reports an "unbound variable" error when an
+# EMPTY array is expanded under `set -u`. Expanding it into a non-empty
+# list avoids the problem entirely, so the -iquote flags and the
+# pass-through args are joined into a single array here.
 if [ -n "$QUOTE_LIST" ]; then
+    FINAL=()
     # shellcheck disable=SC2206
     for d in $QUOTE_LIST; do
-        EXTRA+=("-iquote" "$d")
+        FINAL+=("-iquote" "$d")
     done
+    for a in "${PASSTHROUGH[@]}"; do
+        FINAL+=("$a")
+    done
+    exec "$COMPILER" "${FINAL[@]}"
+else
+    exec "$COMPILER" "${PASSTHROUGH[@]}"
 fi
-
-exec "$COMPILER" "${EXTRA[@]}" "${PASSTHROUGH[@]}"

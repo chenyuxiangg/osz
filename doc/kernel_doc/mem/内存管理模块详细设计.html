@@ -1,0 +1,1144 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OSZ 内存管理模块详细设计 · 含空闲块合并改造</title>
+<style>
+  :root{
+    --bg:#f5f7f8; --card:#ffffff; --ink:#161c22; --muted:#5d6a76;
+    --line:#dfe6ec; --accent:#0f6b5c; --accent-soft:#e7f2ef;
+    --warn:#a8620a; --warn-soft:#fdf3e3; --danger:#9d2f2f; --danger-soft:#fbebeb;
+    --code:#0f2530; --code-bg:#eef3f5;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    font-size:15px; line-height:1.75;
+  }
+  .wrap{max-width:1180px; margin:0 auto; padding:28px 20px 80px}
+  header.doc{
+    background:linear-gradient(135deg,#0f6b5c 0%,#134e5e 100%);
+    color:#fff; border-radius:14px; padding:26px 28px; margin-bottom:22px;
+  }
+  header.doc .eyebrow{font-size:12px; letter-spacing:.16em; opacity:.85; margin-bottom:6px}
+  header.doc h1{margin:0 0 6px; font-size:26px; line-height:1.35; font-weight:700}
+  header.doc p.sub{margin:0; font-size:13.5px; opacity:.9}
+  .meta-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:8px 18px; margin-top:18px; font-size:12.5px}
+  .meta-grid div{background:rgba(255,255,255,.1); padding:7px 10px; border-radius:8px}
+  .meta-grid b{display:block; font-weight:600; opacity:.75; font-size:11px; letter-spacing:.05em; margin-bottom:2px}
+
+  .kpi{display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px; margin:18px 0 26px}
+  .kpi .box{background:var(--card); border:1px solid var(--line); border-left:4px solid var(--accent); border-radius:10px; padding:14px 16px}
+  .kpi .box b{display:block; font-size:12px; color:var(--muted); letter-spacing:.06em; margin-bottom:4px}
+  .kpi .box span{font-size:14px; line-height:1.6}
+
+  nav.toc{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 18px; margin-bottom:26px}
+  nav.toc h2{margin:0 0 8px; font-size:13px; letter-spacing:.08em; color:var(--muted); font-weight:600}
+  nav.toc ol{margin:0; padding-left:0; list-style:none; columns:2; column-gap:24px; font-size:13.5px}
+  nav.toc li{margin:3px 0; break-inside:avoid}
+  nav.toc a{color:var(--ink); text-decoration:none}
+  nav.toc a:hover{color:var(--accent); text-decoration:underline}
+
+  section{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:22px 24px; margin-bottom:20px}
+  section h2{margin:0 0 4px; font-size:20px; line-height:1.4; color:var(--accent)}
+  section h2 .no{font-size:13px; background:var(--accent-soft); color:var(--accent); padding:2px 9px; border-radius:20px; vertical-align:middle; margin-right:8px; font-weight:600}
+  section h3{margin:22px 0 8px; font-size:15.5px; border-left:3px solid var(--accent); padding-left:9px}
+  section h4{margin:16px 0 6px; font-size:14px; color:var(--muted); font-weight:600}
+  p{margin:8px 0}
+  ul,ol{margin:8px 0; padding-left:22px}
+  li{margin:4px 0}
+
+  .tbl-wrap{overflow-x:auto; -webkit-overflow-scrolling:touch; margin:10px 0 4px}
+  table{border-collapse:collapse; width:100%; font-size:13.5px; min-width:560px}
+  th,td{border:1px solid var(--line); padding:7px 10px; text-align:left; vertical-align:top}
+  th{background:#f0f4f6; font-weight:600; white-space:nowrap}
+  td code,th code{white-space:normal; overflow-wrap:anywhere;}
+  td .em{color:var(--accent); font-weight:600}
+  tr.bad td{background:#fffafa}
+
+  code{
+    font-family:SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+    font-size:12.5px; background:var(--code-bg); padding:1px 5px; border-radius:4px; color:var(--code);
+  }
+  pre{
+    background:var(--code); color:#dbe8ee; padding:14px 16px; border-radius:10px;
+    overflow-x:auto; font-size:12.5px; line-height:1.62; margin:10px 0;
+    white-space:pre-wrap; word-break:break-word;
+  }
+  pre .c{color:#8aa7b4}
+  pre .k{color:#ffb86b}
+  pre .f{color:#7ee2c4}
+  pre code{background:none; padding:0; color:inherit}
+
+  .callout{border-radius:10px; padding:12px 14px; margin:12px 0; font-size:13.5px; border:1px solid}
+  .callout.info{background:var(--accent-soft); border-color:#bfe0d8; color:#0d5248}
+  .callout.warn{background:var(--warn-soft); border-color:#efd7ae; color:#68400a}
+  .callout.danger{background:var(--danger-soft); border-color:#eccaca; color:#7c2222}
+  .callout b{display:inline-block; margin-right:6px}
+
+  figure{margin:14px 0 6px}
+  figure svg{display:block; width:100%; height:auto; background:#fbfcfd; border:1px solid var(--line); border-radius:10px}
+  figcaption{font-size:12px; color:var(--muted); margin-top:6px; text-align:center}
+
+  .tag{display:inline-block; font-size:11px; padding:1px 7px; border-radius:4px; margin-right:4px}
+  .tag.p0{background:#fbebeb; color:#9d2f2f}
+  .tag.p1{background:#fdf3e3; color:#a8620a}
+  .tag.p2{background:#eef3f5; color:#4d6270}
+  .tag.new{background:#e7f2ef; color:#0f6b5c}
+
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:16px}
+  .grid3{display:grid; grid-template-columns:repeat(3,1fr); gap:14px}
+  .mini{background:#fafcfc; border:1px dashed var(--line); border-radius:8px; padding:10px 12px; font-size:13px}
+  .mini b{color:var(--accent)}
+
+  footer.doc{color:var(--muted); font-size:12px; text-align:center; margin-top:26px}
+
+  @media (max-width:900px){
+    .wrap{padding:16px 12px 60px}
+    header.doc{padding:20px 18px; border-radius:12px}
+    header.doc h1{font-size:20px}
+    section{padding:16px 14px}
+    section h2{font-size:17px}
+    nav.toc ol{columns:1}
+    .grid2,.grid3{grid-template-columns:1fr}
+    table{font-size:12.5px; min-width:520px}
+    pre{font-size:11.5px}
+    .kpi{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#0f6b5c"/>
+    </marker>
+    <marker id="arw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#a8620a"/>
+    </marker>
+  </defs>
+</svg>
+
+<div class="wrap">
+
+<header class="doc">
+  <div class="eyebrow">OSZ KERNEL · DETAILED DESIGN</div>
+  <h1>内存管理模块详细设计</h1>
+  <p class="sub">含空闲块自动合并（coalescing）改造方案 · 数据结构、算法、接口、测试与迁移</p>
+  <div class="meta-grid">
+    <div><b>文档版本</b>v1.5（实现已落地，待评审）</div>
+    <div><b>基线代码</b>main @ ad23ae9</div>
+    <div><b>范围</b>kernel/base/mem（mem + bestfit）</div>
+    <div><b>日期</b>2026-11-23</div>
+    <div><b>状态</b>设计阶段，未改代码</div>
+    <div><b>关联需求</b>碎片合并补齐 · rem 归并 · 宏分层与原子性</div>
+  </div>
+</header>
+
+<div class="kpi">
+  <div class="box"><b>核心结论</b><span>现有实现<strong>没有任何合并逻辑</strong>，<code>free</code> 仅清 used 位；碎块只能靠后续“恰好命中”复用。</span></div>
+  <div class="box"><b>改造主线</b><span>块头加 <code>prev_size</code> 边界标记 + 独立空闲链表哨兵 → <code>free</code> 支持前/后邻双向合并。</span></div>
+  <div class="box"><b>不变量代价</b><span>块头保持 16 字节、用户指针 16 字节对齐，不增加单块开销，仅增加算法复杂度。</span></div>
+  <div class="box"><b>交付形态</b><span>先出一份可评审的设计（本文）→ 评审通过后按 feature 分支实施 + host gtest 回归。</span></div>
+</div>
+
+<nav class="toc">
+  <h2>目录</h2>
+  <ol>
+    <li><a href="#s1">1 概述与范围</a></li>
+    <li><a href="#s2">2 现状分析（含问题清单）</a></li>
+    <li><a href="#s3">3 方案选型与总体设计</a></li>
+    <li><a href="#s4">4 数据结构设计</a></li>
+    <li><a href="#s5">5 算法设计</a></li>
+    <li><a href="#s6">6 接口与错误码</a></li>
+    <li><a href="#s7">7 边界与异常处理</a></li>
+    <li><a href="#s8">8 兼容性与迁移</a></li>
+    <li><a href="#s9">9 可测试性设计</a></li>
+    <li><a href="#s10">10 性能与资源</a></li>
+    <li><a href="#s11">11 风险与待确认项</a></li>
+    <li><a href="#s12">12 实施清单</a></li>
+  </ol>
+</nav>
+
+<!-- ================= 1 ================= -->
+<section id="s1">
+  <h2><span class="no">01</span>概述与范围</h2>
+
+  <h3>1.1 模块定位</h3>
+  <p>内存管理模块为整个内核提供唯一的动态堆：任务栈、IPC 对象（event/sem/mutex）、Shell 历史命令与参数数组、FIFO、软件定时器 worker 全部经由 <code>osz_malloc / osz_zalloc / osz_free</code> 申请与归还。模块对外只暴露三个函数，内部按“内存池 → 分配算法”两层组织：</p>
+  <figure>
+    <svg viewBox="0 0 900 240" role="img" aria-label="内存模块分层与调用方">
+      <rect x="20" y="20" width="200" height="160" rx="10" fill="#e7f2ef" stroke="#bfe0d8"/>
+      <text x="120" y="45" font-size="13" fill="#0d5248" text-anchor="middle" font-weight="600">调用方</text>
+      <text x="120" y="72" font-size="12" fill="#33534d" text-anchor="middle">Shell 历史/参数</text>
+      <text x="120" y="94" font-size="12" fill="#33534d" text-anchor="middle">Task 动态栈</text>
+      <text x="120" y="116" font-size="12" fill="#33534d" text-anchor="middle">Event / Sem / Mutex</text>
+      <text x="120" y="138" font-size="12" fill="#33534d" text-anchor="middle">FIFO / SoftTimer</text>
+      <text x="120" y="160" font-size="12" fill="#33534d" text-anchor="middle">qemu_virt/app demo</text>
+
+      <rect x="300" y="45" width="200" height="110" rx="10" fill="#ffffff" stroke="#0f6b5c"/>
+      <text x="400" y="72" font-size="13" fill="#0f6b5c" text-anchor="middle" font-weight="600">mem（对外门面）</text>
+      <text x="400" y="96" font-size="11.5" fill="#3b4a54" text-anchor="middle">kernel/base/mem/src/mem.c</text>
+      <text x="400" y="118" font-size="11.5" fill="#3b4a54" text-anchor="middle">osz_malloc / osz_zalloc / osz_free</text>
+      <text x="400" y="140" font-size="11.5" fill="#3b4a54" text-anchor="middle">入参校验 · 重入保护 · 零初始化</text>
+
+      <rect x="580" y="45" width="200" height="110" rx="10" fill="#ffffff" stroke="#0f6b5c"/>
+      <text x="680" y="72" font-size="13" fill="#0f6b5c" text-anchor="middle" font-weight="600">best-fit 分配器</text>
+      <text x="680" y="96" font-size="11.5" fill="#3b4a54" text-anchor="middle">bestfit/src/bestfit.c</text>
+      <text x="680" y="118" font-size="11.5" fill="#3b4a54" text-anchor="middle">块头 · 空闲链表 · 切分 · 合并</text>
+      <text x="680" y="140" font-size="11.5" fill="#3b4a54" text-anchor="middle">堆区间来自 platform.h / osz.ld</text>
+
+      <rect x="580" y="185" width="200" height="38" rx="8" fill="#f0f4f6" stroke="#dfe6ec"/>
+      <text x="680" y="209" font-size="12" fill="#4d6270" text-anchor="middle">dlink 侵入式双向链表</text>
+
+      <line x1="220" y1="100" x2="296" y2="100" stroke="#0f6b5c" stroke-width="1.6" marker-end="url(#ar)"/>
+      <line x1="500" y1="100" x2="576" y2="100" stroke="#0f6b5c" stroke-width="1.6" marker-end="url(#ar)"/>
+      <line x1="680" y1="155" x2="680" y2="181" stroke="#8796a1" stroke-width="1.4" marker-end="url(#ar)" stroke-dasharray="5 4"/>
+    </svg>
+    <figcaption>图 1-1 内存模块分层与调用方</figcaption>
+  </figure>
+
+  <h3>1.2 文件清单</h3>
+  <div class="tbl-wrap">
+    <table>
+      <tr><th>文件</th><th>职责</th><th>行数（基线）</th><th>本次改动</th></tr>
+      <tr><td><code>kernel/base/mem/include/mem.h</code></td><td>对外接口与堆上限宏</td><td>13</td><td>修宏语义、补错误码引用</td></tr>
+      <tr><td><code>kernel/base/mem/src/mem.c</code></td><td>门面：校验、零初始化、临界区</td><td>34</td><td>重写（含 NULL 检查、加锁）</td></tr>
+      <tr><td><code>kernel/base/mem/bestfit/include/bestfit.h</code></td><td>块头、池/头描述符、位宏</td><td>48</td><td>重写字段与常量</td></tr>
+      <tr><td><code>kernel/base/mem/bestfit/src/bestfit.c</code></td><td>初始化、分配、切分、合并、链表</td><td>139</td><td>重写核心算法</td></tr>
+      <tr><td><code>kernel/base/mem/bestfit/include/mem_feature.h</code></td><td>配置宏 → 功能宏的唯一派发口</td><td>新增</td><td>新增文件</td></tr>
+      <tr><td><code>kernel/Kconfig</code></td><td>配置项</td><td>—</td><td>新增 1 项</td></tr>
+      <tr><td><code>test/unit/kernel/base/mem/</code></td><td>宿主 gtest</td><td>新增</td><td>新增模块，双配置各 23 用例</td></tr>
+      <tr><td><code>test/cmake/quote_wrapper.sh</code></td><td>编译启动器</td><td>93</td><td>修 bash 3.2 空数组展开缺陷（macOS 宿主跑测试必需）</td></tr>
+    </table>
+  </div>
+
+  <h3>1.3 设计目标与非目标</h3>
+  <div class="grid2">
+    <div class="mini"><b>目标</b>
+      <ul>
+        <li>释放时自动与物理相邻的空闲块合并（前、后、双向）。</li>
+        <li>分配策略名实相符：满足请求的最小空闲块（best-fit）。</li>
+        <li>不改变对外 API 签名与调用方语义。</li>
+        <li>消除失败路径上的空指针解引用。</li>
+        <li>用户指针 16 字节对齐，满足 RISC-V psABI 的栈对齐要求。</li>
+        <li>可在宿主机上离线验证（不启动 QEMU）。</li>
+      </ul>
+    </div>
+    <div class="mini"><b>非目标（本次不做）</b>
+      <ul>
+        <li>不引入 MMU / 分页 / 虚拟内存。</li>
+        <li>不做多桶（segregated bins）或位图分配器，保持单链表。</li>
+        <li>不做内存越界检测、堆栈水位、泄漏追踪（另立需求）。</li>
+        <li>不追求 O(1) 分配；块数量级为 10¹～10²，O(n) 扫描足够。</li>
+        <li>不改链接脚本堆区间与 DTCM 布局。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 2 ================= -->
+<section id="s2">
+  <h2><span class="no">02</span>现状分析</h2>
+
+  <h3>2.1 现有布局</h3>
+  <p><code>osz_memory_init()</code> 以 <code>MODULE_INIT(..., l1)</code> 挂到初始化链，取 <code>DEFAULT_HEAP_START</code>（<code>__system_heap_start</code>）为池首，尾部硬编码 <code>DEFAULT_HEAP_END - sizeof(MEM_NODE_INFO)</code> 作为终止节点：</p>
+  <figure>
+    <svg viewBox="0 0 900 190" role="img" aria-label="现有堆布局">
+      <text x="20" y="26" font-size="12" fill="#5d6a76">__system_heap_start（DTCM，0x20 对齐）</text>
+      <rect x="20" y="38" width="90" height="58" fill="#eef3f5" stroke="#b9c7d1"/>
+      <text x="65" y="64" font-size="11" text-anchor="middle">POOL_INFO</text>
+      <text x="65" y="84" font-size="10.5" text-anchor="middle" fill="#5d6a76">12 B</text>
+      <rect x="110" y="38" width="90" height="58" fill="#eef3f5" stroke="#b9c7d1"/>
+      <text x="155" y="64" font-size="11" text-anchor="middle">HEAD_INFO</text>
+      <text x="155" y="84" font-size="10.5" text-anchor="middle" fill="#5d6a76">12 B</text>
+      <rect x="200" y="38" width="56" height="58" fill="#dfe9ec" stroke="#b9c7d1"/>
+      <text x="228" y="64" font-size="10.5" text-anchor="middle">节点头</text>
+      <text x="228" y="84" font-size="10.5" text-anchor="middle" fill="#5d6a76">16 B</text>
+      <rect x="256" y="38" width="500" height="58" fill="#e7f2ef" stroke="#0f6b5c"/>
+      <text x="506" y="62" font-size="12" text-anchor="middle" fill="#0d5248">空闲数据区（first_node）</text>
+      <text x="506" y="84" font-size="10.5" text-anchor="middle" fill="#5d6a76">heap_size − 12 − 12 − 16×2，实际起始仅 8 字节对齐</text>
+      <rect x="756" y="38" width="56" height="58" fill="#f3f6f7" stroke="#b9c7d1"/>
+      <text x="784" y="64" font-size="10.5" text-anchor="middle">end</text>
+      <text x="784" y="84" font-size="10.5" text-anchor="middle" fill="#5d6a76">16 B</text>
+      <line x1="20" y1="112" x2="812" y2="112" stroke="#8796a1"/>
+      <text x="20" y="132" font-size="11.5" fill="#5d6a76">↑ 池首 0x8400_0xxx</text>
+      <text x="812" y="132" font-size="11.5" fill="#5d6a76" text-anchor="end">heap_end = ORIGIN(DTCM)+64M = 0x8800_0000 ↑</text>
+      <text x="450" y="168" font-size="12" fill="#9d2f2f" text-anchor="middle">终止节点同时被当作空闲链表的哨兵头（双重身份）</text>
+    </svg>
+    <figcaption>图 2-1 现有堆布局（块头 16 B，池/头描述符未做 16 B 对齐）</figcaption>
+  </figure>
+
+  <h3>2.2 现有分配语义</h3>
+  <p><code>os_mem_get_next_bestfit_free()</code> 的真实行为是“<strong>先找尺寸完全相等的块；否则取遍历到的最后一个空闲块切分</strong>”，并非最小满足块：</p>
+  <pre><code><span class="c">// bestfit.c:32-39 —— 只有尺寸完全相等才返回 TRUE</span>
+<span class="k">STATIC</span> BOOL os_is_bestfit_free(MEM_NODE_INFO *free_node, UINT32 size)
+{
+    UINT32 expect_size = ALIGN_UP(size, 0x10);
+    <span class="k">if</span> (MEM_NODE_GET_SIZE(free_node) == expect_size) <span class="k">return</span> TRUE;
+    <span class="k">return</span> FALSE;
+}</code></pre>
+  <div class="tbl-wrap">
+    <table>
+      <tr><th>情形</th><th>实际结果</th><th>后果</th></tr>
+      <tr><td>链表中存在尺寸恰好相等的空闲块</td><td>直接返回该块</td><td>内部碎片最少，但概率低</td></tr>
+      <tr><td>无精确匹配</td><td>对遍历“最后”一个空闲块切分</td><td>切掉的是大块尾巴，留下小碎片，与请求大小无关</td></tr>
+      <tr><td>最后一个空闲块也不够大</td><td><code>os_mem_split_node</code> 返回 NULL → 上层返回 NULL</td><td><code>osz_malloc</code> 立刻对 NULL 解引用</td></tr>
+    </table>
+  </div>
+
+  <h3>2.3 现有释放语义</h3>
+  <p>释放路径只有三步：指针减 16 得到块头 → 清 used 位 → 结束。没有邻块探测，没有链表重排，也没有临界区：</p>
+  <pre><code><span class="c">// bestfit.c:135-139</span>
+VOID os_mem_set_addr_to_free(VOID *mem_addr)
+{
+    MEM_NODE_INFO *node = (MEM_NODE_INFO *)((char *)mem_addr - MEM_NODE_INFO_SIZE);
+    MEM_NODE_CLR_USED(node);        <span class="c">// 仅此一步</span>
+}</code></pre>
+
+  <h3>2.4 问题清单</h3>
+  <div class="tbl-wrap">
+    <table>
+      <tr><th>编号</th><th>级别</th><th>问题</th><th>证据（基线行号）</th><th>影响</th></tr>
+      <tr class="bad"><td>M-01</td><td><span class="tag p0">P0</span></td><td>空闲块无任何合并</td><td><code>bestfit.c:135-139</code></td><td>反复变长分配/释放（Shell 历史命令最典型）产生不可复用的永久碎片</td></tr>
+      <tr class="bad"><td>M-02</td><td><span class="tag p0">P0</span></td><td>空闲链表按尺寸插入错位：新块小于所有块时插到最后一块之后</td><td><code>bestfit.c:60-62</code></td><td>链表失去有序性，“最后一个空闲块”可能比请求还小 → 分配失败</td></tr>
+      <tr class="bad"><td>M-03</td><td><span class="tag p0">P0</span></td><td>分配失败后 <code>os_mem_set_used(NULL)</code></td><td><code>mem.c:26-29</code> + <code>bestfit.c:117-126</code></td><td>ASSERT 触发，内核停机</td></tr>
+      <tr><td>M-04</td><td><span class="tag p1">P1</span></td><td>策略名不副实（精确匹配优先或末块切分）</td><td><code>bestfit.c:99-126</code></td><td>大请求切小请求尾巴，碎片率不可控</td></tr>
+      <tr><td>M-05</td><td><span class="tag p1">P1</span></td><td>切分允许产生 0 尺寸剩余块，与 <code>MEM_INVALID_SIZE</code> 哨兵冲突</td><td><code>bestfit.c:84-97</code></td><td>物理链中出现“空块”，后继定位歧义</td></tr>
+      <tr><td>M-06</td><td><span class="tag p1">P1</span></td><td>无临界区保护，多任务并发 malloc/free 竞态</td><td><code>mem.c:11-34</code></td><td>链表指针被并发改写，堆损坏</td></tr>
+      <tr><td>M-07</td><td><span class="tag p1">P1</span></td><td>用户指针仅 8 字节对齐；RISC-V psABI 要求函数入口 sp 16 字节对齐</td><td><code>bestfit.h:29-31</code>、<code>task.c:148</code></td><td>动态任务栈基址不满足 ABI，使用 D 扩展或向量指令时风险</td></tr>
+      <tr><td>M-08</td><td><span class="tag p2">P2</span></td><td><code>os_mem_get_next_bestfit_free</code> 返回类型 <code>UINTPTR</code> 却返回 <code>NULL</code></td><td><code>bestfit.c:99-126</code></td><td>语义混乱，调用方难以判错</td></tr>
+      <tr><td>M-09</td><td><span class="tag p2">P2</span></td><td>死字段：<code>pool_list</code>、<code>task_id/magic_num</code> 位域从未使用</td><td><code>bestfit.h:15-16,25</code></td><td>占用块头空间，误导后续维护</td></tr>
+      <tr><td>M-10</td><td><span class="tag p2">P2</span></td><td>内存模块无宿主单测</td><td><code>test/unit/</code> 仅 dlink/sortlink/strtoul</td><td>任何修改无回归保护</td></tr>
+    </table>
+  </div>
+
+  <div class="callout danger"><b>结论：</b>当前不是“合并能力偏弱”，而是<strong>完全没有合并</strong>，且空闲链表自身有序性有问题。因此本设计不是加一个 <code>merge()</code> 的小补丁，而是需要一个带边界标记的块管理重写。</div>
+</section>
+
+<!-- ================= 3 ================= -->
+<section id="s3">
+  <h2><span class="no">03</span>方案选型与总体设计</h2>
+
+  <h3>3.1 合并的实现路径对比</h3>
+  <div class="tbl-wrap">
+    <table>
+      <tr><th>方案</th><th>邻块定位方式</th><th>单次 free 时间</th><th>块头开销</th><th>改动规模</th><th>结论</th></tr>
+      <tr><td>A. 按地址链表 + 全表扫描找邻</td><td>遍历空闲链表，比对 <code>addr+size</code></td><td>O(n²) 最坏</td><td>0</td><td>小</td><td>不可取：块多时抖动明显</td></tr>
+      <tr><td>B. 只维护后继块 used 位（无 prev_size）</td><td>后继可算，前驱不可得</td><td>O(1) 仅后向</td><td>0</td><td>小</td><td>只能单向合并，碎片仍残留</td></tr>
+      <tr class="bad"><td>C. 边界标记（size + prev_size）</td><td>前后邻均 O(1) 地址计算</td><td>O(1) 探测 + O(n) 入链</td><td>0（复用保留字）</td><td>中</td><td><strong>选用</strong>，工业界通用做法</td></tr>
+      <tr><td>D. 分离空闲链表 / 位图</td><td>同 C</td><td>接近 O(1)</td><td>额外桶数组</td><td>大</td><td>当前规模不需要，列为演进方向</td></tr>
+    </table>
+  </div>
+
+  <h3>3.2 总体设计要点</h3>
+  <ol>
+    <li><strong>块头固定 16 B</strong>：8 B 链表指针 + 4 B <code>size/used</code> + 4 B <code>prev_size</code>。复用原 <code>rsv_for_free</code>/<code>magic_num</code> 占位，不增加单块开销。</li>
+    <li><strong>独立空闲链表哨兵</strong>：<code>MEM_HEAD_INFO.free_list</code> 作为头，终止节点 <code>end_node</code> 专职物理链终点，不再兼任哨兵。</li>
+    <li><strong>物理链与空闲链分离</strong>：物理链通过地址算术遍历；空闲链只挂空闲块，按尺寸升序。</li>
+    <li><strong>分配 = best-fit + 低端切分 + rem 归并</strong>：升序链中第一个满足请求的块就是最小满足块；从低地址切出请求量，剩余块在高地址；<strong>切分后若 rem 与后邻空闲，立即出链合并</strong>，避免产生“相邻两块同时空闲”的中间态。</li>
+    <li><strong>释放 = 置空闲 + 后向合并 + 前向合并 + 入链</strong>，合并后维护后继块的 <code>prev_size</code>。</li>
+    <li><strong>最小切分阈值</strong>：剩余不足 <code>0x20</code>（块头 16 + 最小数据 16）时不切分，整块交付，从根上消除 0 尺寸块。</li>
+    <li><strong>临界区</strong>：<code>malloc/free</code> 全程 <code>ARCH_INT_LOCK/UNLOCK</code>，与任务模块保持同一把“中断锁”。</li>
+    <li><strong>调试自检</strong>：仅由功能宏 <code>MEM_FEATURE_DEBUG</code> 控制；打开只追加 magic、边界一致性、链表有序性等自检，基础校验与功能路径两种配置完全一致。</li>
+  </ol>
+
+  <h3>3.3 目标堆形态</h3>
+  <figure>
+    <svg viewBox="0 0 900 200" role="img" aria-label="改造后堆形态">
+      <text x="20" y="22" font-size="12" fill="#5d6a76">16 B 对齐</text>
+      <rect x="20" y="32" width="96" height="56" fill="#eef3f5" stroke="#b9c7d1"/>
+      <text x="68" y="57" font-size="10.5" text-anchor="middle">POOL_INFO</text>
+      <text x="68" y="75" font-size="10" text-anchor="middle" fill="#5d6a76">占 16 B</text>
+      <rect x="116" y="32" width="110" height="56" fill="#eef3f5" stroke="#b9c7d1"/>
+      <text x="171" y="57" font-size="10.5" text-anchor="middle">HEAD_INFO</text>
+      <text x="171" y="75" font-size="10" text-anchor="middle" fill="#5d6a76">free_list 哨兵 + 16 B</text>
+      <rect x="226" y="32" width="64" height="56" fill="#dfe9ec" stroke="#b9c7d1"/>
+      <text x="258" y="57" font-size="10.5" text-anchor="middle">node0 头</text>
+      <text x="258" y="75" font-size="10" text-anchor="middle" fill="#5d6a76">16 B</text>
+      <rect x="290" y="32" width="470" height="56" fill="#e7f2ef" stroke="#0f6b5c"/>
+      <text x="525" y="57" font-size="12" text-anchor="middle" fill="#0d5248">首个空闲块的数据区（size 为 16 的整数倍）</text>
+      <text x="525" y="75" font-size="10.5" text-anchor="middle" fill="#5d6a76">数据指针 = 块头 + 16 → 恒 16 B 对齐</text>
+      <rect x="760" y="32" width="64" height="56" fill="#f3f6f7" stroke="#b9c7d1"/>
+      <text x="792" y="57" font-size="10.5" text-anchor="middle">end 头</text>
+      <text x="792" y="75" font-size="10" text-anchor="middle" fill="#5d6a76">USED, size=0</text>
+      <line x1="20" y1="110" x2="824" y2="110" stroke="#8796a1"/>
+      <text x="20" y="130" font-size="11.5" fill="#5d6a76">heap_start</text>
+      <text x="824" y="130" font-size="11.5" fill="#5d6a76" text-anchor="end">heap_end</text>
+      <text x="450" y="172" font-size="12" fill="#0f6b5c" text-anchor="middle">物理链：node0 ⇄ … ⇄ end_node（地址连续，无重叠）</text>
+      <text x="450" y="190" font-size="12" fill="#0f6b5c" text-anchor="middle">空闲链：HEAD.free_list ⇄ 空闲块 ⇄ …（按 size 升序）</text>
+    </svg>
+    <figcaption>图 3-1 目标堆形态（池/头描述符补齐到 16 B，用户指针 16 B 对齐）</figcaption>
+  </figure>
+</section>
+
+<!-- ================= 4 ================= -->
+<section id="s4">
+  <h2><span class="no">04</span>数据结构设计</h2>
+
+  <h3>4.1 块头位域</h3>
+  <figure>
+    <svg viewBox="0 0 900 230" role="img" aria-label="16 字节块头布局">
+      <text x="20" y="24" font-size="12" fill="#5d6a76">每个块的物理布局（偏移相对块头起始）</text>
+
+      <rect x="20" y="40" width="200" height="44" fill="#eef3f5" stroke="#b9c7d1"/>
+      <text x="120" y="67" font-size="12" text-anchor="middle">node_list（dlink，仅空闲块有效）</text>
+      <text x="120" y="100" font-size="10.5" text-anchor="middle" fill="#5d6a76">offset 0，8 B</text>
+
+      <rect x="220" y="40" width="600" height="44" fill="#ffffff" stroke="#b9c7d1"/>
+      <rect x="220" y="40" width="36" height="44" fill="#0f6b5c"/>
+      <text x="238" y="67" font-size="10.5" fill="#fff" text-anchor="middle">U</text>
+      <rect x="256" y="40" width="564" height="44" fill="#e7f2ef"/>
+      <text x="538" y="67" font-size="12" text-anchor="middle" fill="#0d5248">size[30:0]（数据区字节数，16 的整数倍）</text>
+      <text x="416" y="100" font-size="10.5" text-anchor="middle" fill="#5d6a76">offset 8，size_and_used：bit31 = USED，bit30:0 = SIZE</text>
+
+      <rect x="20" y="120" width="800" height="44" fill="#ffffff" stroke="#b9c7d1"/>
+      <text x="420" y="147" font-size="12" text-anchor="middle">prev_size：bit31:30 = magic 0b10，bit29:0 = 前邻数据区字节数（0 表示本块是首个块）</text>
+      <text x="420" y="180" font-size="10.5" text-anchor="middle" fill="#5d6a76">offset 12，复用原 rsv_for_free 字段；magic 位只参与 DEBUG 自检，不改布局</text>
+
+      <rect x="20" y="196" width="800" height="26" fill="#fafcfc" stroke="#dfe6ec"/>
+      <text x="420" y="214" font-size="11.5" text-anchor="middle" fill="#4d6270">合计 16 B，数据区起点 = 块头 + 16，故用户指针恒 16 B 对齐</text>
+    </svg>
+    <figcaption>图 4-1 块头 16 字节字段与位定义</figcaption>
+  </figure>
+
+  <h3>4.2 类型定义</h3>
+  <pre><code><span class="c">/* bestfit.h —— 改造后 */</span>
+<span class="c">/* rv32 口径：三份描述符均 16 B，first_node = pool + 32，用户指针恒 16 B 对齐。
+   宿主单测（64 位指针）分支按 sizeof 取值，算法/不变量不变。 */</span>
+<span class="k">#if</span> __SIZEOF_POINTER__ == 4
+<span class="k">#define</span> MEM_NODE_INFO_SIZE      (16U)
+<span class="k">#define</span> MEM_POOL_INFO_SIZE      (16U)   <span class="c">/* 原 12 → 补到 16，保证 head 16 对齐 */</span>
+<span class="k">#define</span> MEM_HEAD_INFO_SIZE      (16U)
+<span class="k">#define</span> MEM_ALIGN               (16U)   <span class="c">/* psABI 对齐粒度，同时是块粒度 */</span>
+<span class="k">#else</span>
+<span class="k">#define</span> MEM_NODE_INFO_SIZE      ((UINT32)<span class="k">sizeof</span>(MEM_NODE_INFO))   <span class="c">/* 宿主：24 */</span>
+<span class="k">#define</span> MEM_POOL_INFO_SIZE      ((UINT32)<span class="k">sizeof</span>(MEM_POOL_INFO))
+<span class="k">#define</span> MEM_HEAD_INFO_SIZE      ((UINT32)<span class="k">sizeof</span>(MEM_HEAD_INFO))
+<span class="k">#define</span> MEM_ALIGN               (8U)    <span class="c">/* 宿主 64 位指针 */</span>
+<span class="k">#endif</span>
+<span class="k">#define</span> MEM_MIN_SPLIT           (0x20U) <span class="c">/* 剩余数据区不足此值则整块交付；同时是最小分配块 */</span>
+
+<span class="k">#define</span> MEM_SIZE_MASK           (0x7FFFFFFFU)
+<span class="k">#define</span> MEM_USED_MASK           (0x80000000U)
+<span class="k">#define</span> MEM_NODE_GET_SIZE(n)    ((n)-&gt;size_and_used &amp; MEM_SIZE_MASK)
+<span class="k">#define</span> MEM_NODE_SET_SIZE(n,s)  ((n)-&gt;size_and_used = (MEM_NODE_GET_USED(n) | ((s) &amp; MEM_SIZE_MASK)))
+<span class="k">#define</span> MEM_NODE_GET_USED(n)    ((n)-&gt;size_and_used &amp; MEM_USED_MASK)
+<span class="k">#define</span> MEM_NODE_SET_USED(n)    ((n)-&gt;size_and_used |= MEM_USED_MASK)
+<span class="k">#define</span> MEM_NODE_CLR_USED(n)    ((n)-&gt;size_and_used &amp;= (~MEM_USED_MASK))
+<span class="k">#define</span> MEM_PREV_MAGIC_MASK     (0xC0000000U)
+<span class="k">#define</span> MEM_PREV_MAGIC          (0x80000000U)
+<span class="k">#define</span> MEM_PREV_SIZE_MASK      (0x3FFFFFFFU)
+<span class="k">#define</span> MEM_NODE_GET_PREV(n)    ((n)-&gt;prev_size &amp; MEM_PREV_SIZE_MASK)
+<span class="k">#define</span> MEM_NODE_SET_PREV(n,s)  ((n)-&gt;prev_size = (MEM_PREV_MAGIC | ((s) &amp; MEM_PREV_SIZE_MASK)))
+<span class="k">#define</span> MEM_NODE_GET_DATA(n)    ((UINTPTR)((UINT8 *)(n) + MEM_NODE_INFO_SIZE))
+<span class="k">#define</span> MEM_NODE_NEXT(n)        ((MEM_NODE_INFO *)((UINT8 *)(n) + MEM_NODE_INFO_SIZE + MEM_NODE_GET_SIZE(n)))
+<span class="k">#define</span> MEM_NODE_PREV(n)        ((MEM_NODE_INFO *)((UINT8 *)(n) - MEM_NODE_INFO_SIZE - MEM_NODE_GET_PREV(n)))
+
+<span class="k">typedef struct</span> {
+    DLINK_NODE node_list;      <span class="c">/* 8 B：空闲链表挂钩，占用块内容无效 */</span>
+    UINT32     size_and_used;  <span class="c">/* 4 B：size[30:0] | used[31] */</span>
+    UINT32     prev_size;      <span class="c">/* 4 B：前邻数据区大小，0 = 无前邻 */</span>
+} MEM_NODE_INFO;               <span class="c">/* sizeof == 16 on rv32 */</span>
+
+<span class="k">typedef struct</span> {
+    DLINK_NODE     free_list;  <span class="c">/* 独立哨兵：只挂空闲块，size 升序 */</span>
+    MEM_NODE_INFO *first_node;
+} MEM_HEAD_INFO;               <span class="c">/* sizeof == 12 ≤ MEM_HEAD_INFO_SIZE(16)，补齐到 16 对齐 */</span>
+
+<span class="c">/* 终止节点不入结构体，由堆尾地址推算，避免描述符超长 */</span>
+<span class="k">#define</span> MEM_END_NODE(pool_end)  ((MEM_NODE_INFO *)((UINT8 *)(pool_end) - MEM_NODE_INFO_SIZE))
+<span class="k">#define</span> MEM_MAX_ALLOC          ((UINT32)DEFAULT_HEAP_SIZE - MEM_POOL_INFO_SIZE - MEM_HEAD_INFO_SIZE)</code></pre>
+  <div class="callout warn"><b>对齐处理（已定）：</b>采用方案①——<code>MEM_HEAD_INFO</code> 不再保存 <code>end_node</code> 指针，终止节点由 <code>g_heap_end − 16</code> 计算；<code>MEM_POOL_INFO</code> 与 <code>MEM_HEAD_INFO</code> 的分配尺寸常量均取 16，使 <code>first_node</code> 落在 <code>pool + 32</code>，恒 16 B 对齐。该取舍将在评审中确认，若不接受则退化为“常量 32 + 补齐”。</div>
+
+  <h3>4.3 不变量</h3>
+  <div class="tbl-wrap">
+    <table>
+      <tr><th>编号</th><th>不变量</th><th>检查时机</th><th>违反后果</th></tr>
+      <tr><td>I1</td><td><code>first_node</code> 至 <code>end_node</code> 由 <code>MEM_NODE_NEXT</code> 串联，首尾相接、无重叠、覆盖整个数据区</td><td>init、每次切分/合并</td><td>堆重叠或越界</td></tr>
+      <tr><td>I2</td><td>块 <code>size</code> 为 16 的整数倍；空闲块 <code>size ≥ 0x20</code>；<code>end_node</code> 除外（size=0）</td><td>切分、合并</td><td>用户指针失对齐、产生 0 尺寸块</td></tr>
+      <tr><td>I3</td><td><code>prev_size == 0</code> 当且仅当该块是 <code>first_node</code></td><td>free 前向探测</td><td>向前合并越界到池描述符</td></tr>
+      <tr><td>I4</td><td><code>MEM_NODE_NEXT(n)-&gt;prev_size == MEM_NODE_GET_SIZE(n)</code></td><td>任何 size 变更后</td><td>后继前向合并定位错误</td></tr>
+      <tr><td>I5</td><td>空闲链表只含 <code>used==0</code> 的块，且 <code>size</code> 严格升序</td><td>每次入链、Debug 全遍历</td><td>best-fit 退化、重复入链</td></tr>
+      <tr><td>I6</td><td><code>end_node</code> 恒为 USED、size=0、永不出现在空闲链表</td><td>init、每次操作</td><td>合并越过堆尾</td></tr>
+      <tr><td>I7</td><td>任意两个物理相邻的块不能同时为空闲（由 <code>free</code> 双向合并与 <code>split</code> 后的 rem 归并共同保证）</td><td>每次切分/释放后（Debug 全遍历）</td><td>碎片化、后续合并链断裂</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- ================= 5 ================= -->
+<section id="s5">
+  <h2><span class="no">05</span>算法设计</h2>
+
+  <h3>5.1 初始化</h3>
+  <pre><code>VOID inner_mem_init(VOID *pool, UINT32 pool_size)
+{
+    g_mempool = (MEM_POOL_INFO *)pool;                    <span class="c">/* pool 16 对齐 */</span>
+    MEM_HEAD_INFO *head = (MEM_HEAD_INFO *)((UINT8 *)pool + MEM_POOL_INFO_SIZE);
+    dlink_init(&amp;head-&gt;free_list);
+    head-&gt;first_node = (MEM_NODE_INFO *)((UINT8 *)head + MEM_HEAD_INFO_SIZE);
+
+    UINT32 data_size = pool_size - MEM_POOL_INFO_SIZE - MEM_HEAD_INFO_SIZE - 2 * MEM_NODE_INFO_SIZE;
+    data_size = ALIGN_DOWN(data_size, MEM_ALIGN);         <span class="c">/* 数据区必须 16 的倍数 */</span>
+
+    head-&gt;first_node-&gt;size_and_used = data_size;          <span class="c">/* used=0 */</span>
+    head-&gt;first_node-&gt;prev_size    = 0;
+    inner_free_list_insert(head-&gt;first_node);
+
+    MEM_NODE_INFO *end = (MEM_NODE_INFO *)((UINT8 *)head-&gt;first_node + MEM_NODE_INFO_SIZE + data_size);
+    end-&gt;size_and_used = MEM_USED_MASK;                   <span class="c">/* size=0, used=1 */</span>
+    end-&gt;prev_size = data_size;
+}</code></pre>
+  <p>对外入口保持 <code>osz_memory_init()</code>，内部转调 <code>inner_mem_init(DEFAULT_HEAP_START, (UINT32)DEFAULT_HEAP_SIZE)</code>。<code>inner_mem_init</code> 带显式尺寸，是宿主单测可注入“假堆”的关键。</p>
+
+  <h3>5.2 分配算法</h3>
+  <figure>
+    <svg viewBox="0 0 760 880" role="img" aria-label="分配流程图">
+      <rect x="140" y="12" width="280" height="44" rx="8" fill="#e7f2ef" stroke="#0f6b5c"/>
+      <text x="280" y="39" font-size="12.5" text-anchor="middle">inner_mem_alloc(size, &amp;out)</text>
+
+      <polygon points="280,72 400,100 280,128 160,100" fill="#fff8ea" stroke="#a8620a"/>
+      <text x="280" y="104" font-size="11.5" text-anchor="middle">size==0 或超上限？</text>
+      <rect x="470" y="78" width="270" height="44" rx="6" fill="#fbebeb" stroke="#9d2f2f"/>
+      <text x="605" y="105" font-size="11.5" text-anchor="middle" fill="#7c2222">return MEM_SIZE_INVALID</text>
+
+      <rect x="140" y="150" width="280" height="44" rx="8" fill="#fff" stroke="#b9c7d1"/>
+      <text x="280" y="177" font-size="12" text-anchor="middle">need = ALIGN_UP(size, 16)</text>
+
+      <rect x="140" y="222" width="280" height="56" rx="8" fill="#fff" stroke="#b9c7d1"/>
+      <text x="280" y="245" font-size="12" text-anchor="middle">ARCH_INT_LOCK</text>
+      <text x="280" y="264" font-size="11.5" text-anchor="middle" fill="#5d6a76">沿 free_list 升序遍历空闲块</text>
+
+      <polygon points="280,300 400,328 280,356 160,328" fill="#fff8ea" stroke="#a8620a"/>
+      <text x="280" y="332" font-size="11.5" text-anchor="middle">blk.size ≥ need？</text>
+      <rect x="470" y="306" width="270" height="44" rx="6" fill="#fbebeb" stroke="#9d2f2f"/>
+      <text x="605" y="333" font-size="11.5" text-anchor="middle" fill="#7c2222">解锁；return MEM_NO_FREE_BLK</text>
+
+      <polygon points="280,388 400,416 280,444 160,416" fill="#fff8ea" stroke="#a8620a"/>
+      <text x="280" y="420" font-size="11.5" text-anchor="middle">blk.size − need &lt; 0x20？</text>
+      <rect x="470" y="394" width="270" height="44" rx="6" fill="#fdf3e3" stroke="#a8620a"/>
+      <text x="605" y="421" font-size="11" text-anchor="middle" fill="#68400a">整块分配：不切分、直接置 used</text>
+
+      <rect x="140" y="474" width="280" height="56" rx="8" fill="#fff" stroke="#b9c7d1"/>
+      <text x="280" y="497" font-size="12" text-anchor="middle">低端切出 need，剩余为 rem</text>
+      <text x="280" y="516" font-size="11.5" text-anchor="middle" fill="#5d6a76">rem = blk + 16 + need；rem.size = 剩余</text>
+
+      <polygon points="280,552 400,580 280,608 160,580" fill="#fff8ea" stroke="#a8620a"/>
+      <text x="280" y="584" font-size="11.5" text-anchor="middle">rem 的后继空闲？</text>
+      <rect x="470" y="558" width="270" height="44" rx="6" fill="#fdf3e3" stroke="#a8620a"/>
+      <text x="605" y="575" font-size="10.5" text-anchor="middle" fill="#68400a">出链 next；rem.size += 16 + next.size</text>
+      <text x="605" y="591" font-size="10.5" text-anchor="middle" fill="#68400a">（防御性分支，正常不变量下不可达）</text>
+
+      <rect x="140" y="640" width="280" height="56" rx="8" fill="#fff" stroke="#b9c7d1"/>
+      <text x="280" y="663" font-size="12" text-anchor="middle">维护边界：rem.prev_size = need</text>
+      <text x="280" y="682" font-size="11.5" text-anchor="middle" fill="#5d6a76">新后继.prev_size = rem.size；rem 入空闲链</text>
+
+      <rect x="140" y="722" width="280" height="44" rx="8" fill="#e7f2ef" stroke="#0f6b5c"/>
+      <text x="280" y="749" font-size="12" text-anchor="middle">out = 块地址 + 16；ARCH_INT_UNLOCK</text>
+
+      <rect x="140" y="788" width="280" height="44" rx="8" fill="#e7f2ef" stroke="#0f6b5c"/>
+      <text x="280" y="815" font-size="12" text-anchor="middle">return OS_OK</text>
+
+      <line x1="280" y1="56" x2="280" y2="70" stroke="#0f6b5c" marker-end="url(#ar)"/>
+      <line x1="400" y1="100" x2="466" y2="100" stroke="#a8620a" marker-end="url(#arw)"/>
+      <line x1="280" y1="128" x2="280" y2="148" stroke="#0f6b5c" marker-end="url(#ar)"/>
+      <line x1="280" y1="194" x2="280" y2="220" stroke="#0f6b5c" marker-end="url(#ar)"/>
+      <line x1="280" y1="278" x2="280" y2="298" stroke="#0f6b5c" marker-end="url(#ar)"/>
+      <line x1="400" y1="328" x2="466" y2="328" stroke="#a8620a" marker-end="url(#arw)"/>
+      <line x1="280" y1="356" x2="280" y2="386" stroke="#0f6b5c" marker-end="url(#ar)"/>
+      <line x1="400" y1="416" x2="466" y2="416" stroke="#a8620a" marker-end="url(#arw)"/>
+      <line x1="280" y1="444" x2="280" y2="472" stroke="#0f6b5c" marker-end="url(#ar)"/>
+      <line x1="280" y1="530" x2="280" y2="550" stroke="#0f6b5c" marker-end="url(#ar)"/>
+      <line x1="400" y1="580" x2="466" y2="580" stroke="#a8620a" marker-end="url(#arw)"/>
+      <line x1="280" y1="608" x2="280" y2="638" stroke="#0f6b5c" marker-end="url(#ar)"/>
+      <line x1="280" y1="696" x2="280" y2="720" stroke="#0f6b5c" marker-end="url(#ar)"/>
+      <line x1="280" y1="766" x2="280" y2="786" stroke="#0f6b5c" marker-end="url(#ar)"/>
+      <polyline points="605,438 605,650 424,650" fill="none" stroke="#a8620a" stroke-dasharray="5 4" marker-end="url(#arw)"/>
+      <polyline points="640,602 640,674 424,674" fill="none" stroke="#a8620a" stroke-dasharray="5 4" marker-end="url(#arw)"/>
+      <text x="660" y="520" font-size="11" fill="#68400a" text-anchor="middle">汇合至边界维护</text>
+    </svg>
+    <figcaption>图 5-1 分配流程（best-fit + 低端切分 + rem 后向防御性合并 + 临界区）</figcaption>
+  </figure>
+
+  <h4>伪代码</h4>
+  <pre><code>UINT32 inner_mem_alloc(UINT32 size, VOID **out)
+{
+    <span class="k">if</span> (out == NULL)                       <span class="k">return</span> MEM_IS_NULL_ERR;
+    *out = NULL;
+    <span class="k">if</span> (size == 0 || size &gt; MEM_MAX_ALLOC)  <span class="k">return</span> MEM_SIZE_INVALID_ERR;
+    <span class="k">if</span> (g_mempool == NULL)                  <span class="k">return</span> MEM_POOL_NOT_INIT_ERR;
+
+    UINT32 need = ALIGN_UP(size, MEM_ALIGN);
+    <span class="k">if</span> (need &lt; MEM_MIN_SPLIT)   need = MEM_MIN_SPLIT;   <span class="c">/* 最小分配块 32 B */</span>
+    UINT32 int_save;
+    ARCH_INT_LOCK(int_save);                <span class="c">/* 临界区开始 */</span>
+
+    MEM_NODE_INFO *blk = inner_best_fit(need);          <span class="c">/* 升序链首个 size≥need */</span>
+    <span class="k">if</span> (blk == NULL) {
+        ARCH_INT_UNLOCK(int_save);
+        <span class="k">return</span> MEM_NO_FREE_BLK_ERR;
+    }
+
+    <span class="c">/* size - need 里还含 rem 的 16 B 块头，阈值要比 MIN_SPLIT 多一个块头 */</span>
+    <span class="k">if</span> ((MEM_NODE_GET_SIZE(blk) - need) &lt; (MEM_MIN_SPLIT + MEM_NODE_INFO_SIZE)) {
+        inner_free_list_remove(blk);                    <span class="c">/* 整块交付 */</span>
+        MEM_NODE_SET_USED(blk);
+    <span class="k">else</span> {
+        MEM_NODE_INFO *rem = (MEM_NODE_INFO *)((UINT8 *)blk + MEM_NODE_INFO_SIZE + need);
+        MEM_NODE_SET_SIZE(rem, MEM_NODE_GET_SIZE(blk) - MEM_NODE_INFO_SIZE - need);
+        rem-&gt;prev_size = need;
+        MEM_NODE_CLR_USED(rem);
+
+        inner_free_list_remove(blk);
+        MEM_NODE_SET_SIZE(blk, need);
+        MEM_NODE_SET_USED(blk);
+
+        <span class="c">/* 防御性合并：rem 的后邻若空闲，必须先归一再入链，</span>
+<span class="c">           否则会留下“相邻两块同时空闲”的中间态，破坏 I7。 */</span>
+        MEM_NODE_INFO *next = MEM_NODE_NEXT(rem);
+        <span class="k">if</span> (next != inner_end_node() &amp;&amp; MEM_NODE_GET_USED(next) == 0) {
+            inner_free_list_remove(next);
+            MEM_NODE_SET_SIZE(rem, MEM_NODE_GET_SIZE(rem) + MEM_NODE_INFO_SIZE + MEM_NODE_GET_SIZE(next));
+        }
+        MEM_NODE_NEXT(rem)-&gt;prev_size = MEM_NODE_GET_SIZE(rem);   <span class="c">/* I4 */</span>
+        inner_free_list_insert(rem);                              <span class="c">/* size 升序入链 */</span>
+    }
+
+    *out = (VOID *)MEM_NODE_GET_DATA(blk);
+    ARCH_INT_UNLOCK(int_save);              <span class="c">/* 临界区结束 */</span>
+    <span class="k">return</span> OS_OK;
+}</code></pre>
+  <div class="callout info"><b>为什么切分后还要再看一次后邻：</b>正常不变量（I7）下，被切分的空闲块其物理后继必然已占用或为 <code>end_node</code>，因为 <code>free</code> 已把相邻空闲块合并干净，所以该分支理论上不可达。但它是<strong>防御性必需</strong>：一旦后续加入“批量释放 / 延迟合并 / 中断安全池”等路径，或 <code>free</code> 的合并被裁剪，这个分支就是唯一能阻止“相邻空闲块并存”的兜底；代价仅一次 <code>O(1)</code> 地址计算与一次条件判断。</div>
+  <div class="callout info"><b>为什么必须低端切分：</b>高地址剩余块的首地址由 <code>need</code> 精确算出，且剩余块只需维护一个 <code>prev_size</code>；若像现状那样从高端切，切出来的块 <code>prev_size</code> 要回填、原块的 <code>next</code> 关系也要改，两次写放大。低端切分还顺带让“分配后地址单调增长”更符合调试预期。</div>
+
+  <h3>5.3 释放与合并</h3>
+  <p>释放分三步：置空闲 → 与后邻合并 → 与前邻合并，最后统一入链。四种组合如图：</p>
+  <p>与 <code>split</code> 侧的 rem 归并一起，这两条路径共同维持不变量 I7：堆中不存在“物理相邻的两块同时空闲”。<code>MEM_FEATURE_DEBUG</code> 打开时，每次操作后可全遍历物理链做一次 I7 自检；该宏只加自检，不改变合并路径。</p>
+  <div class="callout info"><b>释放不做清零：</b><code>free</code> 只更新块头（<code>used</code> 位、合并后的 <code>size</code>、后继 <code>prev_size</code>），<strong>不写用户数据区</strong>。这是已确认的性能取舍；若后续有安全擦除需求，另加显式接口，不挂配置开关。</div>
+  <figure>
+    <svg viewBox="0 0 900 560" role="img" aria-label="释放合并四种场景">
+      <text x="450" y="24" font-size="12.5" fill="#5d6a76" text-anchor="middle">灰色 = 占用，绿色 = 空闲，深色 = 本次释放</text>
+
+      <!-- 场景1 -->
+      <rect x="20" y="44" width="420" height="230" rx="10" fill="#fbfcfd" stroke="#dfe6ec"/>
+      <text x="36" y="70" font-size="12.5" font-weight="600" fill="#0f6b5c">① 仅后邻空闲</text>
+      <rect x="44" y="90" width="90" height="48" fill="#dfe9ec" stroke="#8796a1"/>
+      <text x="89" y="119" font-size="11" text-anchor="middle">A（占用）</text>
+      <rect x="134" y="90" width="90" height="48" fill="#0f6b5c"/>
+      <text x="179" y="119" font-size="11" fill="#fff" text-anchor="middle">B（释放）</text>
+      <rect x="224" y="90" width="90" height="48" fill="#e7f2ef" stroke="#0f6b5c"/>
+      <text x="269" y="119" font-size="11" text-anchor="middle">C（空闲）</text>
+      <text x="340" y="119" font-size="16" fill="#0f6b5c" text-anchor="middle">→</text>
+      <rect x="44" y="166" width="60" height="48" fill="#dfe9ec" stroke="#8796a1"/>
+      <text x="74" y="195" font-size="10.5" text-anchor="middle">A</text>
+      <rect x="104" y="166" width="180" height="48" fill="#e7f2ef" stroke="#0f6b5c"/>
+      <text x="194" y="195" font-size="11" text-anchor="middle">B+C 合并块</text>
+      <text x="36" y="248" font-size="11" fill="#5d6a76">探测：next = B + 16 + sB，读 next.used == 0</text>
+
+      <!-- 场景2 -->
+      <rect x="460" y="44" width="420" height="230" rx="10" fill="#fbfcfd" stroke="#dfe6ec"/>
+      <text x="476" y="70" font-size="12.5" font-weight="600" fill="#0f6b5c">② 仅前邻空闲</text>
+      <rect x="484" y="90" width="90" height="48" fill="#e7f2ef" stroke="#0f6b5c"/>
+      <text x="529" y="119" font-size="11" text-anchor="middle">A（空闲）</text>
+      <rect x="574" y="90" width="90" height="48" fill="#0f6b5c"/>
+      <text x="619" y="119" font-size="11" fill="#fff" text-anchor="middle">B（释放）</text>
+      <rect x="664" y="90" width="90" height="48" fill="#dfe9ec" stroke="#8796a1"/>
+      <text x="709" y="119" font-size="11" text-anchor="middle">C（占用）</text>
+      <text x="780" y="119" font-size="16" fill="#0f6b5c" text-anchor="middle">→</text>
+      <rect x="484" y="166" width="180" height="48" fill="#e7f2ef" stroke="#0f6b5c"/>
+      <text x="574" y="195" font-size="11" text-anchor="middle">A+B 合并块</text>
+      <rect x="664" y="166" width="60" height="48" fill="#dfe9ec" stroke="#8796a1"/>
+      <text x="694" y="195" font-size="10.5" text-anchor="middle">C</text>
+      <text x="476" y="248" font-size="10.5" fill="#5d6a76">探测 prev.used；以 A 为首，size = sA + 16 + sB，A 需先出链</text>
+
+      <!-- 场景3 -->
+      <rect x="20" y="292" width="420" height="240" rx="10" fill="#fbfcfd" stroke="#dfe6ec"/>
+      <text x="36" y="318" font-size="12.5" font-weight="600" fill="#0f6b5c">③ 前后都空闲（三块归一）</text>
+      <rect x="44" y="338" width="90" height="48" fill="#e7f2ef" stroke="#0f6b5c"/>
+      <text x="89" y="367" font-size="11" text-anchor="middle">A（空闲）</text>
+      <rect x="134" y="338" width="90" height="48" fill="#0f6b5c"/>
+      <text x="179" y="367" font-size="11" fill="#fff" text-anchor="middle">B（释放）</text>
+      <rect x="224" y="338" width="90" height="48" fill="#e7f2ef" stroke="#0f6b5c"/>
+      <text x="269" y="367" font-size="11" text-anchor="middle">C（空闲）</text>
+      <rect x="360" y="338" width="60" height="48" fill="#dfe9ec" stroke="#8796a1"/>
+      <text x="390" y="367" font-size="10.5" text-anchor="middle">D</text>
+      <rect x="44" y="414" width="270" height="48" fill="#e7f2ef" stroke="#0f6b5c"/>
+      <text x="179" y="443" font-size="11" text-anchor="middle">A+B+C 合并块</text>
+      <text x="330" y="443" font-size="10.5" fill="#5d6a76">出链 2 次</text>
+      <text x="36" y="500" font-size="11" fill="#5d6a76">必须后向先合并再前向，避免 prev_size 被中途改写</text>
+
+      <!-- 场景4 -->
+      <rect x="460" y="292" width="420" height="240" rx="10" fill="#fbfcfd" stroke="#dfe6ec"/>
+      <text x="476" y="318" font-size="12.5" font-weight="600" fill="#0f6b5c">④ 前后都占用 / 贴边界</text>
+      <rect x="484" y="338" width="90" height="48" fill="#dfe9ec" stroke="#8796a1"/>
+      <text x="529" y="367" font-size="11" text-anchor="middle">A（占用）</text>
+      <rect x="574" y="338" width="90" height="48" fill="#0f6b5c"/>
+      <text x="619" y="367" font-size="11" fill="#fff" text-anchor="middle">B（释放）</text>
+      <rect x="664" y="338" width="90" height="48" fill="#dfe9ec" stroke="#8796a1"/>
+      <text x="709" y="367" font-size="11" text-anchor="middle">C（占用）</text>
+      <rect x="574" y="414" width="90" height="48" fill="#e7f2ef" stroke="#0f6b5c"/>
+      <text x="619" y="443" font-size="11" text-anchor="middle">B 独立成块</text>
+      <text x="476" y="500" font-size="11" fill="#5d6a76">B 位于 first_node 时 prev_size=0，不探测前驱</text>
+      <text x="476" y="520" font-size="11" fill="#5d6a76">B 的后继为 end_node 时不探测后继（恒 USED）</text>
+    </svg>
+    <figcaption>图 5-2 释放时的四种合并组合（合并方向固定为“先向后、再向前”）</figcaption>
+  </figure>
+
+  <h4>伪代码</h4>
+  <pre><code>UINT32 inner_mem_free(VOID *ptr)
+{
+    <span class="k">if</span> (ptr == NULL)              <span class="k">return</span> MEM_IS_NULL_ERR;
+    MEM_NODE_INFO *node = (MEM_NODE_INFO *)((UINT8 *)ptr - MEM_NODE_INFO_SIZE);
+
+    UINT32 int_save;
+    ARCH_INT_LOCK(int_save);
+    <span class="k">if</span> (inner_check_node(node) != OS_OK) {          <span class="c">/* Debug 配置生效 */</span>
+        ARCH_INT_UNLOCK(int_save);
+        <span class="k">return</span> MEM_NODE_CORRUPTED_ERR;
+    }
+    <span class="k">if</span> (MEM_NODE_GET_USED(node) == 0) {            <span class="c">/* 重复释放 */</span>
+        ARCH_INT_UNLOCK(int_save);
+        <span class="k">return</span> MEM_DOUBLE_FREE_ERR;
+    }
+    MEM_NODE_CLR_USED(node);
+
+    <span class="c">/* ① 后向合并 */</span>
+    MEM_NODE_INFO *next = MEM_NODE_NEXT(node);
+    <span class="k">if</span> (next != inner_end_node() &amp;&amp; MEM_NODE_GET_USED(next) == 0) {
+        inner_free_list_remove(next);
+        MEM_NODE_SET_SIZE(node, MEM_NODE_GET_SIZE(node) + MEM_NODE_INFO_SIZE + MEM_NODE_GET_SIZE(next));
+    }
+
+    <span class="c">/* ② 前向合并 */</span>
+    <span class="k">if</span> (node-&gt;prev_size != 0) {
+        MEM_NODE_INFO *prev = MEM_NODE_PREV(node);
+        <span class="k">if</span> (MEM_NODE_GET_USED(prev) == 0) {
+            inner_free_list_remove(prev);
+            MEM_NODE_SET_SIZE(prev, MEM_NODE_GET_SIZE(prev) + MEM_NODE_INFO_SIZE + MEM_NODE_GET_SIZE(node));
+            node = prev;                            <span class="c">/* 合并块以 prev 为首 */</span>
+        }
+    }
+
+    <span class="c">/* ③ 维护后继边界并统一入链 */</span>
+    MEM_NODE_NEXT(node)-&gt;prev_size = MEM_NODE_GET_SIZE(node);
+    inner_free_list_insert(node);                  <span class="c">/* size 升序 */</span>
+
+    ARCH_INT_UNLOCK(int_save);
+    <span class="k">return</span> OS_OK;
+}</code></pre>
+
+  <h3>5.4 空闲链表维护</h3>
+  <p>链表以 <code>head-&gt;free_list</code> 为哨兵，按 <code>size</code> 严格升序。插入与删除都是 O(n)/O(1)：</p>
+  <pre><code>STATIC VOID inner_free_list_insert(MEM_NODE_INFO *node)
+{
+    DLINK_NODE *pos = g_mempool-&gt;head-&gt;free_list.next;
+    <span class="k">while</span> (pos != &amp;g_mempool-&gt;head-&gt;free_list) {
+        MEM_NODE_INFO *cur = STRUCT_ENTRY(MEM_NODE_INFO, node_list, pos);
+        <span class="k">if</span> (MEM_NODE_GET_SIZE(cur) &gt; MEM_NODE_GET_SIZE(node)) <span class="k">break</span>;
+        pos = pos-&gt;next;
+    }
+    dlink_insert_head(pos, &amp;node-&gt;node_list);      <span class="c">/* 插到首个更大块之前 */</span>
+}
+
+STATIC MEM_NODE_INFO *inner_best_fit(UINT32 need)
+{
+    DLINK_NODE *pos;
+    DLINK_FOREACH(pos, &amp;g_mempool-&gt;head-&gt;free_list) {
+        MEM_NODE_INFO *cur = STRUCT_ENTRY(MEM_NODE_INFO, node_list, pos);
+        <span class="k">if</span> (MEM_NODE_GET_SIZE(cur) &gt;= need) <span class="k">return</span> cur;   <span class="c">/* 升序 ⇒ 首个即最优 */</span>
+    }
+    <span class="k">return</span> NULL;
+}</code></pre>
+  <div class="callout info"><b>与现状的关键差异：</b>不再把“占用块”留在空闲链表里过滤，也不再以 <code>end_node</code> 兼作哨兵。这样每次操作只剩“真正的空闲块”需要维护，链表长度等于碎片数，best-fit 扫描成本随碎片数而不是总块数增长。</div>
+
+  <h3>5.5 并发与临界区</h3>
+  <div class="tbl-wrap">
+    <table>
+      <tr><th>约束</th><th>设计</th><th>说明</th></tr>
+      <tr><td>任务间并发</td><td><code>ARCH_INT_LOCK/UNLOCK</code> 包住分配与释放全程</td><td>OSZ 单核，关中断即互斥；锁持有时间 = 链表扫描 + 常数次指针操作</td></tr>
+      <tr><td>中断上下文调用</td><td>当前无调用点，设计上<strong>禁止</strong></td><td>中断内分配会把临界区长度引入中断延迟；如未来需要，另设无锁专用池</td></tr>
+      <tr><td>初始化前调用</td><td>返回 <code>MEM_POOL_NOT_INIT_ERR</code></td><td>避免空指针解引用</td></tr>
+      <tr><td>锁嵌套</td><td>与任务模块同源，仅在“操作任务链表”外层使用</td><td><code>osz_create_task</code> / <code>osz_delete_task</code> 已持锁时不应重复进入（沿用现有语义，不改）</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- ================= 6 ================= -->
+<section id="s6">
+  <h2><span class="no">06</span>接口与错误码</h2>
+
+  <h3>6.1 对外接口（保持不变）</h3>
+  <div class="tbl-wrap">
+    <table>
+      <tr><th>原型</th><th>语义（设计后）</th><th>失败返回</th><th>变更</th></tr>
+      <tr><td><code>VOID osz_memory_init(VOID)</code></td><td>初始化全系统堆（l1 初始化链）</td><td>VOID</td><td>无</td></tr>
+      <tr><td><code>VOID *osz_malloc(UINT32 size)</code></td><td>申请 <code>size</code> 字节，返回 16 B 对齐指针</td><td><code>NULL</code>（size 非法/无可用块/未初始化）</td><td>补 NULL 检查</td></tr>
+      <tr><td><code>VOID *osz_zalloc(UINT32 size)</code></td><td>申请并清零</td><td><code>NULL</code></td><td>无</td></tr>
+      <tr><td><code>VOID osz_free(VOID *mem)</code></td><td>释放并尝试双向合并</td><td>无（NULL 直接返回）</td><td>新增合并</td></tr>
+    </table>
+  </div>
+
+  <h3>6.2 内部接口（新增 / 重构）</h3>
+  <div class="tbl-wrap">
+    <table>
+      <tr><th>原型</th><th>职责</th><th>复杂度</th></tr>
+      <tr><td><code>UINT32 inner_mem_init(VOID *pool, UINT32 pool_size)</code></td><td>可注入尺寸的初始化（宿主机测试入口）</td><td>O(1)</td></tr>
+      <tr><td><code>UINT32 inner_mem_alloc(UINT32 size, VOID **out)</code></td><td>best-fit 分配 + 切分 + rem 后邻归并</td><td>O(F)，F = 空闲块数</td></tr>
+      <tr><td><code>UINT32 inner_mem_free(VOID *ptr)</code></td><td>释放 + 双向合并</td><td>O(F)</td></tr>
+      <tr><td><code>STATIC MEM_NODE_INFO *inner_best_fit(UINT32 need)</code></td><td>升序链首个满足块</td><td>O(F)</td></tr>
+      <tr><td><code>STATIC VOID inner_free_list_insert(MEM_NODE_INFO *node)</code></td><td>按 size 升序入链</td><td>O(F)</td></tr>
+      <tr><td><code>STATIC VOID inner_free_list_remove(MEM_NODE_INFO *node)</code></td><td>O(1) 出链</td><td>O(1)</td></tr>
+      <tr><td><code>STATIC UINT32 inner_validate_ptr(VOID *ptr, MEM_NODE_INFO **node)</code></td><td>地址对齐/范围/越界校验（两种配置均执行）</td><td>O(1)</td></tr>
+      <tr><td><code>STATIC VOID inner_self_check(VOID)</code></td><td>物理链/prev_size/magic/空闲链有序/I7 全遍历（仅 <code>MEM_FEATURE_DEBUG=1</code>）</td><td>O(B)，B = 总块数</td></tr>
+      <tr><td><code>MEM_HEAD_INFO *inner_mem_head(VOID)</code>、<code>inner_mem_heap_start/end()</code></td><td>只读调试接口，供宿主用例与 Shell 观察堆形态</td><td>O(1)</td></tr>
+      <tr><td><code>STATIC MEM_NODE_INFO *inner_end_node(VOID)</code></td><td>由 <code>g_heap_end</code> 计算终止节点</td><td>O(1)</td></tr>
+    </table>
+  </div>
+
+  <h3>6.3 错误码</h3>
+  <pre><code><span class="c">/* bestfit.h 或 mem_errno.h，沿用 OBJECT_BASE_ERR 的分段风格 */</span>
+<span class="k">#define</span> MEM_BASE_ERR                (0x00020000U)
+<span class="k">#define</span> MEM_IS_NULL_ERR             (MEM_BASE_ERR | 0x01U)
+<span class="k">#define</span> MEM_SIZE_INVALID_ERR        (MEM_BASE_ERR | 0x02U)
+<span class="k">#define</span> MEM_NO_FREE_BLK_ERR         (MEM_BASE_ERR | 0x03U)
+<span class="k">#define</span> MEM_NODE_CORRUPTED_ERR      (MEM_BASE_ERR | 0x04U)
+<span class="k">#define</span> MEM_DOUBLE_FREE_ERR         (MEM_BASE_ERR | 0x05U)
+<span class="k">#define</span> MEM_POOL_NOT_INIT_ERR       (MEM_BASE_ERR | 0x06U)
+<span class="k">#define</span> MEM_BOUNDARY_OVERFLOW_ERR   (MEM_BASE_ERR | 0x07U)</code></pre>
+  <div class="callout warn"><b>对外契约：</b><code>osz_malloc</code> 仍只返回指针，不返回错误码，避免影响现有 40+ 处调用点；错误码只在内部函数与 Debug 断言中使用。若后续需要区分“无内存”和“参数错误”，再评估增加 <code>osz_malloc_ex</code>。</div>
+
+  <h3>6.4 宏分层：配置宏与功能宏</h3>
+  <p>原则：<strong>配置宏只在派生头出现一次，业务代码只认功能宏</strong>。配置宏来自 Kconfig 生成，开时为 <code>1</code>、关时<strong>不定义</strong>（kconfiglib 行为）；功能宏由模块派生且恒有定义、恒为 <code>0/1</code>，从根本上消除 <code>#ifdef</code> 在“值为 0 仍成立”时的不一致。</p>
+
+  <div class="tbl-wrap">
+    <table>
+      <tr><th>层级</th><th>命名</th><th>来源</th><th>允许出现的位置</th><th>取值形态</th><th>判断方式</th></tr>
+      <tr><td>配置宏</td><td><code>OSZ_CFG_MEM_*</code></td><td>Kconfig → <code>menuconfig.h</code></td><td><strong>仅</strong> <code>mem_feature.h</code></td><td>开=<code>1</code>；关=<strong>未定义</strong></td><td>仅 <code>#if defined(...)</code> 派生，不直接用</td></tr>
+      <tr><td>功能宏</td><td><code>MEM_FEATURE_*</code></td><td><code>mem_feature.h</code> 派生</td><td>模块内所有 .c/.h</td><td>恒为 <code>0</code> 或 <code>1</code>，<strong>永远有定义</strong></td><td><code>#if MEM_FEATURE_X</code>，禁止 <code>#ifdef</code></td></tr>
+      <tr><td>参数常量</td><td><code>MEM_ALIGN</code>、<code>MEM_MIN_SPLIT</code></td><td>派生头 / bestfit.h</td><td>模块内</td><td>编译期常量</td><td>不参与条件编译</td></tr>
+    </table>
+  </div>
+
+  <pre><code><span class="c">/* kernel/base/mem/bestfit/include/mem_feature.h —— 唯一的宏派生入口 */</span>
+<span class="k">#ifndef</span> __MEM_FEATURE_H__
+<span class="k">#define</span> __MEM_FEATURE_H__
+<span class="k">#include</span> "menuconfig.h"
+
+<span class="c">/* 配置宏 → 功能宏：缺失 / =1 / =0 三种形态都收敛为 0 或 1 */</span>
+<span class="k">#if</span> !defined(OSZ_CFG_MEM_DEBUG)
+<span class="k">#define</span> MEM_FEATURE_DEBUG       (0)
+<span class="k">#elif</span> (OSZ_CFG_MEM_DEBUG == 1)
+<span class="k">#define</span> MEM_FEATURE_DEBUG       (1)
+<span class="k">#elif</span> (OSZ_CFG_MEM_DEBUG == 0)
+<span class="k">#define</span> MEM_FEATURE_DEBUG       (0)
+<span class="k">#else</span>
+<span class="k">#error</span> "OSZ_CFG_MEM_DEBUG must be 0/1 or undefined"
+<span class="k">#endif</span>
+
+<span class="c">/* 参数常量：不是开关，只允许编译期常量，避免 ABI 漂移 */</span>
+<span class="k">#define</span> MEM_ALIGN               (16U)
+<span class="k">#define</span> MEM_MIN_SPLIT           (0x20U)
+
+<span class="c">/* 封闭性自检：功能宏必须恒为 0 或 1 */</span>
+<span class="k">#if</span> (MEM_FEATURE_DEBUG != 0) &amp;&amp; (MEM_FEATURE_DEBUG != 1)
+<span class="k">#error</span> "MEM_FEATURE_DEBUG out of range"
+<span class="k">#endif</span>
+<span class="k">#endif</span> <span class="c">/* __MEM_FEATURE_H__ */</span></code></pre>
+
+  <div class="tbl-wrap">
+    <table>
+      <tr><th style="width:30%">宏</th><th style="width:10%">默认</th><th style="width:12%">影响 ABI</th><th>作用</th></tr>
+      <tr><td><code>OSZ_CFG_MEM</code><br><span class="em">Kconfig</span></td><td><code>y</code></td><td>是</td><td>内存模块总开关，由构建系统裁剪；关闭时整个模块不参与编译</td></tr>
+      <tr><td><code>OSZ_CFG_MEM_DEBUG</code><br><span class="em">Kconfig，依赖 MEM</span></td><td><code>n</code></td><td>否</td><td>只用于派生功能宏，不直接被业务代码引用</td></tr>
+      <tr><td><code>MEM_FEATURE_DEBUG</code><br><span class="em">功能宏，恒 0/1</span></td><td><code>0/1</code></td><td><strong>否</strong></td><td>仅追加 magic、边界一致性、链表有序性、I7 全遍历自检；不改变功能路径与错误码集合</td></tr>
+      <tr><td><code>MEM_ALIGN</code><br><code>MEM_MIN_SPLIT</code><br><span class="em">结构常量</span></td><td><code>16</code> / <code>0x20</code></td><td>否</td><td>对齐粒度与最小切分阈值，写死在派生头，<strong>不做 Kconfig</strong></td></tr>
+    </table>
+  </div>
+  <pre><code><span class="c"># kernel/Kconfig —— 只声明配置，不参与业务逻辑</span>
+<span class="k">config</span> OSZ_CFG_MEM_DEBUG
+    bool "Enable memory debug self-check (magic / list order / I7)"
+    <span class="k">depends on</span> OSZ_CFG_MEM
+    default n</code></pre>
+  <div class="callout info"><b>Kconfig 只声明一项：</b>功能开关 <code>OSZ_CFG_MEM_DEBUG</code>。<code>MEM_ALIGN</code> 与 <code>MEM_MIN_SPLIT</code> 是决定块布局的结构常量，写死在派生头里——一旦做成可配置项，宿主与目标机、不同编译单元就可能取到不同值，直接破坏原子性。</div>
+
+  <div class="callout info"><b>已删除 <code>OSZ_CFG_MEM_ALIGN</code>：</b>对齐粒度一旦可配置，块头布局与用户指针对齐就会随配置漂移，直接破坏 ABI 一致性。16 B 由 RISC-V psABI 决定，作为常量而非配置项。</div>
+
+  <h3>6.5 功能宏原子性约束</h3>
+  <div class="tbl-wrap">
+    <table>
+      <tr><th>编号</th><th>约束</th><th>落地手段</th><th>验证</th></tr>
+      <tr><td>A1</td><td><strong>单一来源</strong>：配置宏只允许出现在 <code>mem_feature.h</code></td><td>业务 .c/.h 中禁止引用 <code>OSZ_CFG_MEM_*</code></td><td>脚本 grep 校验 + Code Review 检查项</td></tr>
+      <tr><td>A2</td><td><strong>取值封闭</strong>：功能宏恒为 0/1，判断一律 <code>#if</code></td><td>派生头三分支收敛 + <code>#error</code> 兜底</td><td>以非法值（如 2）构建必须失败</td></tr>
+      <tr><td>A3</td><td><strong>接口/ABI 不随宏变化</strong></td><td>结构体与函数签名不引用功能宏；<code>mem_feature.h</code> 不参与类型定义</td><td>两种配置下块头 sizeof 均为 16 B</td></tr>
+      <tr><td>A4</td><td><strong>行为契约一致</strong>：打开只加自检，不减功能</td><td>基础校验（used 位、范围、对齐、双释放）<strong>始终执行</strong>；Debug 仅追加 magic、<code>prev_size</code> 一致性、空闲链有序性、I7 全遍历</td><td>同一外部用例集在两种配置下结果一致</td></tr>
+      <tr><td>A5</td><td><strong>构建一致性</strong>：目标机、宿主、命令行三处取值一致</td><td>宿主 <code>test/include/menuconfig.h</code> 为空桩，测试用 <code>-DOSZ_CFG_MEM_DEBUG=1/0</code> 显式覆盖；禁止在 .c 内 <code>#define OSZ_CFG_*</code></td><td>宿主/交叉两套编译产物符号一致</td></tr>
+      <tr><td>A6</td><td><strong>双配置回归</strong></td><td>Debug=0 与 Debug=1 各构建一次、各跑一遍用例</td><td>见 9.4 验证闭环第 4 步</td></tr>
+      <tr><td>A7</td><td><strong>Kconfig 依赖完整</strong></td><td><code>OSZ_CFG_MEM_DEBUG</code> 仅在 <code>OSZ_CFG_MEM</code> 下可见</td><td><code>menuconfig</code> 关闭 MEM 后该项不可配</td></tr>
+    </table>
+  </div>
+
+  <h3>6.6 两种配置的能力矩阵</h3>
+  <div class="tbl-wrap">
+    <table>
+      <tr><th>能力</th><th>DEBUG=0（量产）</th><th>DEBUG=1（调试）</th><th>对外是否可见差异</th></tr>
+      <tr><td>分配 / 释放 / 双向合并 / rem 归并</td><td>相同</td><td>相同</td><td>否</td></tr>
+      <tr><td>参数与尺寸校验、NULL 处理</td><td>相同</td><td>相同</td><td>否</td></tr>
+      <tr><td>used 位、地址范围、16 B 对齐、双释放检测</td><td>执行（O(1)）</td><td>执行（O(1)）</td><td>否（错误码仅在内部）</td></tr>
+      <tr><td>块头 magic、<code>prev_size</code> 与物理邻居一致性</td><td>不执行</td><td>执行</td><td>否</td></tr>
+      <tr><td>空闲链有序性、I7 全遍历自检</td><td>不执行</td><td>执行（O(F)）</td><td>否</td></tr>
+      <tr><td><code>sizeof(MEM_NODE_INFO)</code> / 对外 API 签名</td><td>16 B / 不变</td><td>16 B / 不变</td><td>否</td></tr>
+      <tr><td>额外代码与耗时</td><td>基线</td><td>+ 校验代码，每次操作 O(F)</td><td>否</td></tr>
+    </table>
+  </div>
+  <div class="callout warn"><b>明确不设的功能开关：</b>合并（coalescing）本身不做 <code>OSZ_CFG_*</code> 开关。算法开关会带来两套语义、两套边界与两套测试，正是“开关导致行为不一致”的根源；如需 A/B 基准，走独立对比分支，不进入主线配置。</div>
+
+  <h3>6.7 分层依据与参照实现</h3>
+  <p>6.4–6.6 的规则不是为了多一层间接，而是本项目三个具体约束推出来的结果；机制形态参照了成熟内核，但使用面比它们更窄。</p>
+
+  <p><b>依据一：单一来源。</b>本项目配置实际存在四处可能取值的地方——<code>kernel/Kconfig</code>、生成的 <code>targets/platform/include/menuconfig.h</code>、<code>construct/cmake/cfg.cmake</code> 里另抄的一份默认值、以及宿主侧 <code>test/include/menuconfig.h</code>（空桩）。引用面越宽，漂移点越多；收敛到 <code>mem_feature.h</code> 一处后，越界引用只要一次 <code>grep OSZ_CFG_</code> 就能查干净（对应 11 章 R-08、A1）。</p>
+
+  <p><b>依据二：取值封闭。</b>Kconfig 生成的语义是“开 = <code>#define X 1</code>，关 = 不定义”。于是 <code>#if OSZ_CFG_MEM_DEBUG</code> 在关闭时会因宏不存在而直接编译失败，<code>#ifdef</code> 又区分不了“没定义”和“定义成 0”，两种写法都无法覆盖三态。唯一稳妥的做法是先收敛成恒 0/1 的功能宏，再对越界取值 <code>#error</code>（A2、T-24）。</p>
+
+  <p><b>依据三：接口与 ABI 不随配置变化。</b>本项目没有模块机制，宿主测试与目标机是两套独立产物，配置一旦影响结构体布局或函数签名，没有任何机制能发现两边不一致。Linux 敢让 <code>CONFIG_*</code> 影响结构体字段，靠的是“全量重编 + 模块 vermagic 校验”这条兜底链；我们没有这条链，所以把影响面直接切掉。</p>
+
+  <div class="tbl-wrap">
+    <table>
+      <tr><th>参照</th><th>配置来源与生成头</th><th>代码消费方式</th><th>ABI 影响与一致性兜底</th></tr>
+      <tr><td><b>Linux</b></td><td>Kconfig → <code>include/generated/autoconf.h</code>；开为 <code>#define CONFIG_X 1</code>，关为不定义</td><td><code>include/linux/kconfig.h</code> 的 <code>IS_ENABLED()</code> 把“定义与否”转成 0/1 常量表达式，可放进 <code>if()</code>，编译器因此对两个分支都做类型检查并折叠死代码；但内核并不禁止 <code>#ifdef CONFIG_*</code>，头文件里按配置裁剪字段是常态</td><td><b>允许</b>改变结构体（bool/tristate、页大小、SMP 都会改布局）；兜底靠全量重编 + 模块 vermagic 与 <code>BUILD_BUG_ON</code></td></tr>
+      <tr><td><b>Zephyr</b></td><td>同源 Kconfig，生成 <code>include/zephyr/autoconf.h</code>，前缀 <code>CONFIG_</code></td><td>业务代码直接引用 <code>CONFIG_*</code>，组件存在性也由配置决定</td><td><b>允许</b>改变布局（设备树与驱动裁剪）；兜底靠每次构建全量生成头文件</td></tr>
+      <tr><td><b>FreeRTOS</b></td><td>无 Kconfig，单个手写 <code>FreeRTOSConfig.h</code> 是唯一配置来源</td><td>业务代码直接消费 <code>configXXX</code> 常量</td><td>不鼓励改变布局，靠人工纪律；单头即单一来源，天然不漂移</td></tr>
+      <tr><td><b>本设计</b></td><td>Kconfig（仅 <code>OSZ_CFG_MEM_DEBUG</code> 一项）→ <code>menuconfig.h</code> → <code>mem_feature.h</code> 收敛为 <code>MEM_FEATURE_DEBUG</code> 恒 0/1 + 结构常量</td><td>业务代码只见功能宏；禁止 <code>#ifdef</code>、禁止直接引用 <code>OSZ_CFG_*</code></td><td><b>不允许</b>：块头 16 B、API 签名两配置一致；兜底靠单一派生口 + <code>#error</code> + 双配置回归（A6）</td></tr>
+    </table>
+  </div>
+
+  <p><b>取舍说明：</b>抄的是 Linux 的机制骨架——生成头、“不定义即关闭”、用 0/1 常量做编译期折叠而不是 <code>#ifdef</code> 分支（这样关闭时另一分支仍参与编译，不至于腐烂）。不抄的是它的使用面：Linux 允许 <code>CONFIG_*</code> 散落在任意文件、允许改变结构体布局，因为它有 vermagic 这类兜底；我们的宿主空桩会让同一份源码在两套环境取到不同值，只能靠“唯一派生头 + 常量”来保证一致。FreeRTOS 的 <code>FreeRTOSConfig.h</code> 提供了“单头即单一来源”的思路，但它把配置项也放在手写头里；我们仍走 Kconfig，避免多一份手写副本。</p>
+
+  <div class="callout info"><b>边界：</b>这套做法是“Linux 机制 + 更窄使用面”的裁剪版，不是照搬。若后续要把同一风格推广到 task、ipc 等模块，可以各自建立 <code>*_feature.h</code>，但那属于平台层统一议题，不在本文范围。</div>
+</section>
+
+<!-- ================= 7 ================= -->
+<section id="s7">
+  <h2><span class="no">07</span>边界与异常处理</h2>
+  <div class="tbl-wrap">
+    <table>
+      <tr><th>场景</th><th>预期行为</th><th>返回/断言</th><th>验证手段</th></tr>
+      <tr><td><code>osz_malloc(0)</code></td><td>拒绝</td><td>NULL / <code>MEM_SIZE_INVALID_ERR</code></td><td>单测</td></tr>
+      <tr><td>申请超过堆容量</td><td>拒绝，不进入扫描</td><td>NULL</td><td>单测</td></tr>
+      <tr><td>堆空（全部占用）</td><td>拒绝并解锁</td><td>NULL / <code>MEM_NO_FREE_BLK_ERR</code></td><td>单测</td></tr>
+      <tr><td><code>osz_free(NULL)</code></td><td>无操作</td><td>直接返回</td><td>单测</td></tr>
+      <tr><td>重复释放</td><td>始终检测（读 used 位，O(1)），两种配置行为一致</td><td><code>MEM_DOUBLE_FREE_ERR</code>（外层 API 静默返回）</td><td>单测 T-14（双配置）</td></tr>
+      <tr><td>释放栈上/非法地址/未对齐</td><td>始终检查地址落在堆数据区内且 16 B 对齐</td><td><code>MEM_NODE_CORRUPTED_ERR</code></td><td>单测 T-15（双配置）</td></tr>
+      <tr><td>释放后数据区</td><td><strong>保留原值，不清零</strong>（已确认，性能优先）</td><td>—</td><td>单测断言内容未被改写</td></tr>
+      <tr><td>释放首块（prev_size=0）</td><td>只探测后邻</td><td>正常合并</td><td>单测</td></tr>
+      <tr><td>释放堆尾前最后一块</td><td>后继为 end_node，不合并</td><td>正常入链</td><td>单测</td></tr>
+      <tr><td>释放后与前后两块同时合并</td><td>三块归一，出链 2 次</td><td>正常</td><td>单测</td></tr>
+      <tr><td>连续申请/释放后堆应回到 init 形态</td><td>单块、size 等于初始值</td><td>正常</td><td>压力用例</td></tr>
+      <tr><td>分配时剩余恰为 0x10（= 块头）</td><td>不切分，整块交付</td><td>不产生 0 尺寸块</td><td>单测</td></tr>
+      <tr><td>初始化前调用</td><td>拒绝</td><td>NULL / <code>MEM_POOL_NOT_INIT_ERR</code></td><td>单测</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- ================= 8 ================= -->
+<section id="s8">
+  <h2><span class="no">08</span>兼容性与迁移</h2>
+
+  <h3>8.1 现有调用点影响</h3>
+  <div class="tbl-wrap">
+    <table>
+      <tr><th>调用点</th><th>现有模式</th><th>改造后影响</th><th>风险</th></tr>
+      <tr><td><code>targets/qemu_virt/src/main.c:44</code></td><td><code>malloc(0x800)</code> 作任务栈，不释放</td><td>地址仍 16 对齐，栈基址对齐修正</td><td>低</td></tr>
+      <tr><td><code>kernel/shell/src/shell.c</code></td><td>历史命令变长分配、环形覆盖时旧命令频繁释放（1～N 字节）</td><td>短命令释放后可被判合并，碎片显著减少</td><td>中：行为变好，但地址序列变化</td></tr>
+      <tr><td><code>kernel/base/task/src/task.c:306</code></td><td>删除任务时释放动态栈</td><td>栈块与相邻块合并</td><td>低</td></tr>
+      <tr><td><code>kernel/base/ipc/*</code></td><td>对象创建/删除反复分配同尺寸块</td><td>尺寸相同，合并后复用命中率更高</td><td>低</td></tr>
+      <tr><td><code>kernel/struct/fifo/src/fifo.c</code></td><td>连续分配 FIFO 描述符 + 缓冲，销毁时逐个释放</td><td>两次释放触发合并，恢复整块</td><td>低</td></tr>
+      <tr><td><code>kernel/base/softtimer/src/softtime.c</code></td><td>worker 分配/释放</td><td>同上</td><td>低</td></tr>
+    </table>
+  </div>
+
+  <h3>8.2 兼容性结论</h3>
+  <ul>
+    <li><strong>API 零变更</strong>：三个对外函数签名、返回值语义不变；<code>NULL</code> 仍是唯一失败信号。</li>
+    <li><strong>ABI 变更</strong>：堆内块地址序列改变（低端切分），但没有任何调用点依赖块地址顺序或相邻关系。</li>
+    <li><strong>对齐增强</strong>：用户指针由 8 B 对齐提升到 16 B 对齐，属于修正而非破坏；唯一风险是若有代码用“块地址 − 16”反推块头，仍成立。</li>
+    <li><strong>内存开销</strong>：块头仍 16 B；池/头描述符由 12+12 补到 16+16，净增 8 B，全堆一次。</li>
+    <li><strong>配置与功能宏</strong>：<code>OSZ_CFG_MEM_DEBUG</code> 默认关闭，经 <code>mem_feature.h</code> 派生为恒为 0/1 的 <code>MEM_FEATURE_DEBUG</code>；打开只增加自检开销，不改变 API 与行为。</li>
+  </ul>
+
+  <div class="callout warn"><b>需要同步更新的文档：</b><code>doc/kernel_doc/shell/4-Shell内存分配设计.md</code> 目前只描述“按需分配 + 及时释放”，未涉及底层碎片行为；本次实施后需补一句“分配器已支持相邻空闲块合并”，避免文档与实现脱节。</div>
+</section>
+
+<!-- ================= 9 ================= -->
+<section id="s9">
+  <h2><span class="no">09</span>可测试性设计</h2>
+
+  <h3>9.1 宿主测试方案</h3>
+  <p><code>test/</code> 是独立 CMake 工程，用宿主 gtest 编译与架构无关的纯 C 模块。内存模块需解决两个依赖：</p>
+  <ol>
+    <li><strong>堆区间</strong>：通过 <code>inner_mem_init(pool, pool_size)</code> 注入测试自建的静态数组（如 4 KB），不依赖 <code>__system_heap_start</code> 链接符号。</li>
+    <li><strong>中断锁</strong>：宿主用空实现的 <code>ARCH_INT_LOCK/UNLOCK</code> stub（与现有 <code>test/stubs</code> 风格一致），单线程测试无需真实关中断。</li>
+  </ol>
+  <pre><code><span class="c">// test/unit/kernel/base/mem/test_mem.cpp（示意）</span>
+<span class="k">static</span> UINT8 g_fake_heap[4096] __attribute__((aligned(16)));
+<span class="k">class</span> MemTest : <span class="k">public</span> ::testing::Test {
+<span class="k">protected</span>:
+    <span class="k">void</span> SetUp() <span class="k">override</span> { ASSERT_EQ(OS_OK, inner_mem_init(g_fake_heap, <span class="k">sizeof</span>(g_fake_heap))); }
+};</code></pre>
+
+  <h3>9.2 用例矩阵</h3>
+  <div class="tbl-wrap">
+    <table>
+      <tr><th>编号</th><th>用例</th><th>输入 / 操作</th><th>期望</th></tr>
+      <tr><td>T-01</td><td>初始化形态</td><td><code>inner_mem_init</code></td><td>1 个空闲块；size = 池大小 − 32 − 32，16 的倍数；free_list 仅 1 项</td></tr>
+      <tr><td>T-02</td><td>整块精确命中</td><td>申请恰好等于空闲块大小</td><td>返回该块数据区；free_list 为空；不产生 rem</td></tr>
+      <tr><td>T-03</td><td>标准切分</td><td>空闲 1024，申请 256</td><td>返回低端地址；rem.size = 1024 − 16 − 256；rem 在链表中；后继 prev_size 正确</td></tr>
+      <tr><td>T-04</td><td>最小切分阈值</td><td>空闲块 64 B，申请 32 B（剩余 = 64−16−32 = 16 B &lt; 0x20）</td><td>整块交付，不产生 0 尺寸块</td></tr>
+      <tr><td>T-05</td><td>无可用块</td><td>占满后继续申请</td><td>返回 NULL；不触发断言</td></tr>
+      <tr><td>T-06</td><td>非法尺寸</td><td><code>malloc(0)</code> / 超大 size</td><td>返回 NULL</td></tr>
+      <tr><td>T-07</td><td>16 B 对齐</td><td>连续 20 次随机尺寸申请</td><td>所有返回指针 <code>% 16 == 0</code></td></tr>
+      <tr><td>T-08</td><td>仅后邻合并</td><td>A占 / B / C空 释放 B</td><td>B+C 合并；free_list 数量 −1；后继 prev_size 更新</td></tr>
+      <tr><td>T-09</td><td>仅前邻合并</td><td>A空 / B / C占 释放 B</td><td>A+B 合并，块首为 A；地址区间正确</td></tr>
+      <tr><td>T-10</td><td>前后都合并</td><td>A空 / B / C空 释放 B</td><td>A+B+C 归一；出链 2 次；链表仍升序</td></tr>
+      <tr><td>T-11</td><td>无邻可并</td><td>A占 / B / C占 释放 B</td><td>B 独立入链，位置符合升序</td></tr>
+      <tr><td>T-12</td><td>首块边界</td><td>释放 first_node 位置上的块</td><td>prev_size=0 不探测前驱，不越界</td></tr>
+      <tr><td>T-13</td><td>尾块边界</td><td>释放最后一个块</td><td>后继为 end_node，不合并；end 仍 USED</td></tr>
+      <tr><td>T-14</td><td>重复释放</td><td>同一指针 free 两次</td><td>两种配置均返回 <code>MEM_DOUBLE_FREE_ERR</code>，堆不被二次入链</td></tr>
+      <tr><td>T-15</td><td>非法指针</td><td>free 栈地址 / 未对齐指针</td><td>Debug 下返回 <code>MEM_NODE_CORRUPTED_ERR</code></td></tr>
+      <tr><td>T-16</td><td>free(NULL)</td><td><code>osz_free(NULL)</code></td><td>无操作，不崩溃</td></tr>
+      <tr><td>T-17</td><td>碎片回归</td><td>交替申请 1/2/3/4 块并全部释放</td><td>堆恢复为单个空闲块，size 等于初始值</td></tr>
+      <tr><td>T-18</td><td>链表有序性</td><td>随机 100 次分配/释放后遍历</td><td>size 严格升序、无重复节点、全部 used==0</td></tr>
+      <tr><td>T-19</td><td>物理链完整性</td><td>任意操作序列后遍历</td><td>从 first_node 走到 end_node 恰好覆盖数据区，无重叠</td></tr>
+      <tr><td>T-20</td><td>影子模型随机压力</td><td>1000 次随机 malloc/free（带 4 KB 独立位图）</td><td>每次分配区间不与已用区间重叠；释放后位图同步；不崩溃</td></tr>
+      <tr><td>T-21</td><td>切分后的 rem 归并</td><td>白盒构造：被切分块的后继也是空闲块（直接篡改块头模拟非法中间态）</td><td>malloc 切分后 rem 与后邻归一；后邻已出链；rem.size = 原剩余 + 16 + 后邻 size；新后继 prev_size 正确</td></tr>
+      <tr><td>T-22</td><td>无相邻空闲块（I7）</td><td>1000 次随机 malloc/free 后遍历物理链</td><td>任意相邻两块不同时 used==0；end_node 仍 USED</td></tr>
+      <tr><td>T-23</td><td>双配置行为一致</td><td>同一用例集分别以 <code>OSZ_CFG_MEM_DEBUG=0</code> 与 <code>=1</code> 编译运行</td><td>外部返回结果完全一致；仅 Debug 多出自检失败路径；两种配置都无崩溃</td></tr>
+      <tr><td>T-24</td><td>功能宏取值封闭</td><td>故意以 <code>OSZ_CFG_MEM_DEBUG=2</code> 构建</td><td>编译阶段触发 <code>#error</code>，不产生产物</td></tr>
+      <tr><td>T-25</td><td>释放不清零</td><td>写入特征值 → free → 再 malloc 同尺寸并读原位置</td><td>未发生覆写前内容保持特征值（仅验证不 memset）</td></tr>
+    </table>
+  </div>
+
+  <h3>9.3 影子模型</h3>
+  <p>为避免“自己验证自己”，T-20 用一维 <code>bool bitmap[heap_size/16]</code> 独立记录每个 16 B 单元是否被用户占用：分配时把返回区间逐格置位并检查原值为假；释放时清零。该模型不读取任何块头信息，能独立发现重叠、越界和漏合并导致的“假空闲”。</p>
+
+  <h3>9.4 验证闭环</h3>
+  <div class="grid2">
+    <div class="mini"><b>1 宿主（DEBUG=1）</b><br><code>./test/runtest.sh --module mem</code><br>全部 T-01～T-25 通过，自检路径生效</div>
+    <div class="mini"><b>2 宿主（DEBUG=0）</b><br><code>cmake -DOSZ_CFG_MEM_DEBUG=0 …</code><br>功能类用例结果与 DEBUG=1 一致，自检用例跳过</div>
+    <div class="mini"><b>3 交叉构建</b><br><code>./construct/build_cmake.sh</code><br>两种配置零告警、符号表一致（除自检函数）</div>
+    <div class="mini"><b>4 实机</b><br><code>./construct/build_cmake.sh target_qemu_run</code><br>启动、shell 交互、命令注册正常</div>
+  </div>
+
+  <h3>9.5 实现落地实测（2026-11-23）</h3>
+  <div class="tbl-wrap">
+    <table>
+      <tr><th>项</th><th>结果</th><th>说明</th></tr>
+      <tr><td>宿主用例（<code>OSZ_CFG_MEM_DEBUG</code> 未定义）</td><td><b>23/23 通过</b></td><td><code>test_mem</code>，覆盖 T-01～T-22、T-25 与影子模型</td></tr>
+      <tr><td>宿主用例（<code>OSZ_CFG_MEM_DEBUG=1</code>）</td><td><b>23/23 通过</b></td><td><code>test_mem_debug</code>，自检全开；两次运行外部行为一致</td></tr>
+      <tr><td><code>kernel/base/mem/src/mem.c</code> 语法检查</td><td>通过（仅既有 <code>string.h</code> 重声明告警）</td><td>未纳入宿主用例（依赖 <code>platform.h</code> 与关中断）</td></tr>
+      <tr><td>交叉构建 + QEMU</td><td><b>未执行</b></td><td>本机 <code>tools/toolchain</code> 指向的工具链目录不存在，需在具备 riscv32 工具链的机器上补跑</td></tr>
+    </table>
+  </div>
+  <div class="callout warn"><b>实测暴露并已修正的两个实现缺陷：</b>① 最小切分判据把 rem 的 16 B 块头算进了余量，会切出 16 B 空闲块 → 改为按「数据区余量 ≥ <code>MEM_MIN_SPLIT</code>」判断；② 小于 <code>MEM_MIN_SPLIT</code> 的申请释放后会产生 16 B 空闲块，破坏 I2 → 申请量统一上取到最小分配块 32 B（与 10.1 的最小可分配块口径一致）。</div>
+</section>
+
+<!-- ================= 10 ================= -->
+<section id="s10">
+  <h2><span class="no">10</span>性能与资源</h2>
+
+  <h3>10.1 复杂度</h3>
+  <div class="tbl-wrap">
+    <table>
+      <tr><th>操作</th><th>现状</th><th>设计后</th><th>说明</th></tr>
+      <tr><td>malloc</td><td>O(N)，N = 全部块（含占用）</td><td>O(F)，F = 空闲块</td><td>只遍历空闲链；另有 1 次 O(1) 后邻探测</td></tr>
+      <tr><td>free</td><td>O(1)</td><td>O(1) 探测 + O(F) 入链</td><td>合并本身常数</td></tr>
+      <tr><td>单块空间开销</td><td>16 B</td><td>16 B</td><td>无变化</td></tr>
+      <tr><td>堆固定开销</td><td>24 B（池+头）</td><td>32 B</td><td>+8 B，仅一次</td></tr>
+      <tr><td>最小可分配块</td><td>16 B（可产生 0 尺寸块）</td><td>32 B（16 头 + 16 数据）</td><td>消除退化块</td></tr>
+    </table>
+  </div>
+
+  <h3>10.2 实测口径</h3>
+  <ul>
+    <li>以 <code>rdcycle</code> 计数：在 DTCM 堆上执行 1000 次 0x40 字节申请+释放，记录 malloc/free 的 cycle 上界。</li>
+    <li>碎片率：连续执行 Shell 历史命令模拟（长度 8/16/32/64 循环，容量 16 条），统计“申请失败次数”与“最大可分配块”。</li>
+    <li>基线对比：同一脚本在 main（无合并）与 feature 分支各跑一次，作为交付证据附在 MR 描述中。</li>
+  </ul>
+
+  <h3>10.3 预期收益</h3>
+  <div class="callout info"><b>典型收益：</b>Shell 环形历史（16 条）持续输入不同长度命令时，无合并版本会留下大量 16～80 B 的不可复用碎片；合并版本在覆盖淘汰旧命令后可立即回收相邻空间，最大可分配块基本维持在“堆大小 − 活跃占用”，而不是随运行时间单调下降。</div>
+</section>
+
+<!-- ================= 11 ================= -->
+<section id="s11">
+  <h2><span class="no">11</span>风险与待确认项</h2>
+  <div class="tbl-wrap">
+    <table>
+      <tr><th>编号</th><th>类型</th><th>内容</th><th>应对</th></tr>
+      <tr><td>R-01</td><td>设计待定</td><td><code>MEM_HEAD_INFO</code> 去掉 <code>end_node</code> 字段（本文默认方案），是否接受该取舍</td><td>已确认接受：描述符 16 B；末节点由 <code>g_heap_end − 16</code> 推算</td></tr>
+      <tr><td>R-02</td><td>行为变化</td><td>切分方向由“高端”改“低端”，所有块地址序列改变</td><td>已确认接受；验收为 QEMU 全量回归 + shell 长时交互，无调用点依赖地址</td></tr>
+      <tr><td>R-03</td><td>并发</td><td>若未来中断上下文调用 malloc，关中断临界区会拉长中断延迟</td><td>设计上禁止；需要时新增独立中断安全池</td></tr>
+      <tr><td>R-04</td><td>调试开销</td><td><code>MEM_FEATURE_DEBUG</code> 打开后每次操作追加 O(F) 全链自检</td><td>已确认：默认关闭；打开仅用于单测与现场定位，不影响功能路径</td></tr>
+      <tr><td>R-05</td><td>兼容</td><td>32 位 <code>size</code> 上限 2 GB，当前堆 64 MB，安全</td><td>无需处理；若未来扩堆需评估 64 位 size</td></tr>
+      <tr><td>R-06</td><td>配套</td><td><code>task.c</code> 中 <code>task_context_t</code> 大小 132 B，栈顶减 132 后 sp 仅 4 B 对齐</td><td>独立的栈对齐问题，不在本设计范围；建议单列需求</td></tr>
+      <tr><td>R-07</td><td>需求边界</td><td>是否需要“释放时立即清零数据区”</td><td><strong>已确认不清零</strong>：性能优先，释放只改块头；如需安全擦除另加显式接口 <code>osz_free_s</code>，不复用配置开关</td></tr>
+      <tr><td>R-08</td><td>构建一致性</td><td>宿主 <code>test/include/menuconfig.h</code> 是空桩，新增配置宏后宿主与目标机取值可能不一致</td><td>测试通过 <code>-DOSZ_CFG_MEM_DEBUG=1/0</code> 显式注入；派生头三分支兜底；双配置回归覆盖</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- ================= 12 ================= -->
+<section id="s12">
+  <h2><span class="no">12</span>实施清单</h2>
+  <p>评审通过后按项目规范执行：<code>git fetch origin</code> → 从最新 <code>origin/main</code> 切 <code>feature/mem-coalesce</code> → 开发 → 回合 <code>main</code> → SSH 推送。</p>
+  <div class="tbl-wrap">
+    <table>
+      <tr><th>顺序</th><th>文件</th><th>动作</th><th>完成判据</th></tr>
+      <tr><td>1</td><td><code>kernel/base/mem/bestfit/include/mem_feature.h</code></td><td>新增：配置宏 → 功能宏唯一派生口，含取值封闭断言</td><td>以非法值构建必须 <code>#error</code></td></tr>
+      <tr><td>2</td><td><code>kernel/base/mem/bestfit/include/bestfit.h</code></td><td>重写块头、常量、错误码、内部原型；<strong>不引用</strong> <code>OSZ_CFG_*</code></td><td>结构体 sizeof 静态断言 == 16</td></tr>
+      <tr><td>3</td><td><code>kernel/base/mem/bestfit/src/bestfit.c</code></td><td>重写 init / best-fit / split / rem 归并 / free 合并 / 链表</td><td>无未使用字段、无 0 尺寸块</td></tr>
+      <tr><td>4</td><td><code>kernel/base/mem/include/mem.h</code>、<code>src/mem.c</code></td><td>门面加校验、锁、NULL 处理；基础校验不设宏开关</td><td>malloc 失败不再解引用 NULL</td></tr>
+      <tr><td>5</td><td><code>kernel/Kconfig</code></td><td>新增 1 个配置项；<code>MEM_DEBUG</code> 依赖 <code>MEM</code></td><td><code>menuconfig</code> 可见、依赖关系正确</td></tr>
+      <tr><td>6</td><td><code>test/include/menuconfig.h</code> + 测试 CMake 参数</td><td>明确 Debug 宏注入方式（<code>-DOSZ_CFG_MEM_DEBUG=1/0</code>）</td><td>宿主与目标机取值一致</td></tr>
+      <tr><td>7</td><td><code>test/unit/kernel/base/mem/</code></td><td>新增 CMakeLists + 25 条用例</td><td>两种配置下 <code>runtest.sh</code> 全绿</td></tr>
+      <tr><td>8</td><td><code>doc/kernel_doc/shell/4-*.md</code></td><td>同步一句底层合并能力</td><td>文档与实现一致</td></tr>
+      <tr><td>9</td><td><code>README.md</code></td><td>文档索引补 mem 设计链接</td><td>链接可点开</td></tr>
+      <tr><td>10</td><td>QEMU</td><td><code>target_qemu_run</code> 启动 + shell 交互</td><td>无异常、命令执行正常</td></tr>
+    </table>
+  </div>
+
+  <h3>12.2 评审意见落实记录</h3>
+  <div class="tbl-wrap">
+    <table>
+      <tr><th>编号</th><th>意见</th><th>落实情况</th><th>文档位置</th></tr>
+      <tr><td>RV-001</td><td><code>inner_mem_alloc</code> 切分出的 rem 也要与后面的空闲内存合并（若存在）</td><td>已采纳：切分后增加一次 rem 后邻探测与出链合并，并把“无相邻空闲块”提升为不变量 I7；补充 T-21/T-22 两条用例</td><td>3.2-4、4.3 I7、5.2 流程图与伪码、5.3 说明、9.2 用例</td></tr>
+      <tr><td>RV-002</td><td>不需要在释放后将数据区清零</td><td>已确认：<code>free</code> 只改块头，不写数据区；新增 T-25 验证“不清零”，并在 7/11 关闭该风险</td><td>7 边界表、11 R-07、9.2 T-25</td></tr>
+      <tr><td>RV-003</td><td>区分“配置宏”与“功能宏”，并保证功能宏原子性：开关不得引起编译或接口行为不一致</td><td>已采纳：新增 6.4/6.5/6.6；<code>MEM_FEATURE_*</code> 单一派生口、三分支收敛、<code>#error</code> 兜底；基础校验始终执行，Debug 仅追加自检；删除 <code>OSZ_CFG_MEM_ALIGN</code>；补 A1–A7 与 T-23/T-24</td><td>1.2、6.4、6.5、6.6、7、9.2、9.4、11 R-08</td></tr>
+      <tr><td>RV-004</td><td>宏分层的依据是什么，是否参考 Linux 的做法</td><td>已补充：新增 6.7，给出本项目三条依据（单一来源、取值封闭、ABI 不随配置漂移），并与 Linux / Zephyr / FreeRTOS 的配置头机制逐项对照，说明“抄机制、不抄使用面”的取舍边界</td><td>6.7</td></tr>
+    </table>
+  </div>
+
+  <h3>12.3 评审结论（5 项待确认已全部关闭）</h3>
+  <div class="tbl-wrap">
+    <table>
+      <tr><th>原编号</th><th>待确认项</th><th>评审结论</th></tr>
+      <tr><td>① R-01</td><td><code>MEM_HEAD_INFO</code> 是否去掉 <code>end_node</code></td><td><b>接受默认方案</b>：去掉 <code>end_node</code>，块头保持 16 B，末尾节点由 <code>g_heap_end − 16</code> 推算</td></tr>
+      <tr><td>② R-02</td><td>切分方向由“高端”改“低端”的地址序列变化</td><td><b>接受</b>：低端切分使 rem 位于高地址、可与后邻空闲块直接归并；验收以 QEMU 全量回归 + Shell 长交互为准，不依赖固定地址</td></tr>
+      <tr><td>③ R-03</td><td><code>ARCH_INT_LOCK</code> 在 l1 初始化阶段是否可用</td><td><b>确认</b>：初始化阶段不开临界区（单线程、无并发），运行期调用一律加锁；实施时校验 CSR 使能时机作为前置检查项</td></tr>
+      <tr><td>④ R-04</td><td>Debug 校验失败时：断言停机 vs 仅返回错误码</td><td><b>确认</b>：两种配置均返回错误码；Debug 额外 <code>ASSERT</code> 停机，Release 静默返回，错误码集合一致</td></tr>
+      <tr><td>⑤ —</td><td>双配置是否纳入提交前检查</td><td><b>纳入固定门禁</b>：<code>OSZ_CFG_MEM_DEBUG=0/1</code> 各跑一轮 host 用例并各做一次交叉构建</td></tr>
+    </table>
+  </div>
+  <div class="callout info"><b>剩余工作：</b>本文设计口径已冻结，可直接进入 12.1 实施清单；实施中如需改动上述任一项，需回到本文更新并重新评审。</div>
+</section>
+
+<footer class="doc">
+  OSZ 内核 · kernel/base/mem 详细设计 v1.5 · 基线 ad23ae9 · 2026-11-23<br>
+  本文为设计基线，代码实施前需完成评审；文中行号均对应基线 main 分支。
+</footer>
+
+</div>
+</body>
+</html>
