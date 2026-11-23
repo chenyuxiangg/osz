@@ -4,7 +4,10 @@
 #include "platform.h"
 #include "bestfit.h"
 
-#define MEM_VALID_MAX_SIZE      (DEFAULT_HEAP_SIZE - MEM_POOL_INFO_SIZE - MEM_HEAD_INFO_SIZE)
+/*
+ * 单次申请上限不再用编译期常量：堆区间在 inner_mem_init 时才能确定，
+ * 由 inner_mem_alloc 按实际区间校验（见 bestfit.c inner_max_alloc）。
+ */
 
 VOID osz_memory_init(VOID);
 VOID *osz_malloc(UINT32 size);
