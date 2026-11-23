@@ -129,7 +129,7 @@
   <h1>内存管理模块详细设计</h1>
   <p class="sub">含空闲块自动合并（coalescing）改造方案 · 数据结构、算法、接口、测试与迁移</p>
   <div class="meta-grid">
-    <div><b>文档版本</b>v1.5（实现已落地，待评审）</div>
+    <div><b>文档版本</b>v1.6（span 口径统一，实现已落地）</div>
     <div><b>基线代码</b>main @ ad23ae9</div>
     <div><b>范围</b>kernel/base/mem（mem + bestfit）</div>
     <div><b>日期</b>2026-11-23</div>
@@ -341,7 +341,7 @@ VOID os_mem_set_addr_to_free(VOID *mem_addr)
     <li><strong>物理链与空闲链分离</strong>：物理链通过地址算术遍历；空闲链只挂空闲块，按尺寸升序。</li>
     <li><strong>分配 = best-fit + 低端切分 + rem 归并</strong>：升序链中第一个满足请求的块就是最小满足块；从低地址切出请求量，剩余块在高地址；<strong>切分后若 rem 与后邻空闲，立即出链合并</strong>，避免产生“相邻两块同时空闲”的中间态。</li>
     <li><strong>释放 = 置空闲 + 后向合并 + 前向合并 + 入链</strong>，合并后维护后继块的 <code>prev_size</code>。</li>
-    <li><strong>最小切分阈值</strong>：剩余不足 <code>0x20</code>（块头 16 + 最小数据 16）时不切分，整块交付，从根上消除 0 尺寸块。</li>
+    <li><strong>最小块约束</strong>：块占位统一用 <code>span</code>（块头 + 数据区）表达，最小块 <code>MEM_MIN_BLOCK = 块头 + 一个对齐粒度 = 32 B</code>；切分后剩余 <code>span</code> 不足此值即整块交付，从根上消除“只剩块头”的退化块。</li>
     <li><strong>临界区</strong>：<code>malloc/free</code> 全程 <code>ARCH_INT_LOCK/UNLOCK</code>，与任务模块保持同一把“中断锁”。</li>
     <li><strong>调试自检</strong>：仅由功能宏 <code>MEM_FEATURE_DEBUG</code> 控制；打开只追加 magic、边界一致性、链表有序性等自检，基础校验与功能路径两种配置完全一致。</li>
   </ol>
@@ -392,11 +392,11 @@ VOID os_mem_set_addr_to_free(VOID *mem_addr)
       <rect x="220" y="40" width="36" height="44" fill="#0f6b5c"/>
       <text x="238" y="67" font-size="10.5" fill="#fff" text-anchor="middle">U</text>
       <rect x="256" y="40" width="564" height="44" fill="#e7f2ef"/>
-      <text x="538" y="67" font-size="12" text-anchor="middle" fill="#0d5248">size[30:0]（数据区字节数，16 的整数倍）</text>
-      <text x="416" y="100" font-size="10.5" text-anchor="middle" fill="#5d6a76">offset 8，size_and_used：bit31 = USED，bit30:0 = SIZE</text>
+      <text x="538" y="67" font-size="12" text-anchor="middle" fill="#0d5248">span[30:0]（块占位 = 块头 + 数据区，16 的整数倍）</text>
+      <text x="416" y="100" font-size="10.5" text-anchor="middle" fill="#5d6a76">offset 8，size_and_used：bit31 = USED，bit30:0 = SPAN</text>
 
       <rect x="20" y="120" width="800" height="44" fill="#ffffff" stroke="#b9c7d1"/>
-      <text x="420" y="147" font-size="12" text-anchor="middle">prev_size：bit31:30 = magic 0b10，bit29:0 = 前邻数据区字节数（0 表示本块是首个块）</text>
+      <text x="420" y="147" font-size="12" text-anchor="middle">prev_size：bit31:30 = magic 0b10，bit29:0 = 前邻 span（0 表示本块是首个块）</text>
       <text x="420" y="180" font-size="10.5" text-anchor="middle" fill="#5d6a76">offset 12，复用原 rsv_for_free 字段；magic 位只参与 DEBUG 自检，不改布局</text>
 
       <rect x="20" y="196" width="800" height="26" fill="#fafcfc" stroke="#dfe6ec"/>
@@ -406,6 +406,7 @@ VOID os_mem_set_addr_to_free(VOID *mem_addr)
   </figure>
 
   <h3>4.2 类型定义</h3>
+  <div class="callout info"><b>单位约定（v1.6 起唯一口径）：span</b> — 块头里记录的、链表里比较的、切分/合并里加减的，全部是 <b>span = 块头 + 数据区</b>，即“本块块头到下一块块头”的字节距离。<code>span</code> 与“数据区字节数”之间只差一个 <code>MEM_NODE_INFO_SIZE</code>，而这个减法只允许出现在两处：<code>inner_mem_alloc</code> 把申请字节换算成 span（唯一一次加法），以及只读调试/统计接口。禁止在切分、合并、排序、自检里各自 ± 块头——v1.5 的两个实现缺陷正是这种“两种单位并存”的必然结果（详见 9.5）。</div>
   <pre><code><span class="c">/* bestfit.h —— 改造后 */</span>
 <span class="c">/* rv32 口径：三份描述符均 16 B，first_node = pool + 32，用户指针恒 16 B 对齐。
    宿主单测（64 位指针）分支按 sizeof 取值，算法/不变量不变。 */</span>
@@ -420,38 +421,45 @@ VOID os_mem_set_addr_to_free(VOID *mem_addr)
 <span class="k">#define</span> MEM_HEAD_INFO_SIZE      ((UINT32)<span class="k">sizeof</span>(MEM_HEAD_INFO))
 <span class="k">#define</span> MEM_ALIGN               (8U)    <span class="c">/* 宿主 64 位指针 */</span>
 <span class="k">#endif</span>
-<span class="k">#define</span> MEM_MIN_SPLIT           (0x20U) <span class="c">/* 剩余数据区不足此值则整块交付；同时是最小分配块 */</span>
+<span class="c">/* 最小块 span = 块头 + 一个对齐粒度 = 32 B，由常量派生，不写魔数；
+   v1.5 里那个跨单位的 MEM_MIN_SPLIT(0x20) 已删除。 */</span>
+<span class="k">#define</span> MEM_MIN_BLOCK           (MEM_NODE_INFO_SIZE + MEM_ALIGN)
 
-<span class="k">#define</span> MEM_SIZE_MASK           (0x7FFFFFFFU)
+<span class="k">#define</span> MEM_SPAN_MASK           (0x7FFFFFFFU)
 <span class="k">#define</span> MEM_USED_MASK           (0x80000000U)
-<span class="k">#define</span> MEM_NODE_GET_SIZE(n)    ((n)-&gt;size_and_used &amp; MEM_SIZE_MASK)
-<span class="k">#define</span> MEM_NODE_SET_SIZE(n,s)  ((n)-&gt;size_and_used = (MEM_NODE_GET_USED(n) | ((s) &amp; MEM_SIZE_MASK)))
+<span class="k">#define</span> MEM_INVALID_SPAN        (0x0U)      <span class="c">/* end_node 的 span */</span>
+<span class="k">#define</span> MEM_NODE_GET_SPAN(n)    ((n)-&gt;size_and_used &amp; MEM_SPAN_MASK)
+<span class="k">#define</span> MEM_NODE_SET_SPAN(n,s)  ((n)-&gt;size_and_used = (MEM_NODE_GET_USED(n) | ((s) &amp; MEM_SPAN_MASK)))
 <span class="k">#define</span> MEM_NODE_GET_USED(n)    ((n)-&gt;size_and_used &amp; MEM_USED_MASK)
 <span class="k">#define</span> MEM_NODE_SET_USED(n)    ((n)-&gt;size_and_used |= MEM_USED_MASK)
 <span class="k">#define</span> MEM_NODE_CLR_USED(n)    ((n)-&gt;size_and_used &amp;= (~MEM_USED_MASK))
 <span class="k">#define</span> MEM_PREV_MAGIC_MASK     (0xC0000000U)
 <span class="k">#define</span> MEM_PREV_MAGIC          (0x80000000U)
-<span class="k">#define</span> MEM_PREV_SIZE_MASK      (0x3FFFFFFFU)
-<span class="k">#define</span> MEM_NODE_GET_PREV(n)    ((n)-&gt;prev_size &amp; MEM_PREV_SIZE_MASK)
-<span class="k">#define</span> MEM_NODE_SET_PREV(n,s)  ((n)-&gt;prev_size = (MEM_PREV_MAGIC | ((s) &amp; MEM_PREV_SIZE_MASK)))
+<span class="k">#define</span> MEM_PREV_SPAN_MASK      (0x3FFFFFFFU)
+<span class="k">#define</span> MEM_NODE_GET_PREV_SPAN(n)   ((n)-&gt;prev_size &amp; MEM_PREV_SPAN_MASK)
+<span class="k">#define</span> MEM_NODE_SET_PREV_SPAN(n,s) ((n)-&gt;prev_size = (MEM_PREV_MAGIC | ((s) &amp; MEM_PREV_SPAN_MASK)))
 <span class="k">#define</span> MEM_NODE_GET_DATA(n)    ((UINTPTR)((UINT8 *)(n) + MEM_NODE_INFO_SIZE))
-<span class="k">#define</span> MEM_NODE_NEXT(n)        ((MEM_NODE_INFO *)((UINT8 *)(n) + MEM_NODE_INFO_SIZE + MEM_NODE_GET_SIZE(n)))
-<span class="k">#define</span> MEM_NODE_PREV(n)        ((MEM_NODE_INFO *)((UINT8 *)(n) - MEM_NODE_INFO_SIZE - MEM_NODE_GET_PREV(n)))
+<span class="k">#define</span> MEM_NODE_DATA_SPAN(n)   (MEM_NODE_GET_SPAN(n) - MEM_NODE_INFO_SIZE)   <span class="c">/* 仅统计/展示 */</span>
+<span class="c">/* 物理相邻都在 span 上算，不再 ± 块头 */</span>
+<span class="k">#define</span> MEM_NODE_NEXT(n)        ((MEM_NODE_INFO *)((UINT8 *)(n) + MEM_NODE_GET_SPAN(n)))
+<span class="k">#define</span> MEM_NODE_PREV(n)        ((MEM_NODE_INFO *)((UINT8 *)(n) - MEM_NODE_GET_PREV_SPAN(n)))
 
 <span class="k">typedef struct</span> {
     DLINK_NODE node_list;      <span class="c">/* 8 B：空闲链表挂钩，占用块内容无效 */</span>
-    UINT32     size_and_used;  <span class="c">/* 4 B：size[30:0] | used[31] */</span>
-    UINT32     prev_size;      <span class="c">/* 4 B：前邻数据区大小，0 = 无前邻 */</span>
+    UINT32     size_and_used;  <span class="c">/* 4 B：span[30:0] | used[31] */</span>
+    UINT32     prev_size;      <span class="c">/* 4 B：前邻 span（含其块头），0 = 无前邻 */</span>
 } MEM_NODE_INFO;               <span class="c">/* sizeof == 16 on rv32 */</span>
 
 <span class="k">typedef struct</span> {
-    DLINK_NODE     free_list;  <span class="c">/* 独立哨兵：只挂空闲块，size 升序 */</span>
+    DLINK_NODE     free_list;  <span class="c">/* 独立哨兵：只挂空闲块，span 升序 */</span>
     MEM_NODE_INFO *first_node;
 } MEM_HEAD_INFO;               <span class="c">/* sizeof == 12 ≤ MEM_HEAD_INFO_SIZE(16)，补齐到 16 对齐 */</span>
 
 <span class="c">/* 终止节点不入结构体，由堆尾地址推算，避免描述符超长 */</span>
 <span class="k">#define</span> MEM_END_NODE(pool_end)  ((MEM_NODE_INFO *)((UINT8 *)(pool_end) - MEM_NODE_INFO_SIZE))
-<span class="k">#define</span> MEM_MAX_ALLOC          ((UINT32)DEFAULT_HEAP_SIZE - MEM_POOL_INFO_SIZE - MEM_HEAD_INFO_SIZE)</code></pre>
+<span class="c">/* 单块可给的最大数据区：整堆 − 池/头描述符 − 两块块头，只由几何决定 */</span>
+<span class="k">#define</span> MEM_MAX_ALLOC          ((UINT32)((UINT8 *)DEFAULT_HEAP_END - (UINT8 *)DEFAULT_HEAP_START) \
+                                 - MEM_POOL_INFO_SIZE - MEM_HEAD_INFO_SIZE - 2 * MEM_NODE_INFO_SIZE)</code></pre>
   <div class="callout warn"><b>对齐处理（已定）：</b>采用方案①——<code>MEM_HEAD_INFO</code> 不再保存 <code>end_node</code> 指针，终止节点由 <code>g_heap_end − 16</code> 计算；<code>MEM_POOL_INFO</code> 与 <code>MEM_HEAD_INFO</code> 的分配尺寸常量均取 16，使 <code>first_node</code> 落在 <code>pool + 32</code>，恒 16 B 对齐。该取舍将在评审中确认，若不接受则退化为“常量 32 + 补齐”。</div>
 
   <h3>4.3 不变量</h3>
@@ -459,11 +467,11 @@ VOID os_mem_set_addr_to_free(VOID *mem_addr)
     <table>
       <tr><th>编号</th><th>不变量</th><th>检查时机</th><th>违反后果</th></tr>
       <tr><td>I1</td><td><code>first_node</code> 至 <code>end_node</code> 由 <code>MEM_NODE_NEXT</code> 串联，首尾相接、无重叠、覆盖整个数据区</td><td>init、每次切分/合并</td><td>堆重叠或越界</td></tr>
-      <tr><td>I2</td><td>块 <code>size</code> 为 16 的整数倍；空闲块 <code>size ≥ 0x20</code>；<code>end_node</code> 除外（size=0）</td><td>切分、合并</td><td>用户指针失对齐、产生 0 尺寸块</td></tr>
-      <tr><td>I3</td><td><code>prev_size == 0</code> 当且仅当该块是 <code>first_node</code></td><td>free 前向探测</td><td>向前合并越界到池描述符</td></tr>
-      <tr><td>I4</td><td><code>MEM_NODE_NEXT(n)-&gt;prev_size == MEM_NODE_GET_SIZE(n)</code></td><td>任何 size 变更后</td><td>后继前向合并定位错误</td></tr>
-      <tr><td>I5</td><td>空闲链表只含 <code>used==0</code> 的块，且 <code>size</code> 严格升序</td><td>每次入链、Debug 全遍历</td><td>best-fit 退化、重复入链</td></tr>
-      <tr><td>I6</td><td><code>end_node</code> 恒为 USED、size=0、永不出现在空闲链表</td><td>init、每次操作</td><td>合并越过堆尾</td></tr>
+      <tr><td>I2</td><td>块 <code>span</code> 为 <code>MEM_ALIGN</code> 的整数倍；除 <code>end_node</code> 外，<b>占用块与空闲块的 <code>span</code> 都 ≥ <code>MEM_MIN_BLOCK</code></b>（= 块头 + 一个对齐粒度）</td><td>切分、合并、分配、Debug 全遍历</td><td>用户指针失对齐；出现“只剩块头”的退化块</td></tr>
+      <tr><td>I3</td><td>前邻 span 为 0 当且仅当该块是 <code>first_node</code></td><td>free 前向探测</td><td>向前合并越界到池描述符</td></tr>
+      <tr><td>I4</td><td><code>MEM_NODE_NEXT(n)</code> 的前邻 span == <code>MEM_NODE_GET_SPAN(n)</code></td><td>任何 span 变更后</td><td>后继前向合并定位错误</td></tr>
+      <tr><td>I5</td><td>空闲链表只含 <code>used==0</code> 的块，且 <code>span</code> 升序</td><td>每次入链、Debug 全遍历</td><td>best-fit 退化、重复入链</td></tr>
+      <tr><td>I6</td><td><code>end_node</code> 恒为 USED、<code>span=0</code>、永不出现在空闲链表</td><td>init、每次操作</td><td>合并越过堆尾</td></tr>
       <tr><td>I7</td><td>任意两个物理相邻的块不能同时为空闲（由 <code>free</code> 双向合并与 <code>split</code> 后的 rem 归并共同保证）</td><td>每次切分/释放后（Debug 全遍历）</td><td>碎片化、后续合并链断裂</td></tr>
     </table>
   </div>
@@ -480,17 +488,18 @@ VOID os_mem_set_addr_to_free(VOID *mem_addr)
     MEM_HEAD_INFO *head = (MEM_HEAD_INFO *)((UINT8 *)pool + MEM_POOL_INFO_SIZE);
     dlink_init(&amp;head-&gt;free_list);
     head-&gt;first_node = (MEM_NODE_INFO *)((UINT8 *)head + MEM_HEAD_INFO_SIZE);
+    MEM_NODE_INFO *end = (MEM_NODE_INFO *)((UINT8 *)pool + pool_size - MEM_NODE_INFO_SIZE);
 
-    UINT32 data_size = pool_size - MEM_POOL_INFO_SIZE - MEM_HEAD_INFO_SIZE - 2 * MEM_NODE_INFO_SIZE;
-    data_size = ALIGN_DOWN(data_size, MEM_ALIGN);         <span class="c">/* 数据区必须 16 的倍数 */</span>
+    <span class="c">/* 首块 span 由两端地址直接算出：已含自己的块头，不再另行加/减 */</span>
+    UINT32 first_span = (UINT32)((UINT8 *)end - (UINT8 *)head-&gt;first_node);
+    first_span &amp;= ~(MEM_ALIGN - 1U);                      <span class="c">/* 必须落在对齐网格上 */</span>
 
-    head-&gt;first_node-&gt;size_and_used = data_size;          <span class="c">/* used=0 */</span>
-    head-&gt;first_node-&gt;prev_size    = 0;
+    head-&gt;first_node-&gt;size_and_used = first_span;         <span class="c">/* used=0 */</span>
+    MEM_NODE_SET_PREV_SPAN(head-&gt;first_node, 0);
     inner_free_list_insert(head-&gt;first_node);
 
-    MEM_NODE_INFO *end = (MEM_NODE_INFO *)((UINT8 *)head-&gt;first_node + MEM_NODE_INFO_SIZE + data_size);
-    end-&gt;size_and_used = MEM_USED_MASK;                   <span class="c">/* size=0, used=1 */</span>
-    end-&gt;prev_size = data_size;
+    end-&gt;size_and_used = MEM_USED_MASK;                   <span class="c">/* span=0, used=1 */</span>
+    MEM_NODE_SET_PREV_SPAN(end, first_span);
 }</code></pre>
   <p>对外入口保持 <code>osz_memory_init()</code>，内部转调 <code>inner_mem_init(DEFAULT_HEAP_START, (UINT32)DEFAULT_HEAP_SIZE)</code>。<code>inner_mem_init</code> 带显式尺寸，是宿主单测可注入“假堆”的关键。</p>
 
@@ -506,35 +515,35 @@ VOID os_mem_set_addr_to_free(VOID *mem_addr)
       <text x="605" y="105" font-size="11.5" text-anchor="middle" fill="#7c2222">return MEM_SIZE_INVALID</text>
 
       <rect x="140" y="150" width="280" height="44" rx="8" fill="#fff" stroke="#b9c7d1"/>
-      <text x="280" y="177" font-size="12" text-anchor="middle">need = ALIGN_UP(size, 16)</text>
+      <text x="280" y="177" font-size="12" text-anchor="middle">need_span = 16 + ALIGN_UP(size, 16)</text>
 
       <rect x="140" y="222" width="280" height="56" rx="8" fill="#fff" stroke="#b9c7d1"/>
       <text x="280" y="245" font-size="12" text-anchor="middle">ARCH_INT_LOCK</text>
       <text x="280" y="264" font-size="11.5" text-anchor="middle" fill="#5d6a76">沿 free_list 升序遍历空闲块</text>
 
       <polygon points="280,300 400,328 280,356 160,328" fill="#fff8ea" stroke="#a8620a"/>
-      <text x="280" y="332" font-size="11.5" text-anchor="middle">blk.size ≥ need？</text>
+      <text x="280" y="332" font-size="11.5" text-anchor="middle">blk.span ≥ need_span？</text>
       <rect x="470" y="306" width="270" height="44" rx="6" fill="#fbebeb" stroke="#9d2f2f"/>
       <text x="605" y="333" font-size="11.5" text-anchor="middle" fill="#7c2222">解锁；return MEM_NO_FREE_BLK</text>
 
       <polygon points="280,388 400,416 280,444 160,416" fill="#fff8ea" stroke="#a8620a"/>
-      <text x="280" y="420" font-size="11.5" text-anchor="middle">blk.size − need &lt; 0x20？</text>
+      <text x="280" y="420" font-size="11.5" text-anchor="middle">blk.span − need_span &lt; MIN_BLOCK？</text>
       <rect x="470" y="394" width="270" height="44" rx="6" fill="#fdf3e3" stroke="#a8620a"/>
       <text x="605" y="421" font-size="11" text-anchor="middle" fill="#68400a">整块分配：不切分、直接置 used</text>
 
       <rect x="140" y="474" width="280" height="56" rx="8" fill="#fff" stroke="#b9c7d1"/>
       <text x="280" y="497" font-size="12" text-anchor="middle">低端切出 need，剩余为 rem</text>
-      <text x="280" y="516" font-size="11.5" text-anchor="middle" fill="#5d6a76">rem = blk + 16 + need；rem.size = 剩余</text>
+      <text x="280" y="516" font-size="11.5" text-anchor="middle" fill="#5d6a76">rem = blk + need_span；rem.span = 剩余</text>
 
       <polygon points="280,552 400,580 280,608 160,580" fill="#fff8ea" stroke="#a8620a"/>
       <text x="280" y="584" font-size="11.5" text-anchor="middle">rem 的后继空闲？</text>
       <rect x="470" y="558" width="270" height="44" rx="6" fill="#fdf3e3" stroke="#a8620a"/>
-      <text x="605" y="575" font-size="10.5" text-anchor="middle" fill="#68400a">出链 next；rem.size += 16 + next.size</text>
+      <text x="605" y="575" font-size="10.5" text-anchor="middle" fill="#68400a">出链 next；rem.span += next.span</text>
       <text x="605" y="591" font-size="10.5" text-anchor="middle" fill="#68400a">（防御性分支，正常不变量下不可达）</text>
 
       <rect x="140" y="640" width="280" height="56" rx="8" fill="#fff" stroke="#b9c7d1"/>
-      <text x="280" y="663" font-size="12" text-anchor="middle">维护边界：rem.prev_size = need</text>
-      <text x="280" y="682" font-size="11.5" text-anchor="middle" fill="#5d6a76">新后继.prev_size = rem.size；rem 入空闲链</text>
+      <text x="280" y="663" font-size="12" text-anchor="middle">维护边界：rem.prev_span = need_span</text>
+      <text x="280" y="682" font-size="11.5" text-anchor="middle" fill="#5d6a76">新后继.prev_span = rem.span；rem 入空闲链</text>
 
       <rect x="140" y="722" width="280" height="44" rx="8" fill="#e7f2ef" stroke="#0f6b5c"/>
       <text x="280" y="749" font-size="12" text-anchor="middle">out = 块地址 + 16；ARCH_INT_UNLOCK</text>
@@ -566,48 +575,52 @@ VOID os_mem_set_addr_to_free(VOID *mem_addr)
   <h4>伪代码</h4>
   <pre><code>UINT32 inner_mem_alloc(UINT32 size, VOID **out)
 {
-    <span class="k">if</span> (out == NULL)                       <span class="k">return</span> MEM_IS_NULL_ERR;
+    <span class="k">if</span> (out == NULL)                        <span class="k">return</span> MEM_IS_NULL_ERR;
     *out = NULL;
-    <span class="k">if</span> (size == 0 || size &gt; MEM_MAX_ALLOC)  <span class="k">return</span> MEM_SIZE_INVALID_ERR;
-    <span class="k">if</span> (g_mempool == NULL)                  <span class="k">return</span> MEM_POOL_NOT_INIT_ERR;
+    <span class="k">if</span> (size == 0)                          <span class="k">return</span> MEM_SIZE_INVALID_ERR;
+    <span class="k">if</span> (g_mempool == NULL)                   <span class="k">return</span> MEM_POOL_NOT_INIT_ERR;
+    <span class="k">if</span> (size &gt; inner_max_alloc())            <span class="k">return</span> MEM_SIZE_INVALID_ERR;
 
-    UINT32 need = ALIGN_UP(size, MEM_ALIGN);
-    <span class="k">if</span> (need &lt; MEM_MIN_SPLIT)   need = MEM_MIN_SPLIT;   <span class="c">/* 最小分配块 32 B */</span>
+    <span class="c">/* 申请字节 -&gt; 块占位：全模块唯一的换算点，块头必须计入且只计一次。
+       对齐后的数据区至少一个对齐粒度，故 need_span 天然 ≥ MEM_MIN_BLOCK，
+       不需要对 need 再做下限修正。 */</span>
+    UINT32 need_span = MEM_NODE_INFO_SIZE + ALIGN_UP(size, MEM_ALIGN);
+
     UINT32 int_save;
     ARCH_INT_LOCK(int_save);                <span class="c">/* 临界区开始 */</span>
 
-    MEM_NODE_INFO *blk = inner_best_fit(need);          <span class="c">/* 升序链首个 size≥need */</span>
+    MEM_NODE_INFO *blk = inner_best_fit(need_span);      <span class="c">/* 升序链首个 span ≥ need_span */</span>
     <span class="k">if</span> (blk == NULL) {
         ARCH_INT_UNLOCK(int_save);
         <span class="k">return</span> MEM_NO_FREE_BLK_ERR;
     }
 
-    <span class="c">/* size - need 里还含 rem 的 16 B 块头，阈值要比 MIN_SPLIT 多一个块头 */</span>
-    <span class="k">if</span> ((MEM_NODE_GET_SIZE(blk) - need) &lt; (MEM_MIN_SPLIT + MEM_NODE_INFO_SIZE)) {
+    <span class="c">/* 切分后 rem 自身也必须是一整块，故判据直接比较 span 差 */</span>
+    <span class="k">if</span> ((MEM_NODE_GET_SPAN(blk) - need_span) &lt; MEM_MIN_BLOCK) {
         inner_free_list_remove(blk);                    <span class="c">/* 整块交付 */</span>
         MEM_NODE_SET_USED(blk);
     <span class="k">else</span> {
-        MEM_NODE_INFO *rem = (MEM_NODE_INFO *)((UINT8 *)blk + MEM_NODE_INFO_SIZE + need);
-        MEM_NODE_SET_SIZE(rem, MEM_NODE_GET_SIZE(blk) - MEM_NODE_INFO_SIZE - need);
-        rem-&gt;prev_size = need;
-        MEM_NODE_CLR_USED(rem);
+        MEM_NODE_INFO *rem = (MEM_NODE_INFO *)((UINT8 *)blk + need_span);
+        rem-&gt;size_and_used = MEM_NODE_GET_SPAN(blk) - need_span;  <span class="c">/* 先落定 span，才能算 NEXT */</span>
+        MEM_NODE_SET_PREV_SPAN(rem, need_span);
 
         inner_free_list_remove(blk);
-        MEM_NODE_SET_SIZE(blk, need);
+        MEM_NODE_SET_SPAN(blk, need_span);
         MEM_NODE_SET_USED(blk);
 
-        <span class="c">/* 防御性合并：rem 的后邻若空闲，必须先归一再入链，</span>
-<span class="c">           否则会留下“相邻两块同时空闲”的中间态，破坏 I7。 */</span>
+        <span class="c">/* 防御性合并：rem 的后邻若空闲，必须先归一再入链，
+           否则会留下“相邻两块同时空闲”的中间态，破坏 I7。 */</span>
         MEM_NODE_INFO *next = MEM_NODE_NEXT(rem);
         <span class="k">if</span> (next != inner_end_node() &amp;&amp; MEM_NODE_GET_USED(next) == 0) {
             inner_free_list_remove(next);
-            MEM_NODE_SET_SIZE(rem, MEM_NODE_GET_SIZE(rem) + MEM_NODE_INFO_SIZE + MEM_NODE_GET_SIZE(next));
+            MEM_NODE_SET_SPAN(rem, MEM_NODE_GET_SPAN(rem) + MEM_NODE_GET_SPAN(next));
         }
-        MEM_NODE_NEXT(rem)-&gt;prev_size = MEM_NODE_GET_SIZE(rem);   <span class="c">/* I4 */</span>
-        inner_free_list_insert(rem);                              <span class="c">/* size 升序入链 */</span>
+        MEM_NODE_SET_PREV_SPAN(MEM_NODE_NEXT(rem), MEM_NODE_GET_SPAN(rem));  <span class="c">/* I4 */</span>
+        inner_free_list_insert(rem);                                        <span class="c">/* span 升序入链 */</span>
     }
 
     *out = (VOID *)MEM_NODE_GET_DATA(blk);
+    inner_self_check();                     <span class="c">/* 仅 DEBUG 编译 */</span>
     ARCH_INT_UNLOCK(int_save);              <span class="c">/* 临界区结束 */</span>
     <span class="k">return</span> OS_OK;
 }</code></pre>
@@ -636,7 +649,7 @@ VOID os_mem_set_addr_to_free(VOID *mem_addr)
       <text x="74" y="195" font-size="10.5" text-anchor="middle">A</text>
       <rect x="104" y="166" width="180" height="48" fill="#e7f2ef" stroke="#0f6b5c"/>
       <text x="194" y="195" font-size="11" text-anchor="middle">B+C 合并块</text>
-      <text x="36" y="248" font-size="11" fill="#5d6a76">探测：next = B + 16 + sB，读 next.used == 0</text>
+      <text x="36" y="248" font-size="11" fill="#5d6a76">探测：next = B + span(B)，读 next.used == 0</text>
 
       <!-- 场景2 -->
       <rect x="460" y="44" width="420" height="230" rx="10" fill="#fbfcfd" stroke="#dfe6ec"/>
@@ -652,7 +665,7 @@ VOID os_mem_set_addr_to_free(VOID *mem_addr)
       <text x="574" y="195" font-size="11" text-anchor="middle">A+B 合并块</text>
       <rect x="664" y="166" width="60" height="48" fill="#dfe9ec" stroke="#8796a1"/>
       <text x="694" y="195" font-size="10.5" text-anchor="middle">C</text>
-      <text x="476" y="248" font-size="10.5" fill="#5d6a76">探测 prev.used；以 A 为首，size = sA + 16 + sB，A 需先出链</text>
+      <text x="476" y="248" font-size="10.5" fill="#5d6a76">探测 prev.used；以 A 为首，span = spanA + spanB，A 需先出链</text>
 
       <!-- 场景3 -->
       <rect x="20" y="292" width="420" height="240" rx="10" fill="#fbfcfd" stroke="#dfe6ec"/>
@@ -709,21 +722,21 @@ VOID os_mem_set_addr_to_free(VOID *mem_addr)
     MEM_NODE_INFO *next = MEM_NODE_NEXT(node);
     <span class="k">if</span> (next != inner_end_node() &amp;&amp; MEM_NODE_GET_USED(next) == 0) {
         inner_free_list_remove(next);
-        MEM_NODE_SET_SIZE(node, MEM_NODE_GET_SIZE(node) + MEM_NODE_INFO_SIZE + MEM_NODE_GET_SIZE(next));
+        MEM_NODE_SET_SPAN(node, MEM_NODE_GET_SPAN(node) + MEM_NODE_GET_SPAN(next));   <span class="c">/* span 相加，块头已含在内 */</span>
     }
 
     <span class="c">/* ② 前向合并 */</span>
-    <span class="k">if</span> (node-&gt;prev_size != 0) {
+    <span class="k">if</span> (MEM_NODE_GET_PREV_SPAN(node) != 0) {
         MEM_NODE_INFO *prev = MEM_NODE_PREV(node);
         <span class="k">if</span> (MEM_NODE_GET_USED(prev) == 0) {
             inner_free_list_remove(prev);
-            MEM_NODE_SET_SIZE(prev, MEM_NODE_GET_SIZE(prev) + MEM_NODE_INFO_SIZE + MEM_NODE_GET_SIZE(node));
+            MEM_NODE_SET_SPAN(prev, MEM_NODE_GET_SPAN(prev) + MEM_NODE_GET_SPAN(node));
             node = prev;                            <span class="c">/* 合并块以 prev 为首 */</span>
         }
     }
 
     <span class="c">/* ③ 维护后继边界并统一入链 */</span>
-    MEM_NODE_NEXT(node)-&gt;prev_size = MEM_NODE_GET_SIZE(node);
+    MEM_NODE_SET_PREV_SPAN(MEM_NODE_NEXT(node), MEM_NODE_GET_SPAN(node));
     inner_free_list_insert(node);                  <span class="c">/* size 升序 */</span>
 
     ARCH_INT_UNLOCK(int_save);
@@ -731,24 +744,24 @@ VOID os_mem_set_addr_to_free(VOID *mem_addr)
 }</code></pre>
 
   <h3>5.4 空闲链表维护</h3>
-  <p>链表以 <code>head-&gt;free_list</code> 为哨兵，按 <code>size</code> 严格升序。插入与删除都是 O(n)/O(1)：</p>
+  <p>链表以 <code>head-&gt;free_list</code> 为哨兵，按 <code>span</code> 升序（同 span 允许并列）。插入与删除都是 O(n)/O(1)：</p>
   <pre><code>STATIC VOID inner_free_list_insert(MEM_NODE_INFO *node)
 {
     DLINK_NODE *pos = g_mempool-&gt;head-&gt;free_list.next;
     <span class="k">while</span> (pos != &amp;g_mempool-&gt;head-&gt;free_list) {
         MEM_NODE_INFO *cur = STRUCT_ENTRY(MEM_NODE_INFO, node_list, pos);
-        <span class="k">if</span> (MEM_NODE_GET_SIZE(cur) &gt; MEM_NODE_GET_SIZE(node)) <span class="k">break</span>;
+        <span class="k">if</span> (MEM_NODE_GET_SPAN(cur) &gt; MEM_NODE_GET_SPAN(node)) <span class="k">break</span>;
         pos = pos-&gt;next;
     }
     dlink_insert_head(pos, &amp;node-&gt;node_list);      <span class="c">/* 插到首个更大块之前 */</span>
 }
 
-STATIC MEM_NODE_INFO *inner_best_fit(UINT32 need)
+STATIC MEM_NODE_INFO *inner_best_fit(UINT32 need_span)
 {
     DLINK_NODE *pos;
     DLINK_FOREACH(pos, &amp;g_mempool-&gt;head-&gt;free_list) {
         MEM_NODE_INFO *cur = STRUCT_ENTRY(MEM_NODE_INFO, node_list, pos);
-        <span class="k">if</span> (MEM_NODE_GET_SIZE(cur) &gt;= need) <span class="k">return</span> cur;   <span class="c">/* 升序 ⇒ 首个即最优 */</span>
+        <span class="k">if</span> (MEM_NODE_GET_SPAN(cur) &gt;= need_span) <span class="k">return</span> cur;   <span class="c">/* 升序 ⇒ 首个即最优 */</span>
     }
     <span class="k">return</span> NULL;
 }</code></pre>
@@ -818,7 +831,7 @@ STATIC MEM_NODE_INFO *inner_best_fit(UINT32 need)
       <tr><th>层级</th><th>命名</th><th>来源</th><th>允许出现的位置</th><th>取值形态</th><th>判断方式</th></tr>
       <tr><td>配置宏</td><td><code>OSZ_CFG_MEM_*</code></td><td>Kconfig → <code>menuconfig.h</code></td><td><strong>仅</strong> <code>mem_feature.h</code></td><td>开=<code>1</code>；关=<strong>未定义</strong></td><td>仅 <code>#if defined(...)</code> 派生，不直接用</td></tr>
       <tr><td>功能宏</td><td><code>MEM_FEATURE_*</code></td><td><code>mem_feature.h</code> 派生</td><td>模块内所有 .c/.h</td><td>恒为 <code>0</code> 或 <code>1</code>，<strong>永远有定义</strong></td><td><code>#if MEM_FEATURE_X</code>，禁止 <code>#ifdef</code></td></tr>
-      <tr><td>参数常量</td><td><code>MEM_ALIGN</code>、<code>MEM_MIN_SPLIT</code></td><td>派生头 / bestfit.h</td><td>模块内</td><td>编译期常量</td><td>不参与条件编译</td></tr>
+      <tr><td>参数常量</td><td><code>MEM_ALIGN</code>、<code>MEM_MIN_BLOCK</code></td><td>派生头 / bestfit.h</td><td>模块内</td><td>编译期常量</td><td>不参与条件编译</td></tr>
     </table>
   </div>
 
@@ -840,7 +853,7 @@ STATIC MEM_NODE_INFO *inner_best_fit(UINT32 need)
 
 <span class="c">/* 参数常量：不是开关，只允许编译期常量，避免 ABI 漂移 */</span>
 <span class="k">#define</span> MEM_ALIGN               (16U)
-<span class="k">#define</span> MEM_MIN_SPLIT           (0x20U)
+<span class="k">#define</span> MEM_MIN_BLOCK           (MEM_NODE_INFO_SIZE + MEM_ALIGN)   <span class="c">/* span 口径 */</span>
 
 <span class="c">/* 封闭性自检：功能宏必须恒为 0 或 1 */</span>
 <span class="k">#if</span> (MEM_FEATURE_DEBUG != 0) &amp;&amp; (MEM_FEATURE_DEBUG != 1)
@@ -854,7 +867,7 @@ STATIC MEM_NODE_INFO *inner_best_fit(UINT32 need)
       <tr><td><code>OSZ_CFG_MEM</code><br><span class="em">Kconfig</span></td><td><code>y</code></td><td>是</td><td>内存模块总开关，由构建系统裁剪；关闭时整个模块不参与编译</td></tr>
       <tr><td><code>OSZ_CFG_MEM_DEBUG</code><br><span class="em">Kconfig，依赖 MEM</span></td><td><code>n</code></td><td>否</td><td>只用于派生功能宏，不直接被业务代码引用</td></tr>
       <tr><td><code>MEM_FEATURE_DEBUG</code><br><span class="em">功能宏，恒 0/1</span></td><td><code>0/1</code></td><td><strong>否</strong></td><td>仅追加 magic、边界一致性、链表有序性、I7 全遍历自检；不改变功能路径与错误码集合</td></tr>
-      <tr><td><code>MEM_ALIGN</code><br><code>MEM_MIN_SPLIT</code><br><span class="em">结构常量</span></td><td><code>16</code> / <code>0x20</code></td><td>否</td><td>对齐粒度与最小切分阈值，写死在派生头，<strong>不做 Kconfig</strong></td></tr>
+      <tr><td><code>MEM_ALIGN</code><br><code>MEM_MIN_BLOCK</code><br><span class="em">结构常量</span></td><td><code>16</code> / <code>32</code>（派生）</td><td>否</td><td>对齐粒度与最小切分阈值，写死在派生头，<strong>不做 Kconfig</strong></td></tr>
     </table>
   </div>
   <pre><code><span class="c"># kernel/Kconfig —— 只声明配置，不参与业务逻辑</span>
@@ -862,7 +875,7 @@ STATIC MEM_NODE_INFO *inner_best_fit(UINT32 need)
     bool "Enable memory debug self-check (magic / list order / I7)"
     <span class="k">depends on</span> OSZ_CFG_MEM
     default n</code></pre>
-  <div class="callout info"><b>Kconfig 只声明一项：</b>功能开关 <code>OSZ_CFG_MEM_DEBUG</code>。<code>MEM_ALIGN</code> 与 <code>MEM_MIN_SPLIT</code> 是决定块布局的结构常量，写死在派生头里——一旦做成可配置项，宿主与目标机、不同编译单元就可能取到不同值，直接破坏原子性。</div>
+  <div class="callout info"><b>Kconfig 只声明一项：</b>功能开关 <code>OSZ_CFG_MEM_DEBUG</code>。<code>MEM_ALIGN</code> 与 <code>MEM_MIN_BLOCK</code> 是决定块布局的结构常量，写死在派生头里——一旦做成可配置项，宿主与目标机、不同编译单元就可能取到不同值，直接破坏原子性。</div>
 
   <div class="callout info"><b>已删除 <code>OSZ_CFG_MEM_ALIGN</code>：</b>对齐粒度一旦可配置，块头布局与用户指针对齐就会随配置漂移，直接破坏 ABI 一致性。16 B 由 RISC-V psABI 决定，作为常量而非配置项。</div>
 
@@ -994,8 +1007,8 @@ STATIC MEM_NODE_INFO *inner_best_fit(UINT32 need)
       <tr><th>编号</th><th>用例</th><th>输入 / 操作</th><th>期望</th></tr>
       <tr><td>T-01</td><td>初始化形态</td><td><code>inner_mem_init</code></td><td>1 个空闲块；size = 池大小 − 32 − 32，16 的倍数；free_list 仅 1 项</td></tr>
       <tr><td>T-02</td><td>整块精确命中</td><td>申请恰好等于空闲块大小</td><td>返回该块数据区；free_list 为空；不产生 rem</td></tr>
-      <tr><td>T-03</td><td>标准切分</td><td>空闲 1024，申请 256</td><td>返回低端地址；rem.size = 1024 − 16 − 256；rem 在链表中；后继 prev_size 正确</td></tr>
-      <tr><td>T-04</td><td>最小切分阈值</td><td>空闲块 64 B，申请 32 B（剩余 = 64−16−32 = 16 B &lt; 0x20）</td><td>整块交付，不产生 0 尺寸块</td></tr>
+      <tr><td>T-03</td><td>标准切分</td><td>空闲块 span = 1024，申请 256（need_span = 16 + 256）</td><td>返回低端地址；rem.span = 1024 − need_span；rem 在链表中；后继前邻 span 正确</td></tr>
+      <tr><td>T-04</td><td>最小切分阈值</td><td>空闲块 span = 64，申请 32（need_span = 48，剩余 span = 16 &lt; MIN_BLOCK）</td><td>整块交付，不产生“只剩块头”的退化块</td></tr>
       <tr><td>T-05</td><td>无可用块</td><td>占满后继续申请</td><td>返回 NULL；不触发断言</td></tr>
       <tr><td>T-06</td><td>非法尺寸</td><td><code>malloc(0)</code> / 超大 size</td><td>返回 NULL</td></tr>
       <tr><td>T-07</td><td>16 B 对齐</td><td>连续 20 次随机尺寸申请</td><td>所有返回指针 <code>% 16 == 0</code></td></tr>
@@ -1012,7 +1025,7 @@ STATIC MEM_NODE_INFO *inner_best_fit(UINT32 need)
       <tr><td>T-18</td><td>链表有序性</td><td>随机 100 次分配/释放后遍历</td><td>size 严格升序、无重复节点、全部 used==0</td></tr>
       <tr><td>T-19</td><td>物理链完整性</td><td>任意操作序列后遍历</td><td>从 first_node 走到 end_node 恰好覆盖数据区，无重叠</td></tr>
       <tr><td>T-20</td><td>影子模型随机压力</td><td>1000 次随机 malloc/free（带 4 KB 独立位图）</td><td>每次分配区间不与已用区间重叠；释放后位图同步；不崩溃</td></tr>
-      <tr><td>T-21</td><td>切分后的 rem 归并</td><td>白盒构造：被切分块的后继也是空闲块（直接篡改块头模拟非法中间态）</td><td>malloc 切分后 rem 与后邻归一；后邻已出链；rem.size = 原剩余 + 16 + 后邻 size；新后继 prev_size 正确</td></tr>
+      <tr><td>T-21</td><td>切分后的 rem 归并</td><td>白盒构造：被切分块的后继也是空闲块（直接篡改块头模拟非法中间态）</td><td>malloc 切分后 rem 与后邻归一；后邻已出链；rem.span = 原剩余 span + 后邻 span；新后继前邻 span 正确</td></tr>
       <tr><td>T-22</td><td>无相邻空闲块（I7）</td><td>1000 次随机 malloc/free 后遍历物理链</td><td>任意相邻两块不同时 used==0；end_node 仍 USED</td></tr>
       <tr><td>T-23</td><td>双配置行为一致</td><td>同一用例集分别以 <code>OSZ_CFG_MEM_DEBUG=0</code> 与 <code>=1</code> 编译运行</td><td>外部返回结果完全一致；仅 Debug 多出自检失败路径；两种配置都无崩溃</td></tr>
       <tr><td>T-24</td><td>功能宏取值封闭</td><td>故意以 <code>OSZ_CFG_MEM_DEBUG=2</code> 构建</td><td>编译阶段触发 <code>#error</code>，不产生产物</td></tr>
@@ -1031,17 +1044,23 @@ STATIC MEM_NODE_INFO *inner_best_fit(UINT32 need)
     <div class="mini"><b>4 实机</b><br><code>./construct/build_cmake.sh target_qemu_run</code><br>启动、shell 交互、命令注册正常</div>
   </div>
 
-  <h3>9.5 实现落地实测（2026-11-23）</h3>
+  <h3>9.5 实现落地实测（2026-11-23 首轮 / 2026-11-24 span 口径复测）</h3>
   <div class="tbl-wrap">
     <table>
       <tr><th>项</th><th>结果</th><th>说明</th></tr>
       <tr><td>宿主用例（<code>OSZ_CFG_MEM_DEBUG</code> 未定义）</td><td><b>23/23 通过</b></td><td><code>test_mem</code>，覆盖 T-01～T-22、T-25 与影子模型</td></tr>
       <tr><td>宿主用例（<code>OSZ_CFG_MEM_DEBUG=1</code>）</td><td><b>23/23 通过</b></td><td><code>test_mem_debug</code>，自检全开；两次运行外部行为一致</td></tr>
       <tr><td><code>kernel/base/mem/src/mem.c</code> 语法检查</td><td>通过（仅既有 <code>string.h</code> 重声明告警）</td><td>未纳入宿主用例（依赖 <code>platform.h</code> 与关中断）</td></tr>
+      <tr><td>span 口径重构后复测（2026-11-24）</td><td><b>23/23 通过（两种配置）</b></td><td>用例断言改为 span 语义（T-03/T-08/T-13/T-17/T-21 等），<code>inner_max_alloc</code> 改为只由堆几何计算（不再读首块 span，否则分配后会被自身的切分结果"降容"）</td></tr>
       <tr><td>交叉构建 + QEMU</td><td><b>未执行</b></td><td>本机 <code>tools/toolchain</code> 指向的工具链目录不存在，需在具备 riscv32 工具链的机器上补跑</td></tr>
     </table>
   </div>
-  <div class="callout warn"><b>实测暴露并已修正的两个实现缺陷：</b>① 最小切分判据把 rem 的 16 B 块头算进了余量，会切出 16 B 空闲块 → 改为按「数据区余量 ≥ <code>MEM_MIN_SPLIT</code>」判断；② 小于 <code>MEM_MIN_SPLIT</code> 的申请释放后会产生 16 B 空闲块，破坏 I2 → 申请量统一上取到最小分配块 32 B（与 10.1 的最小可分配块口径一致）。</div>
+  <div class="callout warn"><b>实现期抓到的两个缺陷，以及 v1.6 的彻底修法。</b><br>
+  <b>缺陷①（切分判据）：</b>判据用「<code>blk.size − need</code>」与按"数据区"定义的 <code>0x20</code> 比较，而左边实际是"rem 块头 + rem 数据区"。差值落在 <code>[0x20, 0x30)</code> 时判定"还能切"，切完 rem 数据区只剩 16 B。<br>
+  <b>缺陷②（申请下限）：</b>申请量换算只放进了数据区，没有以"整块占位"的视角确立下界，1～16 B 的申请释放后留下数据区 16 B 的块，破坏"空闲块 ≥ 0x20"<b>旧口径</b>。<br>
+  <b>共同根因：</b>同一份账本里"块占位"和"数据区"两种单位并存，块头在一处显式加、在别处被假设。<b>两者都只在 Debug 自检（<code>free block below min split</code>）里暴露</b>，Release 静默留下不可复用的小块——这正好说明"开关只加自检、不改功能路径"的价值。<br>
+  <b>v1.5 的修法（已废弃，仅记录）：</b>判据加一个块头 + 申请量上取到 0x20。它只是把两种单位各自对齐了一次，问题仍在，且最小块被抬到 48 B 总占位，与 10.1 的 32 B 对不上。<br>
+  <b>v1.6 的修法：</b>全模块单一 span 口径——<code>need_span = 块头 + ALIGN_UP(size)</code>、<code>MEM_MIN_BLOCK = 块头 + 一个对齐粒度 = 32 B</code>、切分判据 <code>blk.span − need_span ≥ MEM_MIN_BLOCK</code>、合并 <code>span += span</code>、物理相邻 <code>NEXT = node + span</code>。<b>"块头有没有算进去"在代码里不再是需要判断的问题</b>：span 天生含块头，最小块由常量派生，两端都不需要补丁。</div>
 </section>
 
 <!-- ================= 10 ================= -->
@@ -1056,7 +1075,7 @@ STATIC MEM_NODE_INFO *inner_best_fit(UINT32 need)
       <tr><td>free</td><td>O(1)</td><td>O(1) 探测 + O(F) 入链</td><td>合并本身常数</td></tr>
       <tr><td>单块空间开销</td><td>16 B</td><td>16 B</td><td>无变化</td></tr>
       <tr><td>堆固定开销</td><td>24 B（池+头）</td><td>32 B</td><td>+8 B，仅一次</td></tr>
-      <tr><td>最小可分配块</td><td>16 B（可产生 0 尺寸块）</td><td>32 B（16 头 + 16 数据）</td><td>消除退化块</td></tr>
+      <tr><td>最小块 span</td><td>16 B（数据区，可产生 0 尺寸块）</td><td>32 B（span = 16 头 + 16 数据，占用块与空闲块同一下界）</td><td>消除退化块；单位统一为 span</td></tr>
     </table>
   </div>
 
@@ -1117,6 +1136,7 @@ STATIC MEM_NODE_INFO *inner_best_fit(UINT32 need)
       <tr><td>RV-002</td><td>不需要在释放后将数据区清零</td><td>已确认：<code>free</code> 只改块头，不写数据区；新增 T-25 验证“不清零”，并在 7/11 关闭该风险</td><td>7 边界表、11 R-07、9.2 T-25</td></tr>
       <tr><td>RV-003</td><td>区分“配置宏”与“功能宏”，并保证功能宏原子性：开关不得引起编译或接口行为不一致</td><td>已采纳：新增 6.4/6.5/6.6；<code>MEM_FEATURE_*</code> 单一派生口、三分支收敛、<code>#error</code> 兜底；基础校验始终执行，Debug 仅追加自检；删除 <code>OSZ_CFG_MEM_ALIGN</code>；补 A1–A7 与 T-23/T-24</td><td>1.2、6.4、6.5、6.6、7、9.2、9.4、11 R-08</td></tr>
       <tr><td>RV-004</td><td>宏分层的依据是什么，是否参考 Linux 的做法</td><td>已补充：新增 6.7，给出本项目三条依据（单一来源、取值封闭、ABI 不随配置漂移），并与 Linux / Zephyr / FreeRTOS 的配置头机制逐项对照，说明“抄机制、不抄使用面”的取舍边界</td><td>6.7</td></tr>
+      <tr><td>RV-005</td><td>缺陷根因是"计算 need 时没有把块头大小算进去"，不接受"申请量上取到 0x20"这类补丁式修法</td><td>已采纳并升级为口径重构（v1.6）：全模块统一 span（块头 + 数据区），申请字节 → 块占位的换算是唯一换算点；删除 <code>MEM_MIN_SPLIT</code>，改为派生常量 <code>MEM_MIN_BLOCK = 块头 + 一个对齐粒度</code>；I2 改为"占用块与空闲块的 span 同一下界"；切分/合并/排序/自检全部在 span 上算；用例断言与实测记录同步重写</td><td>4.1、4.2、4.3 I2–I6、5.1–5.4、6.x 常量表、9.2、9.5、10.1</td></tr>
     </table>
   </div>
 
@@ -1135,7 +1155,7 @@ STATIC MEM_NODE_INFO *inner_best_fit(UINT32 need)
 </section>
 
 <footer class="doc">
-  OSZ 内核 · kernel/base/mem 详细设计 v1.5 · 基线 ad23ae9 · 2026-11-23<br>
+  OSZ 内核 · kernel/base/mem 详细设计 v1.6 · 基线 ad23ae9 · 2026-11-24<br>
   本文为设计基线，代码实施前需完成评审；文中行号均对应基线 main 分支。
 </footer>
 

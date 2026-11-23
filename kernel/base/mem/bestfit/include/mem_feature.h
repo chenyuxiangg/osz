@@ -37,6 +37,8 @@
 #else
 #define MEM_ALIGN                       (8U)    /* 宿主 64 位指针：描述符按指针宽度对齐 */
 #endif
-#define MEM_MIN_SPLIT                   (0x20U) /* 剩余不足该值则整块交付，根除退化块 */
+
+/* 最小块由 bestfit.h 以 span 口径派生：MEM_MIN_BLOCK = 块头 + 一个对齐粒度。
+   不在此处写魔数，避免再出现"0x20 到底是块占位还是数据区"的单位歧义。 */
 
 #endif /* __MEM_FEATURE_H__ */

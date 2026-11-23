@@ -1,5 +1,11 @@
 // Unit tests for OSZ's best-fit heap with free-block coalescing.
 //
+// Unit convention: every block records its *span* = block header + payload,
+// i.e. the byte distance from this block's header to the next block's header.
+// Requires/requests are expressed in payload bytes and converted exactly once
+// (inner_mem_alloc adds MEM_NODE_INFO_SIZE); split / merge / list ordering /
+// self-check all work on spans.
+//
 // Public entry points under test (kernel/base/mem/bestfit/src/bestfit.c):
 //   inner_mem_init(pool, size)   - injectable heap region
 //   inner_mem_alloc(size, &out)  - best-fit + low-side split + rem merge
@@ -11,8 +17,8 @@
 // Both must show identical external behaviour; DEBUG only adds self-checks.
 //
 // Heap layout (16 KiB injected buffer):
-//   [pool 16][head 16][first node 16][ ... data ... ][end node 16]
-// Data region size = 16384 - 64 = 16320 (multiple of MEM_ALIGN).
+//   [pool 16][head 16][first node 16][ ... payload ... ][end node 16]
+// First block span = 16384 - pool - head - end_header; payload = span - header.
 
 #include <gtest/gtest.h>
 
@@ -29,12 +35,19 @@ extern "C" {
 
 namespace {
 
-constexpr std::uint32_t kHeapSize = 0x4000;                  // 16 KiB
-constexpr std::uint32_t kOverhead = 4 * MEM_NODE_INFO_SIZE;  // pool+head+first+end
+constexpr std::uint32_t kHeapSize = 0x4000;                     // 16 KiB
+constexpr std::uint32_t kStructOverhead = 3 * MEM_NODE_INFO_SIZE; // pool + head + end
 
 alignas(64) std::uint8_t g_heap[kHeapSize];
 
-std::uint32_t DataSize() { return kHeapSize - kOverhead; }
+// 首块占位（span），包含首块头
+constexpr std::uint32_t FirstSpan() { return kHeapSize - kStructOverhead; }
+// 单个申请可用的最大数据区
+constexpr std::uint32_t MaxPayload() { return FirstSpan() - MEM_NODE_INFO_SIZE; }
+// 一个申请实际占用的 span
+constexpr std::uint32_t SpanOf(std::uint32_t payload) {
+    return MEM_NODE_INFO_SIZE + ((payload + MEM_ALIGN - 1) & ~(MEM_ALIGN - 1u));
+}
 
 MEM_NODE_INFO *EndNode() {
     return reinterpret_cast<MEM_NODE_INFO *>(inner_mem_heap_end() - MEM_NODE_INFO_SIZE);
@@ -59,8 +72,8 @@ std::vector<MEM_NODE_INFO *> WalkBlocks() {
     return out;
 }
 
-// Structural invariants: contiguity, alignment, size granularity,
-// prev_size consistency, I7 (no two adjacent free blocks), end node shape.
+// Structural invariants: contiguity, alignment, span granularity, min block,
+// prev-span consistency, I7 (no two adjacent free blocks), end node shape.
 void ExpectChainSane() {
     MEM_NODE_INFO *end = EndNode();
     MEM_NODE_INFO *cur = FirstNode();
@@ -70,16 +83,16 @@ void ExpectChainSane() {
     while (cur != end) {
         ASSERT_LT(guard++, 4096u);
         ASSERT_EQ(reinterpret_cast<std::uintptr_t>(cur) % MEM_ALIGN, 0u);
-        ASSERT_EQ(MEM_NODE_GET_SIZE(cur) % MEM_ALIGN, 0u);
+        ASSERT_EQ(MEM_NODE_GET_SPAN(cur) % MEM_ALIGN, 0u);
+        ASSERT_GE(MEM_NODE_GET_SPAN(cur), MEM_MIN_BLOCK) << "block below min block";
         ASSERT_EQ(cur->prev_size & MEM_PREV_MAGIC_MASK, MEM_PREV_MAGIC);
         if (prev == nullptr) {
-            ASSERT_EQ(MEM_NODE_GET_PREV(cur), 0u);
+            ASSERT_EQ(MEM_NODE_GET_PREV_SPAN(cur), 0u);
         } else {
             ASSERT_EQ(MEM_NODE_NEXT(prev), cur);
-            ASSERT_EQ(MEM_NODE_GET_PREV(cur), MEM_NODE_GET_SIZE(prev));
+            ASSERT_EQ(MEM_NODE_GET_PREV_SPAN(cur), MEM_NODE_GET_SPAN(prev));
         }
         if (MEM_NODE_GET_USED(cur) == 0) {
-            ASSERT_GE(MEM_NODE_GET_SIZE(cur), MEM_MIN_SPLIT);
             MEM_NODE_INFO *next = MEM_NODE_NEXT(cur);
             if (next != end) {
                 ASSERT_NE(MEM_NODE_GET_USED(next), 0u) << "adjacent free blocks";
@@ -90,10 +103,10 @@ void ExpectChainSane() {
     }
     ASSERT_EQ(cur, end);
     ASSERT_NE(MEM_NODE_GET_USED(end), 0u);
-    ASSERT_EQ(MEM_NODE_GET_SIZE(end), MEM_INVALID_SIZE);
+    ASSERT_EQ(MEM_NODE_GET_SPAN(end), MEM_INVALID_SPAN);
 }
 
-// Free-list node count with a strict size-ascending check. A cycle or a
+// Free-list node count with a strict span-ascending check. A cycle or a
 // duplicate entry shows up as a mismatch against the physical walk.
 std::size_t CountFreeList() {
     MEM_HEAD_INFO *head = inner_mem_head();
@@ -109,9 +122,9 @@ std::size_t CountFreeList() {
         if (first) {
             first = false;
         } else {
-            EXPECT_LE(last, MEM_NODE_GET_SIZE(node)) << "free list not ascending";
+            EXPECT_LE(last, MEM_NODE_GET_SPAN(node)) << "free list not ascending";
         }
-        last = MEM_NODE_GET_SIZE(node);
+        last = MEM_NODE_GET_SPAN(node);
         ++n;
         pos = pos->next;
     }
@@ -172,13 +185,13 @@ TEST_F(MemTest, T01_InitProducesSingleFreeBlock) {
     auto blocks = WalkBlocks();
     ASSERT_EQ(blocks.size(), 1u);
     EXPECT_EQ(MEM_NODE_GET_USED(blocks[0]), 0u);
-    EXPECT_EQ(MEM_NODE_GET_SIZE(blocks[0]), DataSize());
-    EXPECT_EQ(MEM_NODE_GET_PREV(blocks[0]), 0u);
-    EXPECT_EQ(MEM_NODE_GET_PREV(EndNode()), DataSize());
+    EXPECT_EQ(MEM_NODE_GET_SPAN(blocks[0]), FirstSpan());
+    EXPECT_EQ(MEM_NODE_GET_PREV_SPAN(blocks[0]), 0u);
+    EXPECT_EQ(MEM_NODE_GET_PREV_SPAN(EndNode()), FirstSpan());
     EXPECT_EQ(CountFreeList(), 1u);
 }
 
-TEST_F(MemTest, T02_FirstNodeAndUserPointerAre16Aligned) {
+TEST_F(MemTest, T02_FirstNodeAndUserPointerAreAligned) {
     auto *first = FirstNode();
     EXPECT_EQ(reinterpret_cast<std::uintptr_t>(first) % MEM_ALIGN, 0u);
     EXPECT_EQ(reinterpret_cast<std::uintptr_t>(first + 1) % MEM_ALIGN, 0u);
@@ -190,11 +203,13 @@ TEST_F(MemTest, T02_FirstNodeAndUserPointerAre16Aligned) {
 
 // ---------------- T-03..T-08: allocation basics ----------------
 
-TEST_F(MemTest, T03_AllocRoundsSizeToAlignment) {
+TEST_F(MemTest, T03_AllocRecordsHeaderPlusAlignedPayload) {
     void *p = MustAlloc(0x33);
     auto *node = NodeOf(p);
     EXPECT_NE(MEM_NODE_GET_USED(node), 0u);
-    EXPECT_EQ(MEM_NODE_GET_SIZE(node), 0x38u);  // ALIGN_UP(0x33, 8) on host, 0x40 on rv32
+    // span 口径：块头 + 对齐后的数据区，这就是“块头被算进去”的唯一证据
+    EXPECT_EQ(MEM_NODE_GET_SPAN(node), SpanOf(0x33));
+    EXPECT_EQ(MEM_NODE_DATA_SPAN(node), SpanOf(0x33) - MEM_NODE_INFO_SIZE);
     EXPECT_EQ(reinterpret_cast<std::uint8_t *>(p),
               reinterpret_cast<std::uint8_t *>(node) + MEM_NODE_INFO_SIZE);
 }
@@ -205,9 +220,13 @@ TEST_F(MemTest, T04_AllocZeroAndOversizeRejected) {
     EXPECT_EQ(p, nullptr);
 
     p = reinterpret_cast<void *>(0xdeadbeefu);
-    EXPECT_EQ(inner_mem_alloc(DataSize() + MEM_NODE_INFO_SIZE, &p),
+    EXPECT_EQ(inner_mem_alloc(MaxPayload() + 1, &p),
               static_cast<UINT32>(MEM_SIZE_INVALID_ERR));
     EXPECT_EQ(p, nullptr);
+
+    // 恰好等于上限必须成功，并且整块交付（span 恰为整堆剩余）
+    void *q = MustAlloc(MaxPayload());
+    EXPECT_EQ(MEM_NODE_GET_SPAN(NodeOf(q)), FirstSpan());
 }
 
 TEST_F(MemTest, T05_AllocNullOutRejected) {
@@ -236,20 +255,20 @@ TEST_F(MemTest, T07_ExhaustionReturnsNoFreeBlockThenRecovers) {
     for (void *q : held) {
         EXPECT_EQ(inner_mem_free(q), static_cast<UINT32>(OS_OK));
     }
-    // 全量释放后必须回到 init 形态：单块、size 等于初始值
+    // 全量释放后必须回到 init 形态：单块、span 等于初始值
     auto blocks = WalkBlocks();
     ASSERT_EQ(blocks.size(), 1u);
-    EXPECT_EQ(MEM_NODE_GET_SIZE(blocks[0]), DataSize());
+    EXPECT_EQ(MEM_NODE_GET_SPAN(blocks[0]), FirstSpan());
 }
 
 TEST_F(MemTest, T08_FullBlockDeliveryWhenRemainderTooSmall) {
-    // 只剩 0x10 的余量（< MEM_MIN_SPLIT）时不切分，整块交付，根除 0 尺寸块
-    void *p = MustAlloc(DataSize() - 0x10);
+    // 剩下的 span 不足 MEM_MIN_BLOCK 时不切分（0x10 < 0x20），整块交付
+    void *p = MustAlloc(MaxPayload() - 0x10);
     auto *node = NodeOf(p);
-    EXPECT_EQ(MEM_NODE_GET_SIZE(node), DataSize());
+    EXPECT_EQ(MEM_NODE_GET_SPAN(node), FirstSpan());
     EXPECT_EQ(MEM_NODE_NEXT(node), EndNode());
     for (auto *b : WalkBlocks()) {
-        EXPECT_GE(MEM_NODE_GET_SIZE(b), MEM_MIN_SPLIT);
+        EXPECT_GE(MEM_NODE_GET_SPAN(b), MEM_MIN_BLOCK);
     }
 }
 
@@ -267,7 +286,8 @@ TEST_F(MemTest, T09_FreeMergesWithNextOnly) {
 
     auto *nb = NodeOf(b);
     EXPECT_EQ(MEM_NODE_GET_USED(nb), 0u);
-    EXPECT_EQ(MEM_NODE_GET_SIZE(nb), 0x30u + MEM_NODE_INFO_SIZE + 0x30u);
+    // span 直接相加：每块 = 块头 + 0x30，合并后块头只保留一份
+    EXPECT_EQ(MEM_NODE_GET_SPAN(nb), SpanOf(0x30) * 2u);
     EXPECT_NE(MEM_NODE_GET_USED(NodeOf(a)), 0u);
 }
 
@@ -283,7 +303,7 @@ TEST_F(MemTest, T10_FreeMergesWithPreviousOnly) {
 
     auto *na = NodeOf(a);
     EXPECT_EQ(MEM_NODE_GET_USED(na), 0u);
-    EXPECT_EQ(MEM_NODE_GET_SIZE(na), 0x30u + MEM_NODE_INFO_SIZE + 0x30u);
+    EXPECT_EQ(MEM_NODE_GET_SPAN(na), SpanOf(0x30) * 2u);
     EXPECT_NE(MEM_NODE_GET_USED(NodeOf(c)), 0u);
 }
 
@@ -295,7 +315,7 @@ TEST_F(MemTest, T11_FreeWithoutNeighboursGoesToFreeList) {
     EXPECT_EQ(inner_mem_free(b), static_cast<UINT32>(OS_OK));
     auto *nb = NodeOf(b);
     EXPECT_EQ(MEM_NODE_GET_USED(nb), 0u);
-    EXPECT_EQ(MEM_NODE_GET_SIZE(nb), 0x40u);
+    EXPECT_EQ(MEM_NODE_GET_SPAN(nb), SpanOf(0x40));
     EXPECT_EQ(CountFreeList(), PhysicalFreeBlocks());
     (void)a;
     (void)c;
@@ -313,7 +333,7 @@ TEST_F(MemTest, T12_ThreeWayMerge) {
 
     auto *na = NodeOf(a);
     EXPECT_EQ(MEM_NODE_GET_USED(na), 0u);
-    EXPECT_EQ(MEM_NODE_GET_SIZE(na), 0x30u * 3u + MEM_NODE_INFO_SIZE * 2u);
+    EXPECT_EQ(MEM_NODE_GET_SPAN(na), SpanOf(0x30) * 3u);
     ExpectChainSane();
     EXPECT_EQ(CountFreeList(), PhysicalFreeBlocks());
 }
@@ -321,13 +341,13 @@ TEST_F(MemTest, T12_ThreeWayMerge) {
 TEST_F(MemTest, T13_FirstAndTailBoundariesDoNotOverreach) {
     // 释放首块只探测后邻；释放堆尾前最后一块时后继为 end_node，不合并
     void *a = MustAlloc(0x30);
-    void *b = MustAlloc(DataSize() - 0x30 - MEM_NODE_INFO_SIZE);
+    void *b = MustAlloc(MaxPayload() - SpanOf(0x30));
 
     EXPECT_EQ(inner_mem_free(a), static_cast<UINT32>(OS_OK));
     EXPECT_EQ(inner_mem_free(b), static_cast<UINT32>(OS_OK));
     auto blocks = WalkBlocks();
     ASSERT_EQ(blocks.size(), 1u);
-    EXPECT_EQ(MEM_NODE_GET_SIZE(blocks[0]), DataSize());
+    EXPECT_EQ(MEM_NODE_GET_SPAN(blocks[0]), FirstSpan());
 }
 
 TEST_F(MemTest, T14_DoubleFreeReturnsCode) {
@@ -374,11 +394,13 @@ TEST_F(MemTest, T17_SplitRemainderIsFreeAndCorrectlyLinked) {
     auto *node = NodeOf(p);
     auto *rem = MEM_NODE_NEXT(node);
 
-    EXPECT_EQ(MEM_NODE_GET_SIZE(node), 0x100u);
+    EXPECT_EQ(MEM_NODE_GET_SPAN(node), SpanOf(0x100));
     EXPECT_EQ(MEM_NODE_GET_USED(rem), 0u);
-    EXPECT_EQ(MEM_NODE_GET_PREV(rem), 0x100u);
+    EXPECT_EQ(MEM_NODE_GET_PREV_SPAN(rem), SpanOf(0x100));
     EXPECT_EQ(reinterpret_cast<std::uint8_t *>(rem),
-              reinterpret_cast<std::uint8_t *>(node) + MEM_NODE_INFO_SIZE + 0x100u);
+              reinterpret_cast<std::uint8_t *>(node) + SpanOf(0x100));
+    // rem 自身也是一整块，且 span 与整堆剩余严格互补
+    EXPECT_EQ(MEM_NODE_GET_SPAN(rem), FirstSpan() - SpanOf(0x100));
 }
 
 TEST_F(MemTest, T18_FreeListStaysSizeAscending) {
@@ -414,63 +436,62 @@ TEST_F(MemTest, T19_FragmentationRecoversAfterFullRelease) {
     }
     auto blocks = WalkBlocks();
     ASSERT_EQ(blocks.size(), 1u);
-    EXPECT_EQ(MEM_NODE_GET_SIZE(blocks[0]), DataSize());
-    EXPECT_EQ(MEM_NODE_GET_PREV(EndNode()), DataSize());
+    EXPECT_EQ(MEM_NODE_GET_SPAN(blocks[0]), FirstSpan());
+    EXPECT_EQ(MEM_NODE_GET_PREV_SPAN(EndNode()), FirstSpan());
 }
 
 // ---------------- T-21: defensive rem merge after split ----------------
 
 TEST_F(MemTest, T21_RemMergesWithAdjacentFreeBlock) {
-    // 白盒构造非法中间态：[free 0x50][free 0x60][used rest][end]
+    // 白盒构造非法中间态：[free A][free B][used C][end]
     // 正常路径下这种状态不可达，这里直接改块头模拟，用于验证分配侧的
-    // 防御性归并分支（设计文档 5.2 / I7）。
+    // 防御性归并分支（设计文档 5.2 / I7）。span 口径下块头已含在 span 内，
+    // 手工搭建只需按 span 累加，宿主与目标机同一套期望。
     MEM_HEAD_INFO *head = inner_mem_head();
     MEM_NODE_INFO *first = FirstNode();
     MEM_NODE_INFO *end = EndNode();
-    std::uint32_t total = MEM_NODE_GET_SIZE(first);
-
-    // 尺寸按描述的宏推导，宿主（24 B 块头）与目标机（16 B 块头）都成立：
-    //   [first: 0x20 + 头 + 0x20][b: 0x60][c: used][end]
-    const std::uint32_t kHdr = MEM_NODE_INFO_SIZE;
-    const std::uint32_t kFirst = 0x20u + kHdr + 0x20u;
-    const std::uint32_t kB = 0x60u;
+    const std::uint32_t kA = 0x60;      // 空闲块 A 的 span
+    const std::uint32_t kB = 0x70;      // 空闲块 B 的 span
+    const std::uint32_t kReq = 0x10;    // 申请数据区：两种平台都已对齐
+    const std::uint32_t kNeed = MEM_NODE_INFO_SIZE + kReq;
 
     MEM_NODE_INFO *b = reinterpret_cast<MEM_NODE_INFO *>(
-        reinterpret_cast<std::uint8_t *>(first) + kHdr + kFirst);
+        reinterpret_cast<std::uint8_t *>(first) + kA);
     MEM_NODE_INFO *c = reinterpret_cast<MEM_NODE_INFO *>(
-        reinterpret_cast<std::uint8_t *>(b) + kHdr + kB);
-    std::uint32_t c_size = total - kFirst - kHdr - kB - kHdr;
+        reinterpret_cast<std::uint8_t *>(b) + kB);
+    std::uint32_t c_span = FirstSpan() - kA - kB;
 
-    first->size_and_used = kFirst;
-    MEM_NODE_SET_PREV(first, 0);
-    b->size_and_used = kB;
-    MEM_NODE_SET_PREV(b, kFirst);
-    c->size_and_used = c_size | MEM_USED_MASK;  // used
-    MEM_NODE_SET_PREV(c, kB);
-    MEM_NODE_SET_PREV(end, c_size);
+    first->size_and_used = kA;                 // used = 0
+    MEM_NODE_SET_PREV_SPAN(first, 0);
+    b->size_and_used = kB;                     // used = 0
+    MEM_NODE_SET_PREV_SPAN(b, kA);
+    c->size_and_used = c_span | MEM_USED_MASK;
+    MEM_NODE_SET_PREV_SPAN(c, kB);
+    MEM_NODE_SET_PREV_SPAN(end, c_span);
 
-    // 重建升序空闲链：first -> b
+    // 重建升序空闲链：A -> B
     dlink_init(&head->free_list);
     dlink_insert_tail(&head->free_list, &first->node_list);
     dlink_insert_tail(&first->node_list, &b->node_list);
 
     ASSERT_EQ(CountFreeList(), 2u);
+    ASSERT_GE(kA - kNeed, MEM_MIN_BLOCK) << "场景前提：A 切开后 rem 仍是一整块";
 
-    // alloc(0x10) 向上取到最小分配块 0x20：best-fit 取 first，
-    // 剩余数据区 0x20（≥ MIN_SPLIT），其后邻 b 空闲 → 必须归并
+    // best-fit 取 A；切开后 rem 的后邻 B 空闲 → 必须归并，否则破坏 I7
     void *p = nullptr;
-    ASSERT_EQ(inner_mem_alloc(0x10, &p), static_cast<UINT32>(OS_OK));
+    ASSERT_EQ(inner_mem_alloc(kReq, &p), static_cast<UINT32>(OS_OK));
     EXPECT_EQ(NodeOf(p), first);
-    EXPECT_EQ(MEM_NODE_GET_SIZE(first), 0x20u);
+    EXPECT_EQ(MEM_NODE_GET_SPAN(first), kNeed);
 
     MEM_NODE_INFO *rem = MEM_NODE_NEXT(first);
+    const std::uint32_t rem_span = kA - kNeed;
     EXPECT_EQ(reinterpret_cast<std::uint8_t *>(rem),
-              reinterpret_cast<std::uint8_t *>(first) + kHdr + 0x20u);
+              reinterpret_cast<std::uint8_t *>(first) + kNeed);
     EXPECT_EQ(MEM_NODE_GET_USED(rem), 0u);
-    EXPECT_EQ(MEM_NODE_GET_SIZE(rem), 0x20u + kHdr + kB);
-    EXPECT_EQ(MEM_NODE_GET_PREV(c), 0x20u + kHdr + kB);
+    EXPECT_EQ(MEM_NODE_GET_SPAN(rem), rem_span + kB);
+    EXPECT_EQ(MEM_NODE_GET_PREV_SPAN(c), rem_span + kB);
 
-    // 空闲链只剩 rem，b 已出链
+    // 空闲链只剩 rem，B 已出链
     EXPECT_EQ(CountFreeList(), 1u);
     ExpectChainSane();
 }
@@ -503,10 +524,10 @@ TEST_F(MemTest, T22_NoAdjacentFreeBlocksUnderRandomWorkload) {
     ExpectChainSane();
     auto blocks = WalkBlocks();
     ASSERT_EQ(blocks.size(), 1u);
-    EXPECT_EQ(MEM_NODE_GET_SIZE(blocks[0]), DataSize());
+    EXPECT_EQ(MEM_NODE_GET_SPAN(blocks[0]), FirstSpan());
 }
 
-// ---------------- T-23/T-24: release does not zero ----------------
+// ---------------- T-25: release does not zero ----------------
 
 TEST_F(MemTest, T25_FreeKeepsPayloadUntouched) {
     void *p = MustAlloc(0x80);
@@ -525,7 +546,7 @@ TEST_F(MemTest, T25_FreeKeepsPayloadUntouched) {
 
 class ShadowModel {
 public:
-    ShadowModel() : units_(DataSize() / MEM_ALIGN, 0) {}
+    ShadowModel() : units_((FirstSpan() - MEM_NODE_INFO_SIZE) / MEM_ALIGN, 0) {}
 
     void Mark(void *p, std::uint32_t size) {
         std::uint32_t need = (size + MEM_ALIGN - 1) & ~(MEM_ALIGN - 1);
