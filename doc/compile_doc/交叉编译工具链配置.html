@@ -168,6 +168,8 @@ footer{margin-top:44px; padding-top:14px; border-top:1px solid var(--line);
 </table>
 </div>
 
+<div class="callout info"><b>跑起来的两条通道（都不依赖本机 QEMU）：</b>①<strong>本机仿真平台</strong> <code>localhost:8080</code> 工作台用的那份 wasm 内核（<code>front/assets/pkg/riscv_sim_kernel.js</code>），可用 <code>node tools/sim/run_on_platform.mjs output/image/osz.elf</code> 直接驱动，console 字节走 stdout、统计走 stderr；②<strong>Spike</strong> 参考侧 <code>spike --isa=rv32imc_zicsr_zicclsm_zifencei_zicntr -m… output/image/osz.elf</code>。两侧 console 可以逐字节 <code>cmp</code>。<br>⚠️ 平台侧自 v0.76 起「无板不装载」：必须先取模板（<code>qemu-virt</code>）再 <code>SetMemoryMap</code>，否则内核以 <code>E_PLT-22</code> 拒绝 —— 脚本已按这个顺序走。</div>
+
 <div class="callout info"><b>为什么强调“编译器自己回答”：</b>sysroot 与 libgcc 的实际位置由发行包的布局决定，官方 riscv-gnu-toolchain 是 <code>&lt;prefix&gt;/riscv32-unknown-elf/lib</code>，xPack 是 <code>&lt;prefix&gt;/riscv-none-elf/lib</code>，版本号还会随升级变化。用 <code>--print-sysroot</code> 与 <code>-print-file-name=libgcc.a</code> 问编译器，就不会再出现“升一版 gcc 就要改脚本”的情况。</div>
 
 <h2><span class="no">03</span>工具链查找与选择机制</h2>
@@ -370,7 +372,9 @@ bash construct/build_make.sh all</code></pre>
   <tr><td>Make 路径 + <code>OSZ_CROSS_ROOT</code></td><td><code>OSZ_CROSS_ROOT=… bash construct/build_make.sh all</code></td><td>全模块编译链接通过，产出 <code>output/image/osz.elf</code>（ELF32 RISC-V，entry <code>0x80000000</code>）</td></tr>
   <tr><td>Make 路径 + 仅 <code>tools/toolchain</code>（无环境变量）</td><td>符号链接指向工具链根目录后直接 <code>build_make.sh all</code></td><td>前缀自动探测为 <code>riscv-none-elf</code>，构建通过，ELF 与上一条同为 201372 B</td></tr>
   <tr><td>Make 路径 + 无任何配置</td><td>清空 <code>OSZ_CROSS_*</code> 后运行</td><td>打印四个来源清单与修复方法后退出，不再报“缺 tar.gz”</td></tr>
-  <tr><td>QEMU 运行</td><td><code>target_qemu_run</code></td><td><b>未验证</b>：本机无 <code>qemu-system-riscv32</code>，需先安装或用 spike 另行验证</td></tr>
+  <tr><td>平台运行（8080 工作台同一份 wasm 内核）</td><td><code>node tools/sim/run_on_platform.mjs output/image/osz.elf</code></td><td>1 500 000 条指令 / 约 0.28 s 进到 shell：console 31 字节（<code>==== Enter Main ====</code> + <code>OSZ$ </code>），PC <code>0x80006a7c</code></td></tr>
+  <tr><td>Spike 参考侧对拍</td><td><code>spike --isa=rv32imc_zicsr_zicclsm_zifencei_zicntr -m2147479552:4096,2147483648:134217728 osz.elf</code></td><td>console 31 字节与平台侧 <code>cmp</code> <b>逐字节相同</b>（MATCH）</td></tr>
+  <tr><td>QEMU</td><td><code>target_qemu_run</code></td><td>本机仍无 <code>qemu-system-riscv32</code>；上面两条已替代它的运行验证</td></tr>
 </table>
 </div>
 

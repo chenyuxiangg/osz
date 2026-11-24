@@ -213,6 +213,22 @@ bash construct/build_make.sh all      # 产物在 output/image/osz.elf
 
 QEMU 缺失只影响 `run`/`debug` 目标，不再阻断编译。
 
+### 在 RISC-V 仿真平台上运行（替代本机 QEMU）
+
+本机没有 `qemu-system-riscv32` 时，可以借用 RISC-V 仿真平台（`localhost:8080` 工作台）的 wasm 内核跑真实 ELF，并与 Spike 参考侧逐字节对拍 console：
+
+```shell
+# 平台侧（console 原始字节走 stdout，运行统计走 stderr）
+node tools/sim/run_on_platform.mjs output/image/osz.elf
+
+# 参考侧
+spike --isa=rv32imc_zicsr_zicclsm_zifencei_zicntr \
+      -m2147479552:4096,2147483648:134217728 output/image/osz.elf > spike.bin
+cmp spike.bin <(node tools/sim/run_on_platform.mjs output/image/osz.elf 2>/dev/null)
+```
+
+前置条件：仿真平台仓库在 `~/lczyzs/code/riscv_sim`（可用 `RISCV_SIM_DIR` 覆盖），其 `front/assets/pkg/` 下已有 wasm 产物。平台侧自 v0.76 起「无板不装载」，脚本内部按「取模板 → 配板 → 装载」的顺序走。
+
 编译配置：
 ```shell
 ./configure --prefix=/home/zyzs/code/riscv_tool_chain/install \
