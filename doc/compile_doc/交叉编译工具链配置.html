@@ -41,6 +41,7 @@ tr:nth-child(even) td{background:#fbfdfd}
 td b{font-weight:600}
 .params td:first-child,.params td:nth-child(2),.params td:nth-child(3){white-space:nowrap}
 .params td{word-break:keep-all}
+.nw td:first-child{white-space:nowrap}
 .callout{border-radius:10px; padding:13px 16px; margin:16px 0; font-size:13.5px; line-height:1.7}
 .callout.info{background:var(--brand-soft); border-left:3px solid var(--brand)}
 .callout.warn{background:var(--warn-soft); border-left:3px solid var(--warn); color:#5a3808}
@@ -73,12 +74,12 @@ footer{margin-top:44px; padding-top:14px; border-top:1px solid var(--line);
 <div class="page">
 
 <h1>OSZ 交叉编译工具链配置说明</h1>
-<p class="sub">从“改脚本适配一台机器”到“设两个环境变量适配任意工具链”</p>
+<p class="sub">从“改脚本适配一台机器”到“设两个环境变量适配任意工具链”，CMake 与 Make 两条构建路径共用同一套查找规则</p>
 
 <div class="meta">
-  <div><b>文档版本</b>v1.0（自适应工具链已落地）</div>
+  <div><b>文档版本</b>v1.1（CMake 与 Make 两条路径均已自适应）</div>
   <div><b>更新日期</b>2026-11-24</div>
-  <div><b>代码基线</b>main <code>7e2cf67</code></div>
+  <div><b>代码基线</b>main（2026-11-24，含 Make 路径自适应）</div>
   <div><b>适用对象</b>在非 Linux 主机 / 非官方工具链上构建 rv32 目标的人</div>
 </div>
 
@@ -88,7 +89,7 @@ footer{margin-top:44px; padding-top:14px; border-top:1px solid var(--line);
 
 <div class="kpi">
   <div class="box"><b>2 个变量</b><span><code>OSZ_CROSS_ROOT</code> / <code>OSZ_CROSS_PREFIX</code></span></div>
-  <div class="box"><b>3 级回退</b><span>-D 参数 → 环境变量 → <code>tools/toolchain</code> → PATH</span></div>
+  <div class="box"><b>4 级来源</b><span>显式变量 → <code>tools/toolchain</code> → 旧 <code>~/tools/toolchains</code> → PATH</span></div>
   <div class="box"><b>0 处硬编码</b><span>目录结构、gcc 版本、C++ 前端都不再假设</span></div>
   <div class="box"><b>同一产物</b><span>rv32 ELF，链接脚本与会话常量保持不变</span></div>
 </div>
@@ -170,7 +171,7 @@ footer{margin-top:44px; padding-top:14px; border-top:1px solid var(--line);
 <div class="callout info"><b>为什么强调“编译器自己回答”：</b>sysroot 与 libgcc 的实际位置由发行包的布局决定，官方 riscv-gnu-toolchain 是 <code>&lt;prefix&gt;/riscv32-unknown-elf/lib</code>，xPack 是 <code>&lt;prefix&gt;/riscv-none-elf/lib</code>，版本号还会随升级变化。用 <code>--print-sysroot</code> 与 <code>-print-file-name=libgcc.a</code> 问编译器，就不会再出现“升一版 gcc 就要改脚本”的情况。</div>
 
 <h2><span class="no">03</span>工具链查找与选择机制</h2>
-<p><code>construct/cmake/riscv32_toolchain.cmake</code> 在 <code>project()</code> 之前生效，负责把编译器与一套 binutils 注册给 CMake。</p>
+<p><code>construct/cmake/riscv32_toolchain.cmake</code> 在 <code>project()</code> 之前生效，负责把编译器与一套 binutils 注册给 CMake。Makefile 路径由 <code>construct/script/env.sh</code> 实现同一套顺序，两条路径解析同一台机器时得到同一个前缀，不会各说各话。</p>
 
 <figure>
 <svg viewBox="0 0 900 420" role="img" aria-label="工具链查找流程">
@@ -233,6 +234,8 @@ footer{margin-top:44px; padding-top:14px; border-top:1px solid var(--line);
 </table>
 </div>
 
+<div class="callout info"><b>实现细节（容易被忽视的两点）：</b>①工具链文件在 <code>project()</code> 之前执行，此时 <code>CMAKE_SOURCE_DIR</code> 还没有值，仓库根目录必须由 <code>CMAKE_CURRENT_LIST_DIR</code> 反推，否则 <code>tools/toolchain</code> 这一级永远命中不了；②<code>find_program</code> 会把结果写进 cache，且变量一旦有定义就跳过搜索，所以每个前缀候选都要先 <code>unset</code>（普通变量与 cache 两处），否则重复配置时会沿用上一轮结果，出现“前缀标签是 A、实际编译器是 B”的错配。配置末尾新增了文件名一致性自检，专门拦这种情况。</div>
+
 <p>前缀同样是“给定优先、否则按发行包命名依次尝试”：用户指定的值 → <code>riscv32-unknown-elf</code>（官方 riscv-gnu-toolchain）→ <code>riscv-none-elf</code>（xPack）→ <code>riscv64-unknown-elf</code>（用 <code>-march=rv32*</code> 也能出 rv32 目标）。命中即停止。</p>
 
 <h2><span class="no">04</span>配置参数</h2>
@@ -281,15 +284,57 @@ ln -s $HOME/tools/xpack-gcc tools/toolchain
 </table>
 </div>
 
-<h2><span class="no">07</span>旧 Makefile 路径（仍然保留）</h2>
-<p><code>construct/build.sh</code> 走的是另一条老链路，不改也不影响 CMake 构建：</p>
+<h2><span class="no">07</span>Makefile 路径（已同步改为自适应）</h2>
+<p><code>construct/build_make.sh</code> 只做两件事：<code>source construct/script/env.sh</code> 拿到环境，然后对每个目标名跑一次 <code>make</code>。所以适配能力全部落在 <code>env.sh</code>，与 CMake 侧同一套顺序：</p>
 <ol>
-  <li>工具链压缩包放到 <code>/home/&lt;user&gt;/tools/toolchains</code>，例如 <code>riscv32-unknown-elf.tar.gz</code>；</li>
-  <li>把 <code>construct/script/env.sh</code> 的 <code>compiler_name</code> 改成对应前缀；</li>
-  <li>脚本检查该路径下是否存在 <code>${compiler_name}.tar.gz</code>，缺失则报 <code>Error: not fount ...tar.gz</code>；</li>
-  <li>解压后导出 <code>CROSS_COMPILER_PATH</code>、<code>QEMU_PATH</code>、<code>COMM_MK</code>、<code>CFG_MK</code>、<code>MODULE_MK</code>、<code>OUTPUT_PATH</code>。</li>
+  <li>显式指定 <code>OSZ_CROSS_ROOT</code> / <code>OSZ_CROSS_PREFIX</code>（支持 <code>&lt;root&gt;/bin</code> 与 <code>&lt;root&gt;/&lt;prefix&gt;/bin</code> 两种布局）；</li>
+  <li>仓库 <code>tools/toolchain</code>（目录或符号链接，已 git-ignore）；</li>
+  <li>旧路径 <code>~/tools/toolchains</code>：已解压的 <code>&lt;prefix&gt;/bin</code> 可直接用；只有 <code>&lt;prefix&gt;.tar.gz</code> 时自动解压到该目录再重试；</li>
+  <li>PATH 中的 <code>&lt;prefix&gt;-gcc</code>。</li>
 </ol>
-<div class="callout info"><b>迁移建议：</b>新机器直接用 <code>build_cmake.sh</code>；<code>env.sh</code> 一块维持现状，避免两套配置互相打架。若要把老路径也做成自适应，参照第 03 节的查找顺序改造 <code>env.sh</code> 即可，但需同步 <code>build_make.sh</code> 的验证。</div>
+<p>前缀候选同样是“给定优先 → <code>riscv32-unknown-elf</code> → <code>riscv-none-elf</code> → <code>riscv64-unknown-elf</code>”。解析结果通过三个变量往下传，Makefile 里不再有任何写死的前缀或版本号：</p>
+
+<div class="tbl-wrap">
+<table class="nw">
+  <tr><th>变量</th><th>来源 / 默认</th><th>在 Makefile 里的落点</th></tr>
+  <tr><td><code>CROSS_COMPILER_PREFIX</code></td><td>env.sh 探测结果</td><td><code>comm.mk</code> 的 <code>G_COMPILER_NAME</code>，拼出 <code>CC/LD/AR/OBJDUMP/OBJCOPY/GDB</code></td></tr>
+  <tr><td><code>CROSS_COMPILER_PATH</code></td><td>env.sh 探测结果</td><td><code>comm.mk</code> 的 <code>CROSS</code> 前缀路径</td></tr>
+  <tr><td><code>OSZ_CROSS_ARCH</code></td><td>env.sh / 默认 <code>rv32g</code></td><td><code>comm.mk</code> 的 <code>G_MARCH</code> → <code>module.mk</code> 的 <code>-march</code></td></tr>
+  <tr><td><code>OSZ_CROSS_ABI</code></td><td>env.sh / 默认 <code>ilp32d</code></td><td><code>comm.mk</code> 的 <code>G_MABI</code> → <code>module.mk</code> 的 <code>-mabi</code></td></tr>
+  <tr><td><code>QEMU_PATH</code></td><td>env.sh / 默认 <code>tools/qemu</code></td><td><code>Makefile</code> 的 <code>QEMU</code>，仅 <code>run</code>/<code>debug</code> 使用</td></tr>
+</table>
+</div>
+
+<p>三个“未设置时与旧版一致”的默认值：前缀 <code>riscv32-unknown-elf</code>、<code>-march=rv32g</code>、<code>-mabi=ilp32d</code>。所以只在官方工具链机器上开发的同事，行为零变化。</p>
+
+<pre><code># 老路径（完全不动）
+bash construct/build_make.sh all
+
+# 换机器：两个变量，不改任何仓库文件
+export OSZ_CROSS_ROOT=/opt/xpack-riscv-none-elf-gcc-15.2.0-1
+export OSZ_CROSS_PREFIX=riscv-none-elf
+bash construct/build_make.sh all
+
+# 工具链放在仓库里（该目录已 git-ignore）
+ln -s $HOME/tools/xpack-gcc tools/toolchain
+bash construct/build_make.sh all
+
+# 目标参数需要改（例如给只有软浮点的工具链）
+export OSZ_CROSS_ARCH=rv32imac OSZ_CROSS_ABI=ilp32
+bash construct/build_make.sh all</code></pre>
+
+<h3>与旧版的四处行为差异</h3>
+<div class="tbl-wrap">
+<table>
+  <tr><th>旧行为</th><th>现行为</th><th>原因</th></tr>
+  <tr><td>强制 <code>ln -s ~/tools/toolchains tools/toolchain</code>，再要求 <code>tools/toolchain/&lt;prefix&gt;/bin</code></td><td>不再创建链接；先按四个来源查找，找不到才回退旧路径解压</td><td>写死目录结构，换机器必挂；且会覆盖用户已放好的 <code>tools/toolchain</code></td></tr>
+  <tr><td>工具链不在位时报 <code>Error: not fount …tar.gz</code></td><td>报四个来源清单 + 两种修复方式</td><td>原错误信息只指出“缺压缩包”，与真实原因（工具链在别处）无关</td></tr>
+  <tr><td>QEMU 目录/Tar 不在位直接 <code>exit -1</code></td><td>只告警，编译照常进行</td><td>编译不需要 QEMU；把 run/debug 的前置条件当成全局前置条件会挡住纯构建</td></tr>
+  <tr><td>任何主机都解压仓库自带 qemu 包</td><td>仅 Linux 主机解压；其他主机提示自行提供</td><td><code>tools/qemu.tar.gz</code> 是 Linux/x86_64 包，在 macOS 上解压只会得到不可执行文件</td></tr>
+</table>
+</div>
+
+<div class="callout warn"><b>与 CMake 路径的唯一能力差异：</b>Makefile 侧没有 C++ 语言，因此不存在 <code>OSZ_REQUIRE_CXX</code> 这类闸门；C++ 前端缺失对 Make 构建无影响。若某天有人往 Make 构建里塞 <code>.cpp</code>，需要另行处理。</div>
 
 <h2><span class="no">08</span>排错手册</h2>
 <div class="tbl-wrap">
@@ -301,6 +346,10 @@ ln -s $HOME/tools/xpack-gcc tools/toolchain
   <tr><td><code>tools/toolchain</code> 指向不存在的 <code>/home/xxx</code></td><td>旧提交把符号链接纳入了版本控制</td><td>本版已从 git 移除并忽略；本机重新指向自己的工具链即可</td></tr>
   <tr><td>配置报“找不到 RISC-V 交叉工具链”</td><td>四个来源都没命中</td><td>按提示设置 <code>OSZ_CROSS_ROOT</code>/<code>OSZ_CROSS_PREFIX</code>，或把 <code>&lt;prefix&gt;-gcc</code> 放进 PATH</td></tr>
   <tr><td>ELF 产出但地址不对</td><td>链接脚本选择错误</td><td>确认 <code>-T construct/osz.ld</code>，并用 <code>readelf -h</code> 核对 entry 与段地址</td></tr>
+  <tr><td>日志里 <code>[TOOLCHAIN] 前缀 riscv32-unknown-elf</code>，但 bin 目录里是 <code>riscv-none-elf-gcc</code></td><td>①<code>find_program</code> 缓存未清，变量已定义就跳过搜索；②toolchain 文件在 <code>project()</code> 之前执行，<code>CMAKE_SOURCE_DIR</code> 为空，<code>tools/toolchain</code> 一级查不到</td><td>已修：每轮 <code>unset</code> 普通变量与 cache、改用 <code>CMAKE_CURRENT_LIST_DIR</code> 推仓库根，并新增编译器文件名一致性自检</td></tr>
+  <tr><td>换工具链后重新 configure，仍用旧编译器路径</td><td>编译器路径固化在 <code>CMakeCache.txt</code></td><td>删除构建目录重新配置（<code>rm -rf build</code>）</td></tr>
+  <tr><td>Make 路径报 <code>unterminated call to function `shell'</code>（Makefile:13）</td><td>make 把未转义的 <code>#</code> 当成注释起点，<code>grep '^#'</code> 被截断；GNU make 3.81（macOS 自带）直接报错</td><td>已修：改用 <code>awk -F= 'NF&gt;1'</code> 只取含 <code>=</code> 的行，语义等价</td></tr>
+  <tr><td>Make 路径编译成功但 <code>run</code>/<code>debug</code> 找不到 qemu</td><td>本机无 <code>tools/qemu/bin/qemu-system-riscv32</code>，或自带包不是本机平台</td><td>编译不受影响；需要运行验证时自行安装匹配平台的 QEMU，或设置 <code>QEMU_PATH</code></td></tr>
 </table>
 </div>
 
@@ -312,8 +361,15 @@ ln -s $HOME/tools/xpack-gcc tools/toolchain
   <tr><td>仅环境变量</td><td><code>export OSZ_CROSS_ROOT/PREFIX</code> 后直接 configure</td><td>ELF32 生成成功</td></tr>
   <tr><td>仅 <code>tools/toolchain</code></td><td>符号链接指向工具链根目录，不设环境变量</td><td>前缀自动探测为 <code>riscv-none-elf</code>，ELF32 生成成功</td></tr>
   <tr><td>强制 C++ 前端</td><td><code>-DOSZ_REQUIRE_CXX=TRUE</code></td><td>配置阶段失败并给出明确原因</td></tr>
+  <tr><td>全新目录、零配置（仅 <code>tools/toolchain</code> 符号链接）</td><td>空 build 目录直接 configure + build</td><td>前缀自动探测为 <code>riscv-none-elf</code>，产出 ELF（191880 B），修复前此场景直接配置失败</td></tr>
+  <tr><td>复用曾被误标前缀的旧缓存目录</td><td>重新 configure + build</td><td>日志前缀修正为 <code>riscv-none-elf</code>，构建通过</td></tr>
+  <tr><td>隐藏 <code>tools/toolchain</code>、仅环境变量</td><td><code>OSZ_CROSS_ROOT=…</code> 直接 configure</td><td>命中 xPack 根目录，前缀自动探测成功</td></tr>
+  <tr><td>指定不存在的根目录</td><td><code>-DOSZ_CROSS_ROOT=/nope</code></td><td>配置阶段报“未找到”，列出三候选前缀并提示两种修复方式</td></tr>
   <tr><td>两种内存配置</td><td><code>OSZ_CFG_MEM_DEBUG</code> 关 / 开</td><td>text 57956 B / 59308 B；关闭版无自检符号，开启版多 2 个，功能路径一致</td></tr>
   <tr><td>宿主机单测回归</td><td><code>test_mem</code> / <code>test_mem_debug</code></td><td>各 23/23 通过</td></tr>
+  <tr><td>Make 路径 + <code>OSZ_CROSS_ROOT</code></td><td><code>OSZ_CROSS_ROOT=… bash construct/build_make.sh all</code></td><td>全模块编译链接通过，产出 <code>output/image/osz.elf</code>（ELF32 RISC-V，entry <code>0x80000000</code>）</td></tr>
+  <tr><td>Make 路径 + 仅 <code>tools/toolchain</code>（无环境变量）</td><td>符号链接指向工具链根目录后直接 <code>build_make.sh all</code></td><td>前缀自动探测为 <code>riscv-none-elf</code>，构建通过，ELF 与上一条同为 201372 B</td></tr>
+  <tr><td>Make 路径 + 无任何配置</td><td>清空 <code>OSZ_CROSS_*</code> 后运行</td><td>打印四个来源清单与修复方法后退出，不再报“缺 tar.gz”</td></tr>
   <tr><td>QEMU 运行</td><td><code>target_qemu_run</code></td><td><b>未验证</b>：本机无 <code>qemu-system-riscv32</code>，需先安装或用 spike 另行验证</td></tr>
 </table>
 </div>
@@ -335,7 +391,7 @@ rm -rf build            # 换编译器后必须清缓存，否则 CMAKE_C_COMPIL
 <div class="callout warn"><b>换工具链必须清构建目录：</b>编译器路径写在 <code>CMakeCache.txt</code> 里，只改环境变量重新 configure 不会替换它。</div>
 
 <footer>
-  OSZ 内核 · 交叉编译工具链配置 v1.0 · 基线 main <code>7e2cf67</code> · 2026-11-24<br>
+  OSZ 内核 · 交叉编译工具链配置 v1.1 · 基线 main 2026-11-24 · 2026-11-24<br>
   本文替代原 <code>compile_tool_config.md</code>；如与脚本文本冲突，以脚本为准并回写本文。
 </footer>
 

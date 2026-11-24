@@ -2,7 +2,11 @@
 COMM_CURRENT_PATH := $(abspath $(lastword $(MAKEFILE_LIST)))
 
 # set compiler info
-G_COMPILER_NAME := riscv32-unknown-elf
+# CROSS_COMPILER_PREFIX / OSZ_CROSS_ARCH / OSZ_CROSS_ABI 由 construct/script/env.sh 探测后导出，
+# 未导出时回落到默认值（官方 riscv-gnu-toolchain 命名）
+G_COMPILER_NAME := $(if $(CROSS_COMPILER_PREFIX),$(CROSS_COMPILER_PREFIX),riscv32-unknown-elf)
+G_MARCH := $(if $(OSZ_CROSS_ARCH),$(OSZ_CROSS_ARCH),rv32g)
+G_MABI := $(if $(OSZ_CROSS_ABI),$(OSZ_CROSS_ABI),ilp32d)
 CROSS = $(CROSS_COMPILER_PATH)/$(G_COMPILER_NAME)-
 CC = $(CROSS)gcc
 LD = $(CROSS)ld

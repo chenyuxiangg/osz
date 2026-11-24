@@ -56,24 +56,38 @@ endif()
 list(APPEND _osz_prefix_candidates riscv32-unknown-elf riscv-none-elf riscv64-unknown-elf)
 
 set(TOOLCHAIN_PREFIX "")
+# 注意：toolchain 文件在 project() 之前执行，此时 CMAKE_SOURCE_DIR 尚未定义，
+# 仓库根目录必须从本文件位置推出来
+get_filename_component(_osz_project_root "${CMAKE_CURRENT_LIST_DIR}/../.." ABSOLUTE)
 foreach(_p ${_osz_prefix_candidates})
+    # find_program 会把结果写入 cache，且变量一旦有定义就跳过搜索，
+    # 必须同时清掉 cache 与普通变量：否则更换根目录/候选前缀后仍沿用上一轮结果，
+    # 导致前缀标签与实际编译器不一致（曾把 riscv-none-elf 的 gcc 报成
+    # riscv32-unknown-elf 前缀）
+    unset(_osz_gcc)
+    unset(_osz_gcc CACHE)
+
     # 搜索顺序：用户根目录 → 仓库 tools/toolchain（扁平 / 带前缀两种布局）→ PATH
     set(_osz_hints "")
     if(OSZ_CROSS_ROOT)
         list(APPEND _osz_hints "${OSZ_CROSS_ROOT}/bin")
     endif()
     list(APPEND _osz_hints
-        "${CMAKE_SOURCE_DIR}/tools/toolchain/bin"
-        "${CMAKE_SOURCE_DIR}/tools/toolchain/${_p}/bin")
+        "${_osz_project_root}/tools/toolchain/bin"
+        "${_osz_project_root}/tools/toolchain/${_p}/bin")
 
     find_program(_osz_gcc NAMES "${_p}-gcc" PATHS ${_osz_hints} NO_DEFAULT_PATH)
     if(NOT _osz_gcc)
         find_program(_osz_gcc NAMES "${_p}-gcc")     # 兜底：PATH
     endif()
     if(_osz_gcc)
-        set(TOOLCHAIN_PREFIX "${_p}")
-        get_filename_component(OSZ_TOOLCHAIN_BIN "${_osz_gcc}" DIRECTORY)
-        break()
+        # 命中值必须真的叫 <prefix>-gcc，防止缓存/误配把别的前缀算进来
+        get_filename_component(_osz_gcc_name "${_osz_gcc}" NAME)
+        if(_osz_gcc_name STREQUAL "${_p}-gcc")
+            set(TOOLCHAIN_PREFIX "${_p}")
+            get_filename_component(OSZ_TOOLCHAIN_BIN "${_osz_gcc}" DIRECTORY)
+            break()
+        endif()
     endif()
 endforeach()
 
@@ -109,6 +123,14 @@ endforeach()
 
 if(NOT CMAKE_C_COMPILER)
     message(FATAL_ERROR "找不到 ${TOOLCHAIN_PREFIX}-gcc")
+endif()
+
+# 一致性自检：探测出的前缀必须与实际编译器文件名一致，否则说明用到了缓存的旧编译器
+get_filename_component(_osz_cc_name "${CMAKE_C_COMPILER}" NAME)
+if(NOT _osz_cc_name STREQUAL "${TOOLCHAIN_PREFIX}-gcc")
+    message(FATAL_ERROR
+        "工具链自检失败：探测前缀为 ${TOOLCHAIN_PREFIX}，实际编译器却是 ${CMAKE_C_COMPILER}。"
+        "换过工具链请删除构建目录后重新配置。")
 endif()
 if(NOT CMAKE_AR OR NOT CMAKE_OBJCOPY)
     message(FATAL_ERROR "工具链不完整：缺少 ${TOOLCHAIN_PREFIX}-ar 或 -objcopy")

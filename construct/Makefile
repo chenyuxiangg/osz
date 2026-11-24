@@ -10,7 +10,9 @@ SRCTREE = $(abspath ..)
 # Parse .config file and set Make variables
 ifneq ("$(wildcard $(OUTPUT_CONFIG))","")
 # Read .config, skip comments and empty lines
-CONFIG_LINES := $(shell grep -v '^#' $(OUTPUT_CONFIG) 2>/dev/null | grep -v '^$$')
+# 说明：make 会把未转义的 '#' 之后当作注释，故不用 grep '^#'，
+#       改用 awk 只保留含 '=' 的行（kconfig 注释行不含 '='，语义等价）
+CONFIG_LINES := $(shell awk -F= 'NF>1' $(OUTPUT_CONFIG) 2>/dev/null)
 # For each line, set variable
 $(foreach line,$(CONFIG_LINES),\
 	$(if $(findstring =,$(line)),\
