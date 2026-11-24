@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OSZ 交叉编译工具链配置说明</title>
+<style>
+:root{
+  --ink:#16232b; --muted:#5d6a76; --line:#dfe6ec; --bg:#ffffff; --soft:#f6f9fa;
+  --brand:#0f6b5c; --brand-soft:#e7f2ef; --warn:#a8620a; --warn-soft:#fff8ea;
+  --bad:#9d2f2f; --bad-soft:#fbebeb; --code:#0d5248;
+}
+*{box-sizing:border-box}
+body{margin:0; background:var(--soft); color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  font-size:15px; line-height:1.75; -webkit-text-size-adjust:100%}
+.page{max-width:1080px; margin:0 auto; background:var(--bg); padding:44px 56px 56px;
+  box-shadow:0 1px 2px rgba(0,0,0,.05)}
+h1{font-size:26px; line-height:1.35; margin:0 0 6px; letter-spacing:.02em}
+.sub{color:var(--muted); font-size:13.5px; margin:0 0 22px}
+.meta{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px 26px;
+  border:1px solid var(--line); border-radius:10px; padding:14px 18px; margin:18px 0 30px; background:var(--soft)}
+.meta div{font-size:13.5px; color:var(--muted)}
+.meta b{display:block; color:var(--ink); font-size:14px; font-weight:600}
+h2{font-size:19px; margin:38px 0 14px; padding-left:12px; border-left:4px solid var(--brand)}
+h2 .no{color:var(--brand); font-weight:700; margin-right:8px; font-variant-numeric:tabular-nums}
+h3{font-size:16px; margin:26px 0 10px; color:var(--brand)}
+p{margin:10px 0}
+ul,ol{margin:10px 0 10px 22px}
+li{margin:6px 0}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:13px;
+  background:#f0f5f4; color:var(--code); padding:1px 5px; border-radius:4px; word-break:break-word}
+pre{background:#0f1c22; color:#dbe7ea; padding:16px 18px; border-radius:10px; overflow-x:auto;
+  font-size:13px; line-height:1.65; margin:12px 0}
+pre code{background:none; color:inherit; padding:0; font-size:13px}
+.tbl-wrap{overflow-x:auto; margin:12px 0}
+table{border-collapse:collapse; width:100%; font-size:13.5px; min-width:560px}
+th,td{border:1px solid var(--line); padding:9px 11px; text-align:left; vertical-align:top}
+th{background:var(--brand-soft); color:#0d5248; font-weight:600; white-space:nowrap}
+tr:nth-child(even) td{background:#fbfdfd}
+td b{font-weight:600}
+.params td:first-child,.params td:nth-child(2),.params td:nth-child(3){white-space:nowrap}
+.params td{word-break:keep-all}
+.callout{border-radius:10px; padding:13px 16px; margin:16px 0; font-size:13.5px; line-height:1.7}
+.callout.info{background:var(--brand-soft); border-left:3px solid var(--brand)}
+.callout.warn{background:var(--warn-soft); border-left:3px solid var(--warn); color:#5a3808}
+.callout.bad{background:var(--bad-soft); border-left:3px solid var(--bad); color:#6d2424}
+figure{margin:18px 0 8px}
+svg{width:100%; height:auto; display:block; border:1px solid var(--line); border-radius:10px; background:#fff}
+figcaption{color:var(--muted); font-size:12.5px; text-align:center; margin-top:8px}
+.kpi{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin:16px 0 6px}
+.kpi .box{border:1px solid var(--line); border-radius:10px; padding:12px 14px; background:#fff}
+.kpi .box b{display:block; font-size:15px; color:var(--brand); margin-bottom:2px}
+.kpi .box span{font-size:12.5px; color:var(--muted); line-height:1.6}
+footer{margin-top:44px; padding-top:14px; border-top:1px solid var(--line);
+  color:var(--muted); font-size:12.5px; text-align:center}
+@media (max-width:720px){
+  .page{padding:26px 18px 34px}
+  h1{font-size:22px} h2{font-size:17px; margin-top:30px} h3{font-size:15px}
+  .meta{grid-template-columns:1fr}
+  .kpi{grid-template-columns:1fr 1fr}
+  table{min-width:480px; font-size:13px}
+  pre{font-size:12px; padding:12px}
+  th,td{padding:7px 9px}
+}
+@media print{
+  body{background:#fff} .page{box-shadow:none; max-width:none; padding:0}
+  h2{break-after:avoid} figure,table,pre{break-inside:avoid}
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+<h1>OSZ 交叉编译工具链配置说明</h1>
+<p class="sub">从“改脚本适配一台机器”到“设两个环境变量适配任意工具链”</p>
+
+<div class="meta">
+  <div><b>文档版本</b>v1.0（自适应工具链已落地）</div>
+  <div><b>更新日期</b>2026-11-24</div>
+  <div><b>代码基线</b>main <code>7e2cf67</code></div>
+  <div><b>适用对象</b>在非 Linux 主机 / 非官方工具链上构建 rv32 目标的人</div>
+</div>
+
+<h2><span class="no">01</span>结论先行</h2>
+<p>旧脚本把三件事写死在仓库里：工具链<strong>前缀</strong>（<code>riscv32-unknown-elf</code>）、工具链<strong>目录</strong>（<code>tools/toolchain</code> 符号链接指向某个绝对路径）、<strong>gcc 版本目录</strong>（<code>lib/gcc/.../14.2.0</code>）。任何一条不匹配，配置阶段就失败，而这些都在受版本控制的文件里，换机器就必须改代码。</p>
+<p>现在的做法是：仓库只负责“按约定找工具链”，具体路径由使用者用两个变量提供，其余信息（sysroot、libgcc 位置、是否带 C++ 前端）由编译器自己回答。</p>
+
+<div class="kpi">
+  <div class="box"><b>2 个变量</b><span><code>OSZ_CROSS_ROOT</code> / <code>OSZ_CROSS_PREFIX</code></span></div>
+  <div class="box"><b>3 级回退</b><span>-D 参数 → 环境变量 → <code>tools/toolchain</code> → PATH</span></div>
+  <div class="box"><b>0 处硬编码</b><span>目录结构、gcc 版本、C++ 前端都不再假设</span></div>
+  <div class="box"><b>同一产物</b><span>rv32 ELF，链接脚本与会话常量保持不变</span></div>
+</div>
+
+<h2><span class="no">02</span>当前交叉编译架构</h2>
+<p>本机实际跑通的链路如下：主机是 macOS（arm64），工具链是 xPack 的 <code>riscv-none-elf-gcc 15.2.0</code>，目标 <code>rv32g / ilp32d</code>，产物是 32 位 RISC-V 静态 ELF。</p>
+
+<figure>
+<svg viewBox="0 0 960 300" role="img" aria-label="当前交叉编译链路">
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#0f6b5c"/>
+    </marker>
+    <marker id="arw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#a8620a"/>
+    </marker>
+  </defs>
+
+  <rect x="24" y="34" width="190" height="76" rx="10" fill="#f7fbfa" stroke="#b9c7d1"/>
+  <text x="119" y="60" font-size="12.5" text-anchor="middle" font-weight="600">源码与构建输入</text>
+  <text x="119" y="80" font-size="11" text-anchor="middle" fill="#5d6a76">kernel / arch / targets</text>
+  <text x="119" y="98" font-size="11" text-anchor="middle" fill="#5d6a76">construct/osz.ld　Kconfig</text>
+
+  <rect x="254" y="34" width="210" height="76" rx="10" fill="#e7f2ef" stroke="#0f6b5c"/>
+  <text x="359" y="60" font-size="12.5" text-anchor="middle" font-weight="600">CMake 配置阶段</text>
+  <text x="359" y="80" font-size="11" text-anchor="middle" fill="#0d5248">toolchain.cmake 探测前缀</text>
+  <text x="359" y="98" font-size="11" text-anchor="middle" fill="#0d5248">查询 sysroot / libgcc / cc1plus</text>
+
+  <rect x="504" y="34" width="200" height="76" rx="10" fill="#fff" stroke="#b9c7d1"/>
+  <text x="604" y="60" font-size="12.5" text-anchor="middle" font-weight="600">交叉编译</text>
+  <text x="604" y="80" font-size="11" text-anchor="middle" fill="#5d6a76">-march=rv32g -mabi=ilp32d</text>
+  <text x="604" y="98" font-size="11" text-anchor="middle" fill="#5d6a76">-ffreestanding -nostdlib</text>
+
+  <rect x="504" y="150" width="200" height="72" rx="10" fill="#fff" stroke="#b9c7d1"/>
+  <text x="604" y="176" font-size="12.5" text-anchor="middle" font-weight="600">链接</text>
+  <text x="604" y="196" font-size="11" text-anchor="middle" fill="#5d6a76">-nostartfiles --gc-sections</text>
+  <text x="604" y="213" font-size="11" text-anchor="middle" fill="#5d6a76">-T construct/osz.ld</text>
+
+  <rect x="744" y="34" width="190" height="76" rx="10" fill="#fff8ea" stroke="#a8620a"/>
+  <text x="839" y="60" font-size="12.5" text-anchor="middle" font-weight="600">产物</text>
+  <text x="839" y="80" font-size="11" text-anchor="middle" fill="#68400a">ELF32 RISC-V，静态</text>
+  <text x="839" y="98" font-size="11" text-anchor="middle" fill="#68400a">entry 0x80000000</text>
+
+  <rect x="744" y="150" width="190" height="72" rx="10" fill="#f6f9fa" stroke="#b9c7d1"/>
+  <text x="839" y="176" font-size="12.5" text-anchor="middle" font-weight="600">运行（可选）</text>
+  <text x="839" y="196" font-size="11" text-anchor="middle" fill="#5d6a76">qemu-system-riscv32</text>
+  <text x="839" y="213" font-size="11" text-anchor="middle" fill="#5d6a76">或 spike</text>
+
+  <line x1="214" y1="72" x2="250" y2="72" stroke="#0f6b5c" marker-end="url(#ar)"/>
+  <line x1="464" y1="72" x2="500" y2="72" stroke="#0f6b5c" marker-end="url(#ar)"/>
+  <line x1="704" y1="72" x2="740" y2="72" stroke="#0f6b5c" marker-end="url(#ar)"/>
+
+  <line x1="604" y1="110" x2="604" y2="146" stroke="#0f6b5c" marker-end="url(#ar)"/>
+  <line x1="704" y1="186" x2="740" y2="186" stroke="#a8620a" marker-end="url(#arw)"/>
+
+  <rect x="24" y="150" width="440" height="112" rx="10" fill="#fbfcfd" stroke="#dfe6ec"/>
+  <text x="44" y="176" font-size="12" font-weight="600" fill="#0f6b5c">内存布局（construct/osz.ld）</text>
+  <text x="44" y="198" font-size="11.5" fill="#4d6270">FLASH　0x80000000　启动代码 / 常量（entry 在此）</text>
+  <text x="44" y="218" font-size="11.5" fill="#4d6270">DTCM 　0x84000000　64 MiB：栈、.bss、系统堆</text>
+  <text x="44" y="238" font-size="11.5" fill="#4d6270">系统堆 = __system_heap_start .. __system_heap_end</text>
+</svg>
+<figcaption>图 2-1 当前交叉编译与运行链路（本机已跑通到 ELF，运行环节未验证）</figcaption>
+</figure>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th>环节</th><th>本项目取值</th><th>是否可配置</th></tr>
+  <tr><td>主机</td><td>macOS（arm64）；Linux 同样适用</td><td>—</td></tr>
+  <tr><td>工具链前缀</td><td>本机实测 <code>riscv-none-elf</code>（xPack GCC 15.2.0）</td><td><code>OSZ_CROSS_PREFIX</code></td></tr>
+  <tr><td>工具链根目录</td><td>本机 <code>/Users/zyzs/tools/riscv/xpack-riscv-none-elf-gcc-15.2.0-1</code></td><td><code>OSZ_CROSS_ROOT</code></td></tr>
+  <tr><td>目标架构 / ABI</td><td><code>rv32g</code> / <code>ilp32d</code></td><td><code>OSZ_CROSS_ARCH</code> / <code>OSZ_CROSS_ABI</code></td></tr>
+  <tr><td>编译特征</td><td><code>-ffreestanding -nostdlib -g</code></td><td>工具链文件内固定</td></tr>
+  <tr><td>链接特征</td><td><code>-nostdlib -nostartfiles -Wl,--gc-sections -T osz.ld</code></td><td>工具链文件内固定</td></tr>
+  <tr><td>产物</td><td><code>build/targets/qemu_virt/target_qemu</code>（ELF32，静态）</td><td>—</td></tr>
+  <tr><td>验证命令</td><td><code>file</code> / <code>readelf -h</code> / <code>nm</code>（工具链自带 binutils）</td><td>—</td></tr>
+</table>
+</div>
+
+<div class="callout info"><b>为什么强调“编译器自己回答”：</b>sysroot 与 libgcc 的实际位置由发行包的布局决定，官方 riscv-gnu-toolchain 是 <code>&lt;prefix&gt;/riscv32-unknown-elf/lib</code>，xPack 是 <code>&lt;prefix&gt;/riscv-none-elf/lib</code>，版本号还会随升级变化。用 <code>--print-sysroot</code> 与 <code>-print-file-name=libgcc.a</code> 问编译器，就不会再出现“升一版 gcc 就要改脚本”的情况。</div>
+
+<h2><span class="no">03</span>工具链查找与选择机制</h2>
+<p><code>construct/cmake/riscv32_toolchain.cmake</code> 在 <code>project()</code> 之前生效，负责把编译器与一套 binutils 注册给 CMake。</p>
+
+<figure>
+<svg viewBox="0 0 900 420" role="img" aria-label="工具链查找流程">
+  <defs>
+    <marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#0f6b5c"/>
+    </marker>
+    <marker id="ar2w" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#a8620a"/>
+    </marker>
+  </defs>
+
+  <rect x="330" y="12" width="240" height="44" rx="10" fill="#e7f2ef" stroke="#0f6b5c"/>
+  <text x="450" y="39" font-size="12.5" text-anchor="middle">开始配置（project() 之前）</text>
+
+  <polygon points="450,88 610,124 450,160 290,124" fill="#fff8ea" stroke="#a8620a"/>
+  <text x="450" y="120" font-size="11.5" text-anchor="middle">-DOSZ_CROSS_ROOT / PREFIX？</text>
+  <text x="450" y="138" font-size="10.5" text-anchor="middle" fill="#68400a">命令行优先级最高</text>
+
+  <polygon points="450,188 610,224 450,260 290,224" fill="#fff8ea" stroke="#a8620a"/>
+  <text x="450" y="220" font-size="11.5" text-anchor="middle">同名环境变量？</text>
+  <text x="450" y="238" font-size="10.5" text-anchor="middle" fill="#68400a">OSZ_CROSS_*</text>
+
+  <polygon points="450,288 610,324 450,360 290,324" fill="#fff8ea" stroke="#a8620a"/>
+  <text x="450" y="320" font-size="11.5" text-anchor="middle">仓库 tools/toolchain 下有 gcc？</text>
+  <text x="450" y="338" font-size="10.5" text-anchor="middle" fill="#68400a">可选目录或符号链接，不纳入 git</text>
+
+  <rect x="330" y="378" width="240" height="34" rx="8" fill="#fbebeb" stroke="#9d2f2f"/>
+  <text x="450" y="400" font-size="11.5" text-anchor="middle" fill="#7c2222">按候选前缀查 PATH</text>
+
+  <rect x="650" y="102" width="220" height="44" rx="10" fill="#e7f2ef" stroke="#0f6b5c"/>
+  <text x="760" y="129" font-size="12" text-anchor="middle">命中 → 注册工具链</text>
+  <rect x="650" y="202" width="220" height="44" rx="10" fill="#e7f2ef" stroke="#0f6b5c"/>
+  <text x="760" y="229" font-size="12" text-anchor="middle">命中 → 注册工具链</text>
+  <rect x="650" y="302" width="220" height="44" rx="10" fill="#e7f2ef" stroke="#0f6b5c"/>
+  <text x="760" y="329" font-size="12" text-anchor="middle">命中 → 注册工具链</text>
+  <rect x="650" y="373" width="220" height="44" rx="10" fill="#fbebeb" stroke="#9d2f2f"/>
+  <text x="760" y="395" font-size="11" text-anchor="middle" fill="#7c2222">仍失败 → FATAL_ERROR</text>
+  <text x="760" y="411" font-size="10.5" text-anchor="middle" fill="#7c2222">提示可设置的两个变量</text>
+
+  <line x1="450" y1="56" x2="450" y2="84" stroke="#0f6b5c" marker-end="url(#ar2)"/>
+  <line x1="450" y1="160" x2="450" y2="184" stroke="#0f6b5c" marker-end="url(#ar2)"/>
+  <line x1="450" y1="260" x2="450" y2="284" stroke="#0f6b5c" marker-end="url(#ar2)"/>
+  <line x1="450" y1="360" x2="450" y2="374" stroke="#0f6b5c" marker-end="url(#ar2)"/>
+  <line x1="610" y1="124" x2="646" y2="124" stroke="#a8620a" marker-end="url(#ar2w)"/>
+  <line x1="610" y1="224" x2="646" y2="224" stroke="#a8620a" marker-end="url(#ar2w)"/>
+  <line x1="610" y1="324" x2="646" y2="324" stroke="#a8620a" marker-end="url(#ar2w)"/>
+  <line x1="570" y1="395" x2="646" y2="395" stroke="#a8620a" marker-end="url(#ar2w)"/>
+</svg>
+<figcaption>图 3-1 工具链解析顺序：命令行 → 环境变量 → 仓库目录 → PATH</figcaption>
+</figure>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th>顺序</th><th>来源</th><th>说明</th></tr>
+  <tr><td>1</td><td><code>-DOSZ_CROSS_ROOT</code> / <code>-DOSZ_CROSS_PREFIX</code></td><td>优先级最高，适合脚本、CI、多工具链并存</td></tr>
+  <tr><td>2</td><td>环境变量 <code>OSZ_CROSS_*</code></td><td>只在未用 <code>-D</code> 指定时生效，适合“这台机器的默认”</td></tr>
+  <tr><td>3</td><td><code>tools/toolchain</code></td><td>支持 <code>&lt;root&gt;/bin</code> 与 <code>&lt;root&gt;/&lt;prefix&gt;/bin</code> 两种布局；目录或符号链接均可，已 git-ignore</td></tr>
+  <tr><td>4</td><td>系统 <code>PATH</code></td><td>最后的兜底，适合把工具链 bin 直接加进 PATH 的人</td></tr>
+</table>
+</div>
+
+<p>前缀同样是“给定优先、否则按发行包命名依次尝试”：用户指定的值 → <code>riscv32-unknown-elf</code>（官方 riscv-gnu-toolchain）→ <code>riscv-none-elf</code>（xPack）→ <code>riscv64-unknown-elf</code>（用 <code>-march=rv32*</code> 也能出 rv32 目标）。命中即停止。</p>
+
+<h2><span class="no">04</span>配置参数</h2>
+<div class="tbl-wrap">
+<table class="params">
+  <tr><th>变量</th><th>类型</th><th>默认</th><th>作用</th></tr>
+  <tr><td><code>OSZ_CROSS_ROOT</code></td><td>路径</td><td>空</td><td>工具链根目录（其下有 <code>bin/</code>）。空则查 <code>tools/toolchain</code> 与 PATH</td></tr>
+  <tr><td><code>OSZ_CROSS_PREFIX</code></td><td>字符串</td><td>空</td><td>如 <code>riscv-none-elf</code>；空则自动探测</td></tr>
+  <tr><td><code>OSZ_CROSS_ARCH</code></td><td>字符串</td><td><code>rv32g</code></td><td>传给 <code>-march</code></td></tr>
+  <tr><td><code>OSZ_CROSS_ABI</code></td><td>字符串</td><td><code>ilp32d</code></td><td>传给 <code>-mabi</code></td></tr>
+  <tr><td><code>OSZ_REQUIRE_CXX</code></td><td>布尔</td><td><code>OFF</code></td><td><code>TRUE</code> 时工具链必须带 <code>cc1plus</code>，否则配置阶段直接失败</td></tr>
+</table>
+</div>
+
+<pre><code># 方式一：环境变量（换机器只改这两行）
+export OSZ_CROSS_ROOT=/opt/xpack-riscv-none-elf-gcc-15.2.0-1
+export OSZ_CROSS_PREFIX=riscv-none-elf
+./construct/build_cmake.sh target_qemu
+
+# 方式二：一次性命令行参数
+cmake -S . -B build -DOSZ_CROSS_ROOT=$HOME/tools/xpack-gcc -DOSZ_CROSS_PREFIX=riscv-none-elf
+cmake --build build -j
+
+# 方式三：什么都不设，把工具链放进仓库 tools/toolchain（该目录已被 git-ignore）
+ln -s $HOME/tools/xpack-gcc tools/toolchain
+./construct/build_cmake.sh target_qemu</code></pre>
+
+<h2><span class="no">05</span>C++ 前端缺失时的处理</h2>
+<p>很多 RISC-V 发行包只装 C 前端，不带 <code>cc1plus</code>，而旧脚本用 <code>project(OSZ LANGUAGES C CXX ASM)</code> 强制探测 C++ 编译器，结果“工具链能用但配置过不去”。</p>
+<p>现在的规则：</p>
+<ol>
+  <li><code>project()</code> 只声明 <code>C ASM</code>；</li>
+  <li>工具链文件执行 <code>&lt;prefix&gt;-g++ -print-prog-name=cc1plus</code>，能解析成存在的绝对路径才置 <code>OSZ_CROSS_HAS_CXX=TRUE</code>；</li>
+  <li>为真才 <code>enable_language(CXX)</code>，否则跳过。内核没有 C++ 翻译单元，构建结果不变；</li>
+  <li>CI 或需要完整工具链的人加 <code>-DOSZ_REQUIRE_CXX=TRUE</code>，缺前端时在配置阶段就看到明确错误，而不是编译到一半才失败。</li>
+</ol>
+<div class="callout warn"><b>不要把“跳过 CXX”理解成可以随便编译 C++：</b>若将来真的引入 <code>.cpp</code> 翻译单元，缺 C++ 前端的工具链会在编译该文件时报错。<code>OSZ_REQUIRE_CXX</code> 就是给这种场景预留的显式闸门。</div>
+
+<h2><span class="no">06</span>目录与版本控制约定</h2>
+<div class="tbl-wrap">
+<table>
+  <tr><th>路径</th><th>是否纳入 git</th><th>说明</th></tr>
+  <tr><td><code>construct/cmake/riscv32_toolchain.cmake</code></td><td>是</td><td>只包含查找逻辑与编译/链接参数，不含任何绝对路径</td></tr>
+  <tr><td><code>tools/toolchain</code></td><td><b>否</b>（已加入 .gitignore）</td><td>本机的工具链目录或符号链接，属于环境而非代码</td></tr>
+  <tr><td><code>build/</code> 及各 <code>build-*</code> 目录</td><td>否</td><td>构建产物，含 <code>targets/qemu_virt/target_qemu</code></td></tr>
+</table>
+</div>
+
+<h2><span class="no">07</span>旧 Makefile 路径（仍然保留）</h2>
+<p><code>construct/build.sh</code> 走的是另一条老链路，不改也不影响 CMake 构建：</p>
+<ol>
+  <li>工具链压缩包放到 <code>/home/&lt;user&gt;/tools/toolchains</code>，例如 <code>riscv32-unknown-elf.tar.gz</code>；</li>
+  <li>把 <code>construct/script/env.sh</code> 的 <code>compiler_name</code> 改成对应前缀；</li>
+  <li>脚本检查该路径下是否存在 <code>${compiler_name}.tar.gz</code>，缺失则报 <code>Error: not fount ...tar.gz</code>；</li>
+  <li>解压后导出 <code>CROSS_COMPILER_PATH</code>、<code>QEMU_PATH</code>、<code>COMM_MK</code>、<code>CFG_MK</code>、<code>MODULE_MK</code>、<code>OUTPUT_PATH</code>。</li>
+</ol>
+<div class="callout info"><b>迁移建议：</b>新机器直接用 <code>build_cmake.sh</code>；<code>env.sh</code> 一块维持现状，避免两套配置互相打架。若要把老路径也做成自适应，参照第 03 节的查找顺序改造 <code>env.sh</code> 即可，但需同步 <code>build_make.sh</code> 的验证。</div>
+
+<h2><span class="no">08</span>排错手册</h2>
+<div class="tbl-wrap">
+<table>
+  <tr><th>现象</th><th>根因</th><th>处理</th></tr>
+  <tr><td><code>cannot execute 'cc1plus'</code></td><td>工具链缺 C++ 前端，但 CXX 被强制启用</td><td>本版已自动跳过 CXX；若被 <code>OSZ_REQUIRE_CXX=TRUE</code> 拦住则换完整工具链</td></tr>
+  <tr><td>链接阶段报 <code>cannot find qc</code> / <code>libxxx.a</code></td><td>工具注册用了共享的 <code>find_program</code> 缓存变量，<code>ar</code> 被误认成 <code>gcc</code></td><td>已修：每个工具独立变量 <code>OSZ_TOOL_&lt;tool&gt;</code></td></tr>
+  <tr><td><code>arch_adapter.h: No such file or directory</code></td><td><code>kernel/base/mem</code> 未声明对 <code>arch_riscv</code> 的依赖（只在交叉构建暴露，宿主单测走 <code>OSZ_TESTING</code> 分支）</td><td>已修：<code>PRIVATE_DEPENDENCIES arch_riscv</code></td></tr>
+  <tr><td><code>tools/toolchain</code> 指向不存在的 <code>/home/xxx</code></td><td>旧提交把符号链接纳入了版本控制</td><td>本版已从 git 移除并忽略；本机重新指向自己的工具链即可</td></tr>
+  <tr><td>配置报“找不到 RISC-V 交叉工具链”</td><td>四个来源都没命中</td><td>按提示设置 <code>OSZ_CROSS_ROOT</code>/<code>OSZ_CROSS_PREFIX</code>，或把 <code>&lt;prefix&gt;-gcc</code> 放进 PATH</td></tr>
+  <tr><td>ELF 产出但地址不对</td><td>链接脚本选择错误</td><td>确认 <code>-T construct/osz.ld</code>，并用 <code>readelf -h</code> 核对 entry 与段地址</td></tr>
+</table>
+</div>
+
+<h2><span class="no">09</span>验证记录</h2>
+<div class="tbl-wrap">
+<table>
+  <tr><th>场景</th><th>命令要点</th><th>结果</th></tr>
+  <tr><td>命令行参数（原生 xPack，无兼容目录、无 shim）</td><td><code>-DOSZ_CROSS_ROOT=… -DOSZ_CROSS_PREFIX=riscv-none-elf</code></td><td>ELF32 RISC-V 生成成功</td></tr>
+  <tr><td>仅环境变量</td><td><code>export OSZ_CROSS_ROOT/PREFIX</code> 后直接 configure</td><td>ELF32 生成成功</td></tr>
+  <tr><td>仅 <code>tools/toolchain</code></td><td>符号链接指向工具链根目录，不设环境变量</td><td>前缀自动探测为 <code>riscv-none-elf</code>，ELF32 生成成功</td></tr>
+  <tr><td>强制 C++ 前端</td><td><code>-DOSZ_REQUIRE_CXX=TRUE</code></td><td>配置阶段失败并给出明确原因</td></tr>
+  <tr><td>两种内存配置</td><td><code>OSZ_CFG_MEM_DEBUG</code> 关 / 开</td><td>text 57956 B / 59308 B；关闭版无自检符号，开启版多 2 个，功能路径一致</td></tr>
+  <tr><td>宿主机单测回归</td><td><code>test_mem</code> / <code>test_mem_debug</code></td><td>各 23/23 通过</td></tr>
+  <tr><td>QEMU 运行</td><td><code>target_qemu_run</code></td><td><b>未验证</b>：本机无 <code>qemu-system-riscv32</code>，需先安装或用 spike 另行验证</td></tr>
+</table>
+</div>
+
+<h2><span class="no">10</span>命令速查</h2>
+<pre><code># 构建
+cmake -S . -B build -DOSZ_CROSS_ROOT=&lt;root&gt; -DOSZ_CROSS_PREFIX=&lt;prefix&gt;
+cmake --build build -j8
+
+# 校验产物
+file build/targets/qemu_virt/target_qemu
+&lt;prefix&gt;-readelf -h build/targets/qemu_virt/target_qemu
+&lt;prefix&gt;-nm  build/targets/qemu_virt/target_qemu | grep inner_mem
+
+# 换工具链 / 换机器
+export OSZ_CROSS_ROOT=&lt;new root&gt;
+export OSZ_CROSS_PREFIX=&lt;new prefix&gt;
+rm -rf build            # 换编译器后必须清缓存，否则 CMAKE_C_COMPILER 沿用旧值</code></pre>
+<div class="callout warn"><b>换工具链必须清构建目录：</b>编译器路径写在 <code>CMakeCache.txt</code> 里，只改环境变量重新 configure 不会替换它。</div>
+
+<footer>
+  OSZ 内核 · 交叉编译工具链配置 v1.0 · 基线 main <code>7e2cf67</code> · 2026-11-24<br>
+  本文替代原 <code>compile_tool_config.md</code>；如与脚本文本冲突，以脚本为准并回写本文。
+</footer>
+
+</div>
+</body>
+</html>

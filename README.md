@@ -221,7 +221,7 @@ export OSZ_CROSS_PREFIX=riscv-none-elf      # 官方工具链则填 riscv32-unkn
 - [已知问题](https://github.com/chenyuxiangg/osz/blob/main/doc/kernel_doc/bugs.md) - 当前版本已知问题和解决方案
 
 ### 编译文档
-- [编译工具配置](https://github.com/chenyuxiangg/osz/blob/main/doc/compile_doc/compile_tool_config.md) - 构建系统配置指南
+- [编译工具配置](https://github.com/chenyuxiangg/osz/blob/main/doc/compile_doc/%E4%BA%A4%E5%8F%89%E7%BC%96%E8%AF%91%E5%B7%A5%E5%85%B7%E9%93%BE%E9%85%8D%E7%BD%AE.html) - 构建系统配置指南（含当前交叉编译架构与工具链自适应说明）
 
 ### 测试文档
 - [test/README.md](test/README.md) - Host 端 gtest 单元测试框架（用法、覆盖模块、添加新测试的步骤）
