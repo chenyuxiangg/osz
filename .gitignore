@@ -9,3 +9,4 @@ tools/qemu
 *.dtb
 *.dts
 opensource.tar.gz
+tools/toolchain

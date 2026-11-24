@@ -5,7 +5,17 @@ cmake_minimum_required(VERSION 3.5)
 # 编译工具链的配置必须放置在 project 前
 include(${CMAKE_SOURCE_DIR}/construct/cmake/comm.cmake)
 
-project(OSZ LANGUAGES C CXX ASM)
+project(OSZ LANGUAGES C ASM)
+
+# OSZ 内核只有 C/汇编翻译单元。C++ 语言是否启用取决于工具链是否带 cc1plus：
+#   - 精简 RISC-V 发行包常缺 C++ 前端，此时自动跳过 CXX，构建不受影响；
+#   - CI 或需要强制完整工具链时，用 -DOSZ_REQUIRE_CXX=TRUE 让配置阶段直接失败。
+if(OSZ_REQUIRE_CXX AND NOT OSZ_CROSS_HAS_CXX)
+    message(FATAL_ERROR "OSZ_REQUIRE_CXX=TRUE，但工具链缺少 C++ 前端（cc1plus）")
+endif()
+if(OSZ_CROSS_HAS_CXX)
+    enable_language(CXX)
+endif()
 
 # Set C/C++ standards
 set(CMAKE_C_STANDARD 11)

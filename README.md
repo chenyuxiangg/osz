@@ -183,6 +183,26 @@ osz/
 工具链源码：[riscv-gnu-toolchain](https://github.com/riscv-collab/riscv-gnu-toolchain)
 Commit ID: `935b263c8ef7f250819c74aeb7736c87ad87ef2b`
 
+### 适配自己机器上的工具链（无需改仓库文件）
+
+`construct/cmake/riscv32_toolchain.cmake` 不再写死前缀、目录结构和 gcc 版本号，按以下顺序查找工具链：
+
+1. `cmake -D` 参数：`-DOSZ_CROSS_ROOT=... -DOSZ_CROSS_PREFIX=...`
+2. 同名环境变量 `OSZ_CROSS_ROOT` / `OSZ_CROSS_PREFIX`
+3. 仓库内 `tools/toolchain`（**不纳入 git**，可放解压目录或符号链接）
+4. 系统 `PATH`
+
+换机器只需设置两个环境变量：
+
+```shell
+export OSZ_CROSS_ROOT=/opt/xpack-riscv-none-elf-gcc-15.2.0-1
+export OSZ_CROSS_PREFIX=riscv-none-elf      # 官方工具链则填 riscv32-unknown-elf
+./construct/build_cmake.sh target_qemu
+```
+
+可选参数：`OSZ_CROSS_ARCH`（默认 `rv32g`）、`OSZ_CROSS_ABI`（默认 `ilp32d`）、`OSZ_REQUIRE_CXX`（默认 `OFF`）。
+工具链若缺 C++ 前端（`cc1plus`），而内核没有 C++ 翻译单元，CMake 会自动跳过 CXX 语言；CI 需要强制完整工具链时用 `-DOSZ_REQUIRE_CXX=TRUE` 让配置阶段直接失败。
+
 编译配置：
 ```shell
 ./configure --prefix=/home/zyzs/code/riscv_tool_chain/install \
