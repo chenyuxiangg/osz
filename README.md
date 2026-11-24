@@ -203,6 +203,16 @@ export OSZ_CROSS_PREFIX=riscv-none-elf      # 官方工具链则填 riscv32-unkn
 可选参数：`OSZ_CROSS_ARCH`（默认 `rv32g`）、`OSZ_CROSS_ABI`（默认 `ilp32d`）、`OSZ_REQUIRE_CXX`（默认 `OFF`）。
 工具链若缺 C++ 前端（`cc1plus`），而内核没有 C++ 翻译单元，CMake 会自动跳过 CXX 语言；CI 需要强制完整工具链时用 `-DOSZ_REQUIRE_CXX=TRUE` 让配置阶段直接失败。
 
+Makefile 路径（`construct/build_make.sh`）由 `construct/script/env.sh` 实现同一套查找顺序（显式变量 → `tools/toolchain` → 旧 `~/tools/toolchains` → `PATH`），并支持 `OSZ_CROSS_ARCH` / `OSZ_CROSS_ABI` 覆盖目标参数：
+
+```shell
+export OSZ_CROSS_ROOT=/opt/xpack-riscv-none-elf-gcc-15.2.0-1
+export OSZ_CROSS_PREFIX=riscv-none-elf
+bash construct/build_make.sh all      # 产物在 output/image/osz.elf
+```
+
+QEMU 缺失只影响 `run`/`debug` 目标，不再阻断编译。
+
 编译配置：
 ```shell
 ./configure --prefix=/home/zyzs/code/riscv_tool_chain/install \

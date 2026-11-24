@@ -1,7 +1,7 @@
 # config gcc compiler global options
 CFLAGS := -nostdlib -fno-builtin -nostartfiles -nostdinc -ggdb -Wall
 CFLAGS += -ffunction-sections -fdata-sections
-CFLAGS += -march=rv32g -mabi=ilp32d
+CFLAGS += -march=$(G_MARCH) -mabi=$(G_MABI)
 CFLAGS += -fPIC -static
 CFLAGS += -I$(G_TARGETS_PATH)/platform/include
 
