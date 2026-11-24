@@ -23,6 +23,20 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# 板上系统测试镜像（P0）：默认 OFF，产品构建不受任何影响。
+# 打开后全局注入 -DOSZ_CFG_TEST=1，用于 exception_handler 的测试分支与
+# OSZ_TEST 段的 KEEP 校验；单独用 build-test 目录构建，避免污染产品构建目录。
+option(OSZ_TEST_BUILD "Build on-target system test image (target_qemu_test)" OFF)
+if(OSZ_TEST_BUILD)
+    add_compile_definitions(OSZ_CFG_TEST=1)
+    message(STATUS "OSZ_TEST_BUILD=ON: building on-target system test image")
+endif()
+
 add_subdirectory(arch)
 add_subdirectory(kernel)
+
+if(OSZ_TEST_BUILD)
+    add_subdirectory(test/sys)
+endif()
+
 add_subdirectory(targets)

@@ -59,7 +59,7 @@ __ret_task:
     mret
 
 .balign 16
-.section .stack.trap
+.section .stack.trap, "aw", @nobits
 .globl __interrupt_stack_top
 .globl __exception_stack_top
 __interrupt_stack:

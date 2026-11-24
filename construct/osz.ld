@@ -57,6 +57,10 @@ SECTIONS
 		__cmd_start = .;
 		KEEP(*(.osz_cmd))
 		__cmd_end = .;
+		. = ALIGN(0x20);
+		__test_start = .;
+		KEEP(*(.osz_test))
+		__test_end = .;
 		_data_end = .;
 	} > DTCM :data
 

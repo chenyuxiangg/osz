@@ -10,18 +10,7 @@ define_module(
     PRIVATE_DEFINITIONS
         ${OSZ_CFG_MACRO}
     PRIVATE_DEPENDENCIES
-        arch_riscv
-        k_startup
-        k_base_init
-        k_base_task
-        k_base_hook
-        k_base_sche
-        k_base_mem
-        k_base_ipc
-        k_shell
-        k_debug
-        k_drv_uart
-        k_comm
+        ${OSZ_KERNEL_MODULES}
     # QEMU配置
     ENABLE_QEMU_RUN ON
     QEMU_EXECUTABLE ${OSZ_TOOLS_DIR}/qemu/bin/qemu-system-riscv32
@@ -36,3 +25,8 @@ define_module(
     GDB_PORT 1234
     GDB_SCRIPT ${OSZ_BUILD_DIR}/script/gdbinit
 )
+
+# 板上系统测试镜像（OSZ_TEST_BUILD=ON 时才有意义）
+if(OSZ_TEST_BUILD)
+    add_subdirectory(test)
+endif()

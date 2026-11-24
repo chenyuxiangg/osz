@@ -78,7 +78,7 @@ hold:
 	j	hold
 
 .balign 16
-.section .stack
+.section .stack, "aw", @nobits
 .global __startup_stack_top
 __startup_stack:
     .space  STARTUP_STACK_SIZE

@@ -38,6 +38,7 @@ EOF
     current_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
     project_root=$(cd "${current_dir}/.." && pwd)
     build_dir="${project_root}/build"
+
     
     # If build directory doesn't exist, create it
     if [ ! -d "${build_dir}" ]; then
@@ -327,6 +328,37 @@ build_dir="${project_root}/build"
 
 echo "Project root: ${project_root}"
 echo "Build directory: ${build_dir}"
+
+# ---- 板上系统测试镜像（独立构建目录，不影响产品构建） --------------------
+#   ./construct/build_cmake.sh systest                 # 构建 target_qemu_test
+#   ./construct/build_cmake.sh systest target_qemu_test
+if [[ "$1" == "systest" ]]; then
+    shift
+    target_name="${1:-target_qemu_test}"
+    test_build_dir="${project_root}/build-test"
+    jobs="$(sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo 4)"
+
+    echo "Project root: ${project_root}"
+    echo "Test build directory: ${test_build_dir} (OSZ_TEST_BUILD=ON)"
+
+    # 有些最小化 shell 的 PATH 里没有 cmake，这里做一次显式查找
+    CMAKE_BIN="$(command -v cmake 2>/dev/null || true)"
+    if [ -z "${CMAKE_BIN}" ]; then
+        for c in /opt/homebrew/bin/cmake /usr/local/bin/cmake /Applications/CMake.app/Contents/bin/cmake; do
+            if [ -x "$c" ]; then CMAKE_BIN="$c"; break; fi
+        done
+    fi
+    if [ -z "${CMAKE_BIN}" ]; then
+        echo "Error: cmake not found (install CMake 3.10+ or add it to PATH)" >&2
+        exit 1
+    fi
+
+    "${CMAKE_BIN}" -S "${project_root}" -B "${test_build_dir}" \
+          -DOSZ_TEST_BUILD=ON -DCMAKE_BUILD_TYPE=Debug
+    "${CMAKE_BIN}" --build "${test_build_dir}" --target "${target_name}" -- -j"${jobs}"
+    echo "Built: ${test_build_dir}/${target_name}"
+    exit $?
+fi
 
 # Create build directory if it doesn't exist
 if [ ! -d "${build_dir}" ]; then
