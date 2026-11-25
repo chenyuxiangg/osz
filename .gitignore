@@ -1,4 +1,5 @@
-build
+# 所有构建产物目录（build / build-test / build-cross / build-native …）
+build*/
 output
 tools/riscv32-unknown-elf
 tools/riscv32-linux-musl
