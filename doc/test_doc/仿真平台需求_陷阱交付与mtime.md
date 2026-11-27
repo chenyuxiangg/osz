@@ -3,7 +3,7 @@
 - 提出方：OSZ（板上系统级测试框架 P0，仓库 `chenyuxiangg/osz`）
 - 平台：`riscv_sim`（wasm 内核 + 本机 `run_on_platform.mjs`），板模板 `qemu-virt`
 - 日期：2026-11-25
-- 优先级：R-1 = P0（阻塞 OS 级测试的可信度）、R-2 = P1
+- 优先级：R-1 = P0（阻塞 OS 级测试的可信度，两个内核都受影响）、R-2 = P1（仅 wasm 后端）
 
 ---
 
@@ -21,6 +21,15 @@
 `StepN` 只跑了几十万条就停，console 停在错误之前，宿主拿不到"guest 自己的
 exception handler 处理完之后的结果"。同一份 ELF 在 `qemu-system-riscv32 -machine virt`
 上，guest 的 `mtvec` handler 正常执行、异常被 guest 消费，后续用例继续跑。
+
+**两个后端都复现**（同一条野指针用例 `tmp.wild_ptr`，写 `0xF0000000`）：
+
+| 后端 | 结果 |
+| --- | --- |
+| 本机 wasm 内核（`run_on_platform.mjs`） | `halted {"reason":"Trap","pc":0x8000d5d0}`，console 停在 `case_begin tmp.wild_ptr` |
+| 远端 Rust 内核（MCP，`riscv-sim` 容器，platform_revision 1） | `stop_reason=trap`，pc=0x8000dca0，同样停在 `case_begin tmp.wild_ptr`，后续用例与 sentinel 全部丢失 |
+
+即：**这不是 wasm 特有的问题，两个内核都把"陷阱交付"当成了本轮停止**。
 
 ### 平台侧定位（供确认，不是猜测）
 
@@ -118,6 +127,10 @@ SetStopPolicy {
 
 我们实测位置：OSZ 测试套件里，一次 `drv_timer_get_time_stamp()`（=读 mtime 再除以
 `TIMER_CYCLES_PER_US`）返回了 2051 秒的绝对时间，导致单条用例耗时显示 `2051209243 ms`。
+
+**只在 wasm 内核复现**：同一份 ELF 在远端 Rust 内核（MCP）上跑，耗时显示正常
+（`ipc.event_or_clean PASS ms=2`，整套 `suite_end ms=2`）。所以 R-2 的范围是
+**wasm 后端的 64 位外设读**，不影响服务端内核。
 
 ### 期望
 
